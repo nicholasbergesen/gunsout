@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -31,20 +32,35 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gunsout.data.prefs.UserPreferences
 import com.gunsout.data.prefs.UserProfile
+import com.gunsout.data.remote.ApiKeyStore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val userPrefs: UserPreferences
+    private val userPrefs: UserPreferences,
+    private val apiKeyStore: ApiKeyStore
 ) : ViewModel() {
     val profile: StateFlow<UserProfile> = userPrefs.profile.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5_000), UserProfile()
     )
+
+    private val _apiKey = MutableStateFlow(apiKeyStore.getCalorieNinjasKey().orEmpty())
+    val apiKey: StateFlow<String> = _apiKey.asStateFlow()
+
+    fun setApiKey(value: String) {
+        _apiKey.value = value
+    }
+
+    fun saveApiKey() {
+        apiKeyStore.setCalorieNinjasKey(_apiKey.value)
+    }
 
     fun save(
         currentWeight: Double,
@@ -64,8 +80,12 @@ class SettingsViewModel @Inject constructor(
 }
 
 @Composable
-fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    onOpenLibrary: () -> Unit = {},
+    vm: SettingsViewModel = hiltViewModel()
+) {
     val profile by vm.profile.collectAsState()
+    val apiKey by vm.apiKey.collectAsState()
     val scroll = rememberScrollState()
 
     var currentWeight by remember(profile) { mutableStateOf(profile.currentBodyWeightKg.toString()) }
@@ -121,6 +141,36 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
             }
         }
 
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("CalorieNinjas API key (optional)", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Used only for the \"Look up\" button in the ingredient editor. Stored encrypted on-device. Get a free key at calorieninjas.com.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = vm::setApiKey,
+                    label = { Text("API key") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = { vm.saveApiKey() }) { Text("Save key") }
+            }
+        }
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Library", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(4.dp))
+                Text("Manage all exercises (seeded plus user-created).", style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = onOpenLibrary) { Text("Open exercise library") }
+            }
+        }
+
         Button(
             onClick = {
                 vm.save(
@@ -131,7 +181,7 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                 )
             },
             modifier = Modifier.fillMaxWidth()
-        ) { Text("Save") }
+        ) { Text("Save profile") }
     }
 }
 

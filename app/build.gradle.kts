@@ -7,6 +7,21 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+import java.util.Properties
+
+fun readBuildSecret(name: String): String {
+    val fromEnv = System.getenv(name)?.takeIf { it.isNotBlank() }
+    if (fromEnv != null) return fromEnv
+    val localProps = rootProject.file("local.properties")
+    if (localProps.exists()) {
+        val props = Properties().apply { localProps.inputStream().use { load(it) } }
+        return (props.getProperty(name) ?: "").trim()
+    }
+    return ""
+}
+
+val calorieNinjasApiKey: String = readBuildSecret("CALORIE_NINJAS_API_KEY")
+
 android {
     namespace = "com.gunsout"
     compileSdk = 36
@@ -20,6 +35,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+
+        buildConfigField("String", "CALORIE_NINJAS_API_KEY", "\"" + calorieNinjasApiKey.replace("\"", "\\\"") + "\"")
     }
 
     buildTypes {
@@ -49,6 +66,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

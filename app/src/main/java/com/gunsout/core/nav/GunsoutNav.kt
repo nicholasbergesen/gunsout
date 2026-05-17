@@ -25,6 +25,15 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.gunsout.feature.body.BodyScreen
 import com.gunsout.feature.diet.DietScreen
+import com.gunsout.feature.ingredients.IngredientEditScreen
+import com.gunsout.feature.ingredients.IngredientListScreen
+import com.gunsout.feature.library.ExerciseEditScreen
+import com.gunsout.feature.library.LibraryListScreen
+import com.gunsout.feature.mealplan.MealPlanEditScreen
+import com.gunsout.feature.mealplan.MealPlanListScreen
+import com.gunsout.feature.mealplan.MealTemplateEditScreen
+import com.gunsout.feature.program.ProgramEditScreen
+import com.gunsout.feature.program.ProgramListScreen
 import com.gunsout.feature.settings.SettingsScreen
 import com.gunsout.feature.today.TodayScreen
 import com.gunsout.feature.workout.SessionScreen
@@ -33,6 +42,7 @@ private data class NavTab(val route: String, val label: String, val icon: ImageV
 
 private val tabs = listOf(
     NavTab(Routes.TODAY, "Today", Icons.Filled.Today),
+    NavTab(Routes.PROGRAMS, "Programs", Icons.Filled.FitnessCenter),
     NavTab(Routes.DIET, "Diet", Icons.Filled.Restaurant),
     NavTab(Routes.BODY, "Body", Icons.Filled.MonitorWeight),
     NavTab(Routes.SETTINGS, "Settings", Icons.Filled.Settings)
@@ -72,23 +82,89 @@ fun GunsoutApp() {
             modifier = Modifier.padding(inner)
         ) {
             composable(Routes.TODAY) {
-                TodayScreen(
-                    onStartSession = { sessionId -> navController.navigate(Routes.session(sessionId)) }
-                )
+                TodayScreen(onStartSession = { id -> navController.navigate(Routes.session(id)) })
             }
             composable(
                 Routes.SESSION,
                 arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
             ) { entry ->
                 val id = entry.arguments?.getLong("sessionId") ?: 0L
-                SessionScreen(
-                    sessionId = id,
-                    onFinished = { navController.popBackStack() }
+                SessionScreen(sessionId = id, onFinished = { navController.popBackStack() })
+            }
+
+            composable(Routes.PROGRAMS) {
+                ProgramListScreen(onEdit = { id -> navController.navigate(Routes.program(id)) })
+            }
+            composable(
+                Routes.PROGRAM_EDIT,
+                arguments = listOf(navArgument("programId") { type = NavType.LongType })
+            ) { entry ->
+                val id = entry.arguments?.getLong("programId") ?: 0L
+                ProgramEditScreen(programId = id, onBack = { navController.popBackStack() })
+            }
+
+            composable(Routes.DIET) {
+                DietScreen(
+                    onOpenMealPlans = { navController.navigate(Routes.MEAL_PLANS) },
+                    onOpenIngredients = { navController.navigate(Routes.INGREDIENTS) }
                 )
             }
-            composable(Routes.DIET) { DietScreen() }
+            composable(Routes.MEAL_PLANS) {
+                MealPlanListScreen(onEdit = { id -> navController.navigate(Routes.mealPlan(id)) })
+            }
+            composable(
+                Routes.MEAL_PLAN_EDIT,
+                arguments = listOf(navArgument("planId") { type = NavType.LongType })
+            ) { entry ->
+                val id = entry.arguments?.getLong("planId") ?: 0L
+                MealPlanEditScreen(
+                    planId = id,
+                    onEditTemplate = { tid -> navController.navigate(Routes.mealTemplate(tid)) },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                Routes.MEAL_TEMPLATE_EDIT,
+                arguments = listOf(navArgument("templateId") { type = NavType.LongType })
+            ) { entry ->
+                val id = entry.arguments?.getLong("templateId") ?: 0L
+                MealTemplateEditScreen(templateId = id, onBack = { navController.popBackStack() })
+            }
+
+            composable(Routes.INGREDIENTS) {
+                IngredientListScreen(
+                    onEdit = { id -> navController.navigate(Routes.ingredient(id)) },
+                    onCreate = { navController.navigate(Routes.ingredient(0L)) }
+                )
+            }
+            composable(
+                Routes.INGREDIENT_EDIT,
+                arguments = listOf(navArgument("ingredientId") { type = NavType.LongType })
+            ) { entry ->
+                val id = entry.arguments?.getLong("ingredientId") ?: 0L
+                IngredientEditScreen(ingredientId = id, onBack = { navController.popBackStack() })
+            }
+
+            composable(Routes.LIBRARY) {
+                LibraryListScreen(
+                    onEdit = { id -> navController.navigate(Routes.exercise(id)) },
+                    onCreate = { navController.navigate(Routes.exercise(0L)) }
+                )
+            }
+            composable(
+                Routes.LIBRARY_EDIT,
+                arguments = listOf(navArgument("exerciseId") { type = NavType.LongType })
+            ) { entry ->
+                val id = entry.arguments?.getLong("exerciseId") ?: 0L
+                ExerciseEditScreen(exerciseId = id, onBack = { navController.popBackStack() })
+            }
+
             composable(Routes.BODY) { BodyScreen() }
-            composable(Routes.SETTINGS) { SettingsScreen() }
+            composable(Routes.SETTINGS) {
+                SettingsScreen(
+                    onOpenLibrary = { navController.navigate(Routes.LIBRARY) }
+                )
+            }
         }
     }
 }

@@ -26,7 +26,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
-fun DietScreen(vm: DietViewModel = hiltViewModel()) {
+fun DietScreen(
+    onOpenMealPlans: () -> Unit = {},
+    onOpenIngredients: () -> Unit = {},
+    vm: DietViewModel = hiltViewModel()
+) {
     val state by vm.state.collectAsState()
     val scroll = rememberScrollState()
 
@@ -39,7 +43,13 @@ fun DietScreen(vm: DietViewModel = hiltViewModel()) {
         Modifier.fillMaxWidth().padding(16.dp).verticalScroll(scroll),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Diet", style = MaterialTheme.typography.headlineMedium)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text("Diet", style = MaterialTheme.typography.headlineMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                androidx.compose.material3.TextButton(onClick = onOpenMealPlans) { Text("Plans") }
+                androidx.compose.material3.TextButton(onClick = onOpenIngredients) { Text("Ingredients") }
+            }
+        }
         state.activePlan?.let { plan ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {

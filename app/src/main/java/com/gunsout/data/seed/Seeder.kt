@@ -1,5 +1,6 @@
 package com.gunsout.data.seed
 
+import com.gunsout.BuildConfig
 import com.gunsout.data.dao.ExerciseAlternateDao
 import com.gunsout.data.dao.ExerciseDao
 import com.gunsout.data.dao.IngredientDao
@@ -22,6 +23,7 @@ import com.gunsout.data.entity.ProgramType
 import com.gunsout.data.entity.Supplement
 import com.gunsout.data.entity.SupplementUnit
 import com.gunsout.data.prefs.UserPreferences
+import com.gunsout.data.remote.ApiKeyStore
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,7 +39,8 @@ class Seeder @Inject constructor(
     private val mealTemplateDao: MealTemplateDao,
     private val ingredientDao: IngredientDao,
     private val supplementDao: SupplementDao,
-    private val userPrefs: UserPreferences
+    private val userPrefs: UserPreferences,
+    private val apiKeyStore: ApiKeyStore
 ) {
 
     suspend fun seedIfNeeded() {
@@ -48,9 +51,22 @@ class Seeder @Inject constructor(
         seedProgram(activateOnFirstRun = firstRun)
         seedMealPlan(activateOnFirstRun = firstRun)
         seedSupplements()
+        seedApiKeyFromBuildIfPresent()
         if (firstRun) {
             userPrefs.update { it.copy(firstRunDone = true) }
         }
+    }
+
+    /**
+     * If the build was packaged with a CALORIE_NINJAS_API_KEY and the local encrypted store is
+     * empty, seed the encrypted store with that value. The user can overwrite or clear it in
+     * Settings at any time.
+     */
+    private fun seedApiKeyFromBuildIfPresent() {
+        val baked = BuildConfig.CALORIE_NINJAS_API_KEY
+        if (baked.isBlank()) return
+        if (!apiKeyStore.getCalorieNinjasKey().isNullOrBlank()) return
+        apiKeyStore.setCalorieNinjasKey(baked)
     }
 
     private suspend fun seedExercises() {

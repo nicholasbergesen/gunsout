@@ -10,6 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -26,12 +27,14 @@ data class TodayUiState(
     val lastSessionLabel: String? = null,
     val completedThisWeek: Int = 0,
     val sessionsTargetThisWeek: Int = 4,
+    val baselineWeekActive: Boolean = true,
     val toast: String? = null
 )
 
 @HiltViewModel
 class TodayViewModel @Inject constructor(
-    private val workouts: WorkoutRepository
+    private val workouts: WorkoutRepository,
+    private val userPrefs: com.gunsout.data.prefs.UserPreferences
 ) : ViewModel() {
     private val resolver = ScheduleResolver()
 
@@ -41,8 +44,7 @@ class TodayViewModel @Inject constructor(
     init { refresh() }
 
     fun refresh() = viewModelScope.launch {
-        val active = workouts.observeActiveProgram()
-        // Active is a Flow but we just need a snapshot here.
+        val profile = userPrefs.profile.first()
         val days = workouts.getActiveProgramDays()
         val recent = workouts.getRecentSessions().sortedByDescending { it.date }
         val suggestion = resolver.resolveNext(days, recent, LocalDate.now())
@@ -64,7 +66,8 @@ class TodayViewModel @Inject constructor(
                 daysSinceLastSession = suggestion.daysSinceLastSession,
                 lastSessionLabel = lastSession?.programDayLabelSnapshot,
                 completedThisWeek = completedThisWeek,
-                sessionsTargetThisWeek = sessionsTarget
+                sessionsTargetThisWeek = sessionsTarget,
+                baselineWeekActive = profile.baselineWeekActive
             )
         }
     }

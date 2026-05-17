@@ -42,6 +42,8 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build debug APK
+        env:
+          CALORIE_NINJAS_API_KEY: ${{ secrets.CALORIE_NINJAS_API_KEY }}
         run: ./gradlew :app:assembleDebug --no-daemon
 
       - name: Rename APK

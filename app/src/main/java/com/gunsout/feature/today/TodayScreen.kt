@@ -49,6 +49,19 @@ fun TodayScreen(
             return@Column
         }
 
+        if (state.baselineWeekActive) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
+            ) {
+                Text(
+                    "Baseline week. Collect numbers, no progression suggestions yet. Turn off in Settings after week 1.",
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+
         // Next session card
         state.nextDay?.let { day ->
             Card(modifier = Modifier.fillMaxWidth()) {
