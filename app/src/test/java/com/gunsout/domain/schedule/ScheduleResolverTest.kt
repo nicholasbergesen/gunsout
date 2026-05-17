@@ -89,4 +89,30 @@ class ScheduleResolverTest {
         assertEquals(2L, s.nextDay?.id)
         assertEquals(14, s.daysSinceLastSession)
     }
+
+    @Test fun `marked rest day (programDayId null) does not advance or rewind rotation`() {
+        val today = LocalDate.of(2026, 5, 20)
+        // Yesterday: completed Upper A. Today (Wed): user marked rest. Pointer must remain at Upper A so next is Lower A.
+        val sessions = listOf(
+            WorkoutSession(
+                id = 999, date = today, programDayId = null,
+                programDayLabelSnapshot = "Rest", status = SessionStatus.COMPLETED,
+                startedAt = LocalDateTime.now(), completedAt = LocalDateTime.now()
+            ),
+            session(1, SessionStatus.COMPLETED, today.minusDays(2))
+        )
+        val s = resolver.resolveNext(days, sessions, today)
+        assertEquals(2L, s.nextDay?.id)
+    }
+
+    @Test fun `session pointing at a rest programDay is ignored for rotation`() {
+        val today = LocalDate.of(2026, 5, 20)
+        // Defensive case: a session pointing at the rest day's id should not rewind the pointer.
+        val sessions = listOf(
+            session(3, SessionStatus.COMPLETED, today),
+            session(1, SessionStatus.COMPLETED, today.minusDays(2))
+        )
+        val s = resolver.resolveNext(days, sessions, today)
+        assertEquals(2L, s.nextDay?.id)
+    }
 }

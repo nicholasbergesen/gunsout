@@ -45,7 +45,8 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userPrefs: UserPreferences,
-    private val apiKeyStore: ApiKeyStore
+    private val apiKeyStore: ApiKeyStore,
+    private val backupManager: com.gunsout.data.backup.BackupManager
 ) : ViewModel() {
     val profile: StateFlow<UserProfile> = userPrefs.profile.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5_000), UserProfile()
@@ -54,12 +55,27 @@ class SettingsViewModel @Inject constructor(
     private val _apiKey = MutableStateFlow(apiKeyStore.getCalorieNinjasKey().orEmpty())
     val apiKey: StateFlow<String> = _apiKey.asStateFlow()
 
+    private val _backupMessage = MutableStateFlow<String?>(null)
+    val backupMessage: StateFlow<String?> = _backupMessage.asStateFlow()
+
     fun setApiKey(value: String) {
         _apiKey.value = value
     }
 
     fun saveApiKey() {
         apiKeyStore.setCalorieNinjasKey(_apiKey.value)
+    }
+
+    fun clearMessage() { _backupMessage.value = null }
+
+    suspend fun exportToJsonText(): String = backupManager.exportToJson()
+
+    fun importFromJsonText(json: String) = viewModelScope.launch {
+        val result = backupManager.importFromJson(json)
+        _backupMessage.value = when (result) {
+            is com.gunsout.data.backup.ImportResult.Success -> "Imported ${result.totalRows} rows."
+            is com.gunsout.data.backup.ImportResult.Error -> "Import failed: ${result.message}"
+        }
     }
 
     fun save(
@@ -171,6 +187,24 @@ fun SettingsScreen(
             }
         }
 
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Backup", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Export everything to a JSON file or restore from a previous export. Importing replaces all current data.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(Modifier.height(8.dp))
+                BackupRow(vm)
+                val msg by vm.backupMessage.collectAsState()
+                msg?.let {
+                    Spacer(Modifier.height(6.dp))
+                    Text(it, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
         Button(
             onClick = {
                 vm.save(
@@ -202,5 +236,38 @@ private fun SettingsToggle(
             Text(description, style = MaterialTheme.typography.bodySmall)
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun BackupRow(vm: SettingsViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+
+    val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val text = vm.exportToJsonText()
+                context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
+            }
+        }
+    }
+    val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val text = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                if (text != null) vm.importFromJsonText(text)
+            }
+        }
+    }
+
+    val ts = java.time.LocalDate.now().toString()
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = { exportLauncher.launch("gunsout-backup-$ts.json") }) { Text("Export JSON") }
+        OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }) { Text("Import JSON") }
     }
 }

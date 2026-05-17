@@ -38,9 +38,16 @@ class ScheduleResolver {
             return Suggestion(nextDay = null, onSchedule = false, daysSinceLastSession = null, alternativeForToday = null)
         }
 
-        val lastCompleted = recentSessions
-            .firstOrNull { it.status == com.gunsout.data.entity.SessionStatus.COMPLETED || it.status == com.gunsout.data.entity.SessionStatus.SKIPPED }
-        val nextDay = if (lastCompleted == null || lastCompleted.programDayId == null) {
+        // Find the last session that actually belongs to the rotation. A session whose programDayId
+        // is null (e.g. explicit "mark today as rest") or points at a rest day must NOT advance or
+        // reset the rotation pointer. See WorkoutRepository.markRestDay for the writer side.
+        val nonRestIds = nonRest.map { it.id }.toSet()
+        val lastCompleted = recentSessions.firstOrNull {
+            (it.status == com.gunsout.data.entity.SessionStatus.COMPLETED || it.status == com.gunsout.data.entity.SessionStatus.SKIPPED) &&
+                it.programDayId != null &&
+                it.programDayId in nonRestIds
+        }
+        val nextDay = if (lastCompleted == null) {
             nonRest.first()
         } else {
             val lastIndexInRotation = nonRest.indexOfFirst { it.id == lastCompleted.programDayId }
@@ -54,6 +61,8 @@ class ScheduleResolver {
             allDays.firstOrNull { !it.isRest && it.preferredDayOfWeek == todayHint && it.id != nextDay.id }
         }
 
+        // Days-since calculation uses any completed session (including a rest marker) so the UI can
+        // honestly report when the user last did anything.
         val daysSince = recentSessions.firstOrNull { it.status == com.gunsout.data.entity.SessionStatus.COMPLETED }
             ?.let { java.time.temporal.ChronoUnit.DAYS.between(it.date, today).toInt() }
 

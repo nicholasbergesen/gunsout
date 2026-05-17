@@ -25,7 +25,8 @@ data class PlannedExerciseUi(
     val exercise: Exercise,
     val sets: List<SetEntry>,
     val previousBest: SetEntry?,
-    val suggestion: ProgressionEngine.Suggestion?
+    val suggestion: ProgressionEngine.Suggestion?,
+    val alternates: List<Exercise> = emptyList()
 )
 
 data class SessionUiState(
@@ -43,7 +44,8 @@ data class SessionUiState(
 class SessionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val workouts: WorkoutRepository,
-    private val userPrefs: UserPreferences
+    private val userPrefs: UserPreferences,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
     private val engine = ProgressionEngine()
@@ -66,7 +68,6 @@ class SessionViewModel @Inject constructor(
                     primaryMuscleGroup = com.gunsout.data.entity.MuscleGroup.OTHER,
                     equipment = com.gunsout.data.entity.Equipment.OTHER)
             val recent = workouts.getPreviousSetsForExercise(ex.id)
-            // Previous best: from most recent prior completed session
             val previousBest = recent
                 .filter { it.sessionId != sessionId }
                 .groupBy { it.sessionId }
@@ -80,7 +81,8 @@ class SessionViewModel @Inject constructor(
                 .values.firstOrNull().orEmpty()
             val suggestion = engine.suggest(pe, ex, previousSets, baseline)
             val currentSets = workouts.getSetsForSession(sessionId).filter { it.programExerciseId == pe.id }
-            PlannedExerciseUi(pe, ex, currentSets, previousBest, suggestion)
+            val alternates = workouts.getAlternates(ex.id)
+            PlannedExerciseUi(pe, ex, currentSets, previousBest, suggestion, alternates)
         }
         _state.update {
             it.copy(
@@ -90,6 +92,24 @@ class SessionViewModel @Inject constructor(
                 items = items,
                 baselineWeekActive = baseline
             )
+        }
+    }
+
+    /**
+     * Swap a planned exercise to an alternate. If [saveToProgram] is true, persists the swap on
+     * the ProgramExercise row so future sessions inherit it. Otherwise the swap only applies to
+     * the current session, by retargeting any already-logged sets for this slot to the new
+     * exercise snapshot.
+     */
+    fun swapExercise(programExercise: ProgramExercise, newExerciseId: Long, saveToProgram: Boolean) {
+        viewModelScope.launch {
+            if (saveToProgram) {
+                workouts.persistExerciseSwap(programExercise, newExerciseId)
+            } else {
+                // Retarget existing SetEntry rows for this slot in this session.
+                workouts.retargetSetsForSlot(sessionId, programExercise.id, newExerciseId)
+            }
+            load()
         }
     }
 
@@ -108,6 +128,7 @@ class SessionViewModel @Inject constructor(
                     completedAt = LocalDateTime.now()
                 )
             )
+            RestTimerService.start(appContext, programExercise.restSec, exercise.name)
             load()
         }
     }
@@ -117,6 +138,7 @@ class SessionViewModel @Inject constructor(
 
     fun finish() = viewModelScope.launch {
         workouts.completeSession(sessionId, _state.value.kneeFeel, _state.value.notes.ifBlank { null })
+        RestTimerService.stop(appContext)
         _state.update { it.copy(finished = true) }
     }
 }

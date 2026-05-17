@@ -37,6 +37,7 @@ data class IngredientEditState(
     val lookupQuery: String = "",
     val lookupBusy: Boolean = false,
     val lookupMessage: String? = null,
+    val pendingLookup: LookupResult.Success? = null,
     val saved: Boolean = false
 )
 
@@ -77,6 +78,12 @@ class IngredientEditViewModel @Inject constructor(
     fun setGramsPerUnit(v: String) = _state.update { it.copy(gramsPerUnit = v.filter { c -> c.isDigit() || c == '.' }) }
     fun setLookupQuery(v: String) = _state.update { it.copy(lookupQuery = v) }
 
+    private fun hasUserMacros(s: IngredientEditState): Boolean {
+        val parsed = listOf(s.kcalPer100g, s.proteinPer100g, s.carbsPer100g, s.fatPer100g)
+            .mapNotNull { it.toDoubleOrNull() }
+        return parsed.any { it > 0.0 }
+    }
+
     fun runLookup() = viewModelScope.launch {
         val q = _state.value.lookupQuery
         if (q.isBlank()) return@launch
@@ -84,19 +91,17 @@ class IngredientEditViewModel @Inject constructor(
         val result = calorieNinjas.lookup(q)
         when (result) {
             is LookupResult.Success -> {
-                val item = result.item
-                val servingG = if (item.servingSizeG > 0.0) item.servingSizeG else 100.0
-                val factor = 100.0 / servingG
-                _state.update {
-                    it.copy(
-                        lookupBusy = false,
-                        lookupMessage = "Pre-filled from ${item.name}.",
-                        name = if (it.name.isBlank()) item.name else it.name,
-                        kcalPer100g = (item.calories * factor).toString(),
-                        proteinPer100g = (item.proteinG * factor).toString(),
-                        carbsPer100g = (item.carbohydratesTotalG * factor).toString(),
-                        fatPer100g = (item.fatTotalG * factor).toString()
-                    )
+                if (hasUserMacros(_state.value)) {
+                    // Stash the result and ask the user before clobbering existing fields.
+                    _state.update {
+                        it.copy(
+                            lookupBusy = false,
+                            pendingLookup = result,
+                            lookupMessage = "Found ${result.item.name}. Apply will overwrite the current macros."
+                        )
+                    }
+                } else {
+                    applyLookup(result)
                 }
             }
             LookupResult.MissingKey -> _state.update { it.copy(lookupBusy = false, lookupMessage = "No API key. Set it in Settings.") }
@@ -104,6 +109,35 @@ class IngredientEditViewModel @Inject constructor(
             LookupResult.Unauthorized -> _state.update { it.copy(lookupBusy = false, lookupMessage = "API key rejected.") }
             LookupResult.RateLimited -> _state.update { it.copy(lookupBusy = false, lookupMessage = "Rate limited. Try later.") }
             is LookupResult.NetworkError -> _state.update { it.copy(lookupBusy = false, lookupMessage = result.message) }
+        }
+    }
+
+    /** Apply the pending lookup. */
+    fun confirmApplyLookup() {
+        val pending = _state.value.pendingLookup ?: return
+        applyLookup(pending)
+    }
+
+    /** Discard the pending lookup. */
+    fun discardLookup() {
+        _state.update { it.copy(pendingLookup = null, lookupMessage = null) }
+    }
+
+    private fun applyLookup(result: LookupResult.Success) {
+        val item = result.item
+        val servingG = if (item.servingSizeG > 0.0) item.servingSizeG else 100.0
+        val factor = 100.0 / servingG
+        _state.update {
+            it.copy(
+                lookupBusy = false,
+                pendingLookup = null,
+                lookupMessage = "Pre-filled from ${item.name}.",
+                name = if (it.name.isBlank()) item.name else it.name,
+                kcalPer100g = (item.calories * factor).toString(),
+                proteinPer100g = (item.proteinG * factor).toString(),
+                carbsPer100g = (item.carbohydratesTotalG * factor).toString(),
+                fatPer100g = (item.fatTotalG * factor).toString()
+            )
         }
     }
 

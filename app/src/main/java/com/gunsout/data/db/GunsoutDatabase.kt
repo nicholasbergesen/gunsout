@@ -36,7 +36,7 @@ import com.gunsout.data.entity.WorkoutSession
 
 @Database(
     version = 1,
-    exportSchema = false,
+    exportSchema = true,
     entities = [
         Program::class,
         ProgramDay::class,

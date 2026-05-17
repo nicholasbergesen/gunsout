@@ -120,6 +120,12 @@ fun IngredientEditScreen(
                     }
                 }
                 state.lookupMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                if (state.pendingLookup != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { vm.confirmApplyLookup() }) { Text("Apply lookup") }
+                        TextButton(onClick = { vm.discardLookup() }) { Text("Keep my values") }
+                    }
+                }
             }
         }
 

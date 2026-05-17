@@ -8,9 +8,14 @@ import com.gunsout.data.repo.WorkoutRepository
 import com.gunsout.domain.schedule.ScheduleResolver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -27,10 +32,10 @@ data class TodayUiState(
     val lastSessionLabel: String? = null,
     val completedThisWeek: Int = 0,
     val sessionsTargetThisWeek: Int = 4,
-    val baselineWeekActive: Boolean = true,
-    val toast: String? = null
+    val baselineWeekActive: Boolean = true
 )
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class TodayViewModel @Inject constructor(
     private val workouts: WorkoutRepository,
@@ -38,38 +43,58 @@ class TodayViewModel @Inject constructor(
 ) : ViewModel() {
     private val resolver = ScheduleResolver()
 
-    private val _state = MutableStateFlow(TodayUiState())
-    val state: StateFlow<TodayUiState> = _state.asStateFlow()
+    // External "trigger refresh" so a finished session or a marked rest day refreshes Today.
+    private val refreshTicker = MutableStateFlow(0)
 
-    init { refresh() }
+    private val activeProgramFlow = workouts.observeActiveProgram().distinctUntilChanged()
+    private val daysFlow = activeProgramFlow.flatMapLatest { program ->
+        if (program == null) flowOf(emptyList()) else workouts.observeDaysFor(program.id)
+    }
+    private val recentSessionsFlow = workouts.observeRecentCompletedAndSkipped(limit = 50)
 
-    fun refresh() = viewModelScope.launch {
-        val profile = userPrefs.profile.first()
-        val days = workouts.getActiveProgramDays()
-        val recent = workouts.getRecentSessions().sortedByDescending { it.date }
-        val suggestion = resolver.resolveNext(days, recent, LocalDate.now())
+    val state: StateFlow<TodayUiState> = combine(
+        daysFlow,
+        recentSessionsFlow,
+        userPrefs.profile,
+        refreshTicker
+    ) { days, recent, profile, _ ->
+        compute(days, recent, profile.baselineWeekActive)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState())
+
+    private fun compute(
+        days: List<ProgramDay>,
+        recent: List<WorkoutSession>,
+        baseline: Boolean
+    ): TodayUiState {
+        val sorted = recent.sortedByDescending { it.date }
+        val suggestion = resolver.resolveNext(days, sorted, LocalDate.now())
         val weekStart = LocalDate.now().with(java.time.DayOfWeek.MONDAY)
-        val completedThisWeek = recent.count {
+        val nonRestIds = days.filter { !it.isRest }.map { it.id }.toSet()
+        val completedThisWeek = sorted.count {
             it.status == com.gunsout.data.entity.SessionStatus.COMPLETED &&
                 it.date >= weekStart &&
-                days.firstOrNull { d -> d.id == it.programDayId }?.isRest != true
+                it.programDayId != null &&
+                it.programDayId in nonRestIds
         }
         val sessionsTarget = days.count { !it.isRest }
-        val lastSession = recent.firstOrNull { it.status == com.gunsout.data.entity.SessionStatus.COMPLETED }
-        _state.update {
-            it.copy(
-                loading = false,
-                nextDay = suggestion.nextDay,
-                alternativeForToday = suggestion.alternativeForToday,
-                allNonRestDays = days.filter { d -> !d.isRest },
-                onSchedule = suggestion.onSchedule,
-                daysSinceLastSession = suggestion.daysSinceLastSession,
-                lastSessionLabel = lastSession?.programDayLabelSnapshot,
-                completedThisWeek = completedThisWeek,
-                sessionsTargetThisWeek = sessionsTarget,
-                baselineWeekActive = profile.baselineWeekActive
-            )
-        }
+        val lastSession = sorted.firstOrNull { it.status == com.gunsout.data.entity.SessionStatus.COMPLETED }
+        return TodayUiState(
+            loading = false,
+            nextDay = suggestion.nextDay,
+            alternativeForToday = suggestion.alternativeForToday,
+            allNonRestDays = days.filter { !it.isRest },
+            onSchedule = suggestion.onSchedule,
+            daysSinceLastSession = suggestion.daysSinceLastSession,
+            lastSessionLabel = lastSession?.programDayLabelSnapshot,
+            completedThisWeek = completedThisWeek,
+            sessionsTargetThisWeek = sessionsTarget,
+            baselineWeekActive = baseline
+        )
+    }
+
+    /** Trigger a recomposition with today's date; useful after resume or midnight rollover. */
+    fun refresh() {
+        refreshTicker.update { it + 1 }
     }
 
     fun startSession(day: ProgramDay, onCreated: (Long) -> Unit) = viewModelScope.launch {
@@ -79,16 +104,12 @@ class TodayViewModel @Inject constructor(
 
     fun markRestDay() = viewModelScope.launch {
         workouts.markRestDay()
-        _state.update { it.copy(toast = "Today marked as rest day.") }
         refresh()
     }
 
     fun skipNextDay() = viewModelScope.launch {
-        val day = _state.value.nextDay ?: return@launch
+        val day = state.value.nextDay ?: return@launch
         workouts.skipNextDay(day)
-        _state.update { it.copy(toast = "${day.label} skipped.") }
         refresh()
     }
-
-    fun consumeToast() { _state.update { it.copy(toast = null) } }
 }

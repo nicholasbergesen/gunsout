@@ -120,6 +120,32 @@ fun BodyScreen(vm: BodyViewModel = hiltViewModel()) {
                 }
             }
         }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Auto-adjust kcal target", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Reads your recent weigh-ins and suggests a kcal change to keep you on track for your goal.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = { vm.suggestKcalAdjustment() }) { Text("Suggest now") }
+                val suggestion by vm.kcalSuggestion.collectAsState()
+                suggestion?.let { s ->
+                    Spacer(Modifier.height(8.dp))
+                    Text(s.text, style = MaterialTheme.typography.bodyMedium)
+                    if (s.newKcalTarget != null) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { vm.applyKcalSuggestion() }) { Text("Apply ${s.newKcalTarget} kcal") }
+                            androidx.compose.material3.TextButton(onClick = { vm.dismissKcalSuggestion() }) { Text("Dismiss") }
+                        }
+                    } else {
+                        androidx.compose.material3.TextButton(onClick = { vm.dismissKcalSuggestion() }) { Text("OK") }
+                    }
+                }
+            }
+        }
     }
 }
 

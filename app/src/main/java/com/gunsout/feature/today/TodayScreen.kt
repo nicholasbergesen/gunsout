@@ -32,10 +32,16 @@ fun TodayScreen(
 ) {
     val state by vm.state.collectAsState()
     val scroll = rememberScrollState()
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
-    LaunchedEffect(state.toast) {
-        // Toast handling kept simple — could be promoted to a SnackbarHost later.
-        vm.consumeToast()
+    // Refresh whenever this destination becomes ACTIVE (covers navigation back from a session
+    // and OS resume / midnight rollover).
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) vm.refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Column(

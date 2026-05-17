@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.gunsout.data.entity.Equipment
 import com.gunsout.data.entity.Exercise
 import com.gunsout.data.entity.MuscleGroup
+import com.gunsout.data.entity.SetEntry
 import com.gunsout.data.repo.ProgramRepository
+import com.gunsout.data.repo.WorkoutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,13 +33,18 @@ data class ExerciseEditState(
     val equipment: Equipment = Equipment.DUMBBELL,
     val formNotes: String = "",
     val defaultRestSec: String = "90",
+    val history: List<HistoryPoint> = emptyList(),
     val saved: Boolean = false
 )
+
+/** One data point per past session: top working-set weight for this exercise on that date. */
+data class HistoryPoint(val sessionId: Long, val date: java.time.LocalDate, val topWeightKg: Double, val reps: Int)
 
 @HiltViewModel
 class ExerciseEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val repo: ProgramRepository
+    private val repo: ProgramRepository,
+    private val workoutRepo: WorkoutRepository
 ) : ViewModel() {
     private val exerciseId: Long = savedStateHandle.get<Long>("exerciseId") ?: 0L
     private val _state = MutableStateFlow(ExerciseEditState())
@@ -49,12 +56,32 @@ class ExerciseEditViewModel @Inject constructor(
         if (exerciseId > 0) viewModelScope.launch {
             val e = repo.getExercise(exerciseId) ?: return@launch
             existing = e
+            val history = buildHistory(exerciseId)
             _state.value = ExerciseEditState(
                 name = e.name, muscle = e.primaryMuscleGroup, equipment = e.equipment,
                 formNotes = e.formNotes.orEmpty(),
-                defaultRestSec = e.defaultRestSec.toString()
+                defaultRestSec = e.defaultRestSec.toString(),
+                history = history
             )
         }
+    }
+
+    private suspend fun buildHistory(exerciseId: Long): List<HistoryPoint> {
+        val recent: List<SetEntry> = workoutRepo.getPreviousSetsForExercise(exerciseId)
+        // Group by session, take the heaviest working-set per session, attach the session date.
+        val sessionIds = recent.map { it.sessionId }.distinct()
+        val sessionsById = sessionIds.mapNotNull { id ->
+            workoutRepo.getSessionById(id)?.let { id to it }
+        }.toMap()
+        return recent
+            .filter { !it.isWarmup && it.weightKg != null && it.reps != null }
+            .groupBy { it.sessionId }
+            .mapNotNull { (sid, sets) ->
+                val top = sets.maxByOrNull { (it.weightKg ?: 0.0) * (it.reps ?: 0) } ?: return@mapNotNull null
+                val date = sessionsById[sid]?.date ?: return@mapNotNull null
+                HistoryPoint(sid, date, top.weightKg ?: 0.0, top.reps ?: 0)
+            }
+            .sortedBy { it.date }
     }
 
     fun setName(v: String) = _state.update { it.copy(name = v) }

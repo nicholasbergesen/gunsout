@@ -78,9 +78,19 @@ fun SessionScreen(
 
 @Composable
 private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
+    var swapOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            Text(item.exercise.name, style = MaterialTheme.typography.titleMedium)
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                Text(item.exercise.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                if (item.alternates.isNotEmpty()) {
+                    androidx.compose.material3.TextButton(onClick = { swapOpen = true }) { Text("Swap") }
+                }
+            }
             val pe = item.programExercise
             val protocolLabel = when (pe.protocol) {
                 Protocol.PULL_UP_5X2_3 -> "5 sets x 2-3 reps (with 1 rep in reserve)"
@@ -132,6 +142,64 @@ private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
             }
         }
     }
+
+    if (swapOpen) {
+        SwapAlternateDialog(
+            currentName = item.exercise.name,
+            alternates = item.alternates,
+            onDismiss = { swapOpen = false },
+            onSwap = { newId, persist ->
+                vm.swapExercise(item.programExercise, newId, persist)
+                swapOpen = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun SwapAlternateDialog(
+    currentName: String,
+    alternates: List<com.gunsout.data.entity.Exercise>,
+    onDismiss: () -> Unit,
+    onSwap: (Long, Boolean) -> Unit
+) {
+    var selected by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<com.gunsout.data.entity.Exercise?>(null) }
+    var persist by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Swap from $currentName") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                alternates.forEach { alt ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        androidx.compose.material3.RadioButton(
+                            selected = selected?.id == alt.id,
+                            onClick = { selected = alt }
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(alt.name)
+                            Text(alt.equipment.name, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    androidx.compose.material3.Checkbox(checked = persist, onCheckedChange = { persist = it })
+                    Text("Also save the swap to the program")
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.Button(
+                enabled = selected != null,
+                onClick = { onSwap(selected!!.id, persist) }
+            ) { Text("Swap") }
+        },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable

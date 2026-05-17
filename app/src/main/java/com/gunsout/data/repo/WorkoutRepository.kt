@@ -25,10 +25,14 @@ class WorkoutRepository @Inject constructor(
     private val programDayDao: ProgramDayDao,
     private val programExerciseDao: ProgramExerciseDao,
     private val exerciseDao: ExerciseDao,
+    private val alternateDao: com.gunsout.data.dao.ExerciseAlternateDao,
     private val workoutSessionDao: WorkoutSessionDao,
     private val setEntryDao: SetEntryDao
 ) {
     fun observeActiveProgram(): Flow<Program?> = programDao.observeActive()
+    fun observeDaysFor(programId: Long): Flow<List<ProgramDay>> = programDayDao.observeForProgram(programId)
+    fun observeRecentCompletedAndSkipped(limit: Int = 50): Flow<List<WorkoutSession>> =
+        workoutSessionDao.observeRecentRotation(limit)
 
     suspend fun getActiveProgramDays(): List<ProgramDay> {
         val active = programDao.getActive() ?: return emptyList()
@@ -70,12 +74,31 @@ class WorkoutRepository @Inject constructor(
     fun observeSetsForSession(sessionId: Long): Flow<List<SetEntry>> =
         setEntryDao.observeForSession(sessionId)
 
+    suspend fun getSessionById(id: Long): com.gunsout.data.entity.WorkoutSession? = workoutSessionDao.getById(id)
+
     suspend fun getPreviousSetsForExercise(exerciseId: Long): List<SetEntry> =
         setEntryDao.getRecentForExercise(exerciseId)
 
     suspend fun logSet(set: SetEntry): Long = setEntryDao.insert(set)
 
     suspend fun updateSet(set: SetEntry) = setEntryDao.update(set)
+
+    suspend fun getAlternates(exerciseId: Long): List<Exercise> =
+        alternateDao.getAlternates(exerciseId)
+
+    /** Persist a swap on the ProgramExercise row so the change applies to future sessions. */
+    suspend fun persistExerciseSwap(pe: com.gunsout.data.entity.ProgramExercise, newExerciseId: Long) {
+        programExerciseDao.update(pe.copy(exerciseId = newExerciseId))
+    }
+
+    /** Retarget already-logged sets for a slot in the current session. */
+    suspend fun retargetSetsForSlot(sessionId: Long, programExerciseId: Long, newExerciseId: Long) {
+        val existing = setEntryDao.getForSession(sessionId).filter { it.programExerciseId == programExerciseId }
+        val newName = exerciseDao.getById(newExerciseId)?.name ?: return
+        existing.forEach { set ->
+            setEntryDao.update(set.copy(exerciseIdSnapshot = newExerciseId, exerciseNameSnapshot = newName))
+        }
+    }
 
     suspend fun completeSession(sessionId: Long, kneeFeel: Int?, notes: String?) {
         val s = workoutSessionDao.getById(sessionId) ?: return
@@ -91,7 +114,9 @@ class WorkoutRepository @Inject constructor(
         workoutSessionDao.insert(
             WorkoutSession(
                 date = LocalDate.now(),
-                programDayId = rest.id,
+                // Important: keep programDayId null so the schedule resolver doesn't try to place this
+                // session in the rotation. Snapshot the label so the UI can still show "Rest" history.
+                programDayId = null,
                 programDayLabelSnapshot = rest.label,
                 status = SessionStatus.COMPLETED,
                 startedAt = LocalDateTime.now(),

@@ -118,6 +118,23 @@ fun ExerciseEditScreen(
             modifier = Modifier.fillMaxWidth().height(140.dp)
         )
 
+        if (state.history.size >= 2) {
+            Spacer(Modifier.height(8.dp))
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp)) {
+                    Text("Top working-set weight over time", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(6.dp))
+                    HistoryChart(state.history)
+                    Spacer(Modifier.height(4.dp))
+                    val latest = state.history.last()
+                    Text(
+                        "${latest.date}: ${"%.1f".format(latest.topWeightKg)} kg x ${latest.reps}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+
         Spacer(Modifier.height(8.dp))
         Button(onClick = vm::save, modifier = Modifier.fillMaxWidth(), enabled = state.name.isNotBlank()) {
             Text("Save")
@@ -148,5 +165,30 @@ private fun <T : Enum<T>> EnumDropdown(
                 DropdownMenuItem(text = { Text(v.name) }, onClick = { onChange(v); expanded = false })
             }
         }
+    }
+}
+
+@Composable
+private fun HistoryChart(history: List<HistoryPoint>) {
+    if (history.size < 2) return
+    val weights = history.map { it.topWeightKg }
+    val minW = (weights.min() - 2).coerceAtLeast(0.0)
+    val maxW = weights.max() + 2
+    val range = (maxW - minW).coerceAtLeast(1.0)
+    val primary = MaterialTheme.colorScheme.primary
+
+    androidx.compose.foundation.Canvas(
+        modifier = Modifier.fillMaxWidth().height(140.dp)
+    ) {
+        val w = size.width
+        val h = size.height
+        val stepX = if (weights.size > 1) w / (weights.size - 1) else w
+        val path = androidx.compose.ui.graphics.Path()
+        weights.forEachIndexed { i, value ->
+            val x = stepX * i
+            val y = h - ((value - minW) / range * h).toFloat()
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        drawPath(path = path, color = primary, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f))
     }
 }

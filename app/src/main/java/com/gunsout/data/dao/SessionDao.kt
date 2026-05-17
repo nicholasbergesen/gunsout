@@ -19,6 +19,9 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_session WHERE status = 'COMPLETED' ORDER BY date DESC, id DESC LIMIT :limit")
     fun observeRecentCompleted(limit: Int = 20): Flow<List<WorkoutSession>>
 
+    @Query("SELECT * FROM workout_session WHERE status IN ('COMPLETED','SKIPPED') ORDER BY date DESC, id DESC LIMIT :limit")
+    fun observeRecentRotation(limit: Int = 50): Flow<List<WorkoutSession>>
+
     @Query("SELECT * FROM workout_session WHERE status = 'COMPLETED' ORDER BY date DESC, id DESC LIMIT 1")
     suspend fun getLastCompleted(): WorkoutSession?
 

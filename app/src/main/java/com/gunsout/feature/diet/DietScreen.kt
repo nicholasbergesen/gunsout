@@ -20,6 +20,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -33,6 +36,17 @@ fun DietScreen(
 ) {
     val state by vm.state.collectAsState()
     val scroll = rememberScrollState()
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) vm.refreshDay()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    var editing by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<com.gunsout.data.entity.FoodEntry?>(null) }
 
     val totalKcal = state.todayEntries.sumOf { it.kcal }
     val totalProtein = state.todayEntries.sumOf { it.proteinG }
@@ -119,16 +133,74 @@ fun DietScreen(
                     state.todayEntries.forEach { e ->
                         Row(
                             Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                         ) {
-                            Text(e.name)
-                            Text("${e.kcal} kcal | ${e.proteinG.toInt()}g P")
+                            Column(Modifier.weight(1f)) {
+                                Text(e.name)
+                                Text("${e.kcal} kcal | ${e.proteinG.toInt()}g P", style = MaterialTheme.typography.bodySmall)
+                            }
+                            androidx.compose.material3.TextButton(onClick = { editing = e }) { Text("Edit") }
                         }
                     }
                 }
             }
         }
     }
+
+    editing?.let { entry ->
+        FoodEntryEditDialog(
+            entry = entry,
+            onDismiss = { editing = null },
+            onSave = { updated -> vm.updateEntry(updated); editing = null },
+            onDelete = { vm.deleteEntry(entry.id); editing = null }
+        )
+    }
+}
+
+@Composable
+private fun FoodEntryEditDialog(
+    entry: com.gunsout.data.entity.FoodEntry,
+    onDismiss: () -> Unit,
+    onSave: (com.gunsout.data.entity.FoodEntry) -> Unit,
+    onDelete: () -> Unit
+) {
+    var name by androidx.compose.runtime.remember(entry.id) { androidx.compose.runtime.mutableStateOf(entry.name) }
+    var kcal by androidx.compose.runtime.remember(entry.id) { androidx.compose.runtime.mutableStateOf(entry.kcal.toString()) }
+    var protein by androidx.compose.runtime.remember(entry.id) { androidx.compose.runtime.mutableStateOf(entry.proteinG.toString()) }
+    var carbs by androidx.compose.runtime.remember(entry.id) { androidx.compose.runtime.mutableStateOf(entry.carbsG.toString()) }
+    var fat by androidx.compose.runtime.remember(entry.id) { androidx.compose.runtime.mutableStateOf(entry.fatG.toString()) }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit entry") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                androidx.compose.material3.OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                androidx.compose.material3.OutlinedTextField(value = kcal, onValueChange = { kcal = it.filter(Char::isDigit) }, label = { Text("kcal") }, singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
+                androidx.compose.material3.OutlinedTextField(value = protein, onValueChange = { protein = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Protein g") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                androidx.compose.material3.OutlinedTextField(value = carbs, onValueChange = { carbs = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Carbs g") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                androidx.compose.material3.OutlinedTextField(value = fat, onValueChange = { fat = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Fat g") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.Button(onClick = {
+                onSave(entry.copy(
+                    name = name.trim().ifBlank { entry.name },
+                    kcal = kcal.toIntOrNull() ?: entry.kcal,
+                    proteinG = protein.toDoubleOrNull() ?: entry.proteinG,
+                    carbsG = carbs.toDoubleOrNull() ?: entry.carbsG,
+                    fatG = fat.toDoubleOrNull() ?: entry.fatG
+                ))
+            }) { Text("Save") }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                androidx.compose.material3.TextButton(onClick = onDelete) { Text("Delete") }
+                androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        }
+    )
 }
 
 @Composable
