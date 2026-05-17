@@ -170,6 +170,7 @@ private fun FoodEntryEditDialog(
     var protein by androidx.compose.runtime.remember(entry.id) { androidx.compose.runtime.mutableStateOf(entry.proteinG.toString()) }
     var carbs by androidx.compose.runtime.remember(entry.id) { androidx.compose.runtime.mutableStateOf(entry.carbsG.toString()) }
     var fat by androidx.compose.runtime.remember(entry.id) { androidx.compose.runtime.mutableStateOf(entry.fatG.toString()) }
+    var confirmDelete by androidx.compose.runtime.remember(entry.id) { androidx.compose.runtime.mutableStateOf(false) }
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
@@ -196,11 +197,25 @@ private fun FoodEntryEditDialog(
         },
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                androidx.compose.material3.TextButton(onClick = onDelete) { Text("Delete") }
+                androidx.compose.material3.TextButton(onClick = { confirmDelete = true }) { Text("Delete") }
                 androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") }
             }
         }
     )
+
+    if (confirmDelete) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Delete this entry?") },
+            text = { Text("This will permanently remove \"${entry.name}\" from today's log.") },
+            confirmButton = {
+                androidx.compose.material3.Button(onClick = { confirmDelete = false; onDelete() }) { Text("Delete") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable

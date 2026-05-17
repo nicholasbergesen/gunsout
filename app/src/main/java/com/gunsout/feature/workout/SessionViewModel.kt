@@ -51,6 +51,13 @@ class SessionViewModel @Inject constructor(
     private val engine = ProgressionEngine()
     private val sessionId: Long = savedStateHandle.get<Long>("sessionId") ?: 0L
 
+    /**
+     * In-session swap overrides: maps programExerciseId -> exerciseId to use just for this
+     * session. Persisted swaps (save to program) are written directly to the ProgramExercise row,
+     * so they do not appear here.
+     */
+    private val sessionOverrides: MutableMap<Long, Long> = mutableMapOf()
+
     private val _state = MutableStateFlow(SessionUiState())
     val state: StateFlow<SessionUiState> = _state.asStateFlow()
 
@@ -58,31 +65,34 @@ class SessionViewModel @Inject constructor(
 
     private fun load() = viewModelScope.launch {
         val baseline = userPrefs.profile.first().baselineWeekActive
-        val sessions = workouts.getRecentSessions()
-        val session = sessions.firstOrNull { it.id == sessionId } ?: return@launch
+        val session = workouts.getSessionById(sessionId) ?: return@launch
         val pdId = session.programDayId ?: return@launch
         val pds = workouts.getProgramExercises(pdId)
         val items = pds.map { pe ->
-            val ex = workouts.getExercise(pe.exerciseId)
-                ?: Exercise(id = pe.exerciseId, name = "(unknown)",
+            val effectiveId = sessionOverrides[pe.id] ?: pe.exerciseId
+            val ex = workouts.getExercise(effectiveId)
+                ?: Exercise(id = effectiveId, name = "(unknown)",
                     primaryMuscleGroup = com.gunsout.data.entity.MuscleGroup.OTHER,
                     equipment = com.gunsout.data.entity.Equipment.OTHER)
             val recent = workouts.getPreviousSetsForExercise(ex.id)
-            val previousBest = recent
+            // Group recent sets into prior-session batches and order them by the session date so
+            // backup-restored IDs (which may be out of chronological order) still surface the
+            // genuinely most recent session.
+            val priorSessions = recent
                 .filter { it.sessionId != sessionId }
                 .groupBy { it.sessionId }
-                .toSortedMap(compareByDescending { it })
-                .values.firstOrNull()
+                .mapNotNull { (sid, sets) ->
+                    val date = workouts.getSessionById(sid)?.date ?: return@mapNotNull null
+                    Triple(date, sid, sets)
+                }
+                .sortedByDescending { it.first }
+            val priorBest = priorSessions.firstOrNull()?.third
                 ?.maxByOrNull { (it.weightKg ?: 0.0) * (it.reps ?: 0) }
-            val previousSets = recent
-                .filter { it.sessionId != sessionId }
-                .groupBy { it.sessionId }
-                .toSortedMap(compareByDescending { it })
-                .values.firstOrNull().orEmpty()
-            val suggestion = engine.suggest(pe, ex, previousSets, baseline)
+            val priorSets = priorSessions.firstOrNull()?.third.orEmpty()
+            val suggestion = engine.suggest(pe, ex, priorSets, baseline)
             val currentSets = workouts.getSetsForSession(sessionId).filter { it.programExerciseId == pe.id }
             val alternates = workouts.getAlternates(ex.id)
-            PlannedExerciseUi(pe, ex, currentSets, previousBest, suggestion, alternates)
+            PlannedExerciseUi(pe, ex, currentSets, priorBest, suggestion, alternates)
         }
         _state.update {
             it.copy(
@@ -97,18 +107,19 @@ class SessionViewModel @Inject constructor(
 
     /**
      * Swap a planned exercise to an alternate. If [saveToProgram] is true, persists the swap on
-     * the ProgramExercise row so future sessions inherit it. Otherwise the swap only applies to
-     * the current session, by retargeting any already-logged sets for this slot to the new
-     * exercise snapshot.
+     * the ProgramExercise row so future sessions inherit it. Otherwise the swap is recorded in
+     * this VM's override map and the slot's logged sets are retargeted to the new exercise
+     * snapshot. Either way, [load] picks up the change on the next refresh.
      */
     fun swapExercise(programExercise: ProgramExercise, newExerciseId: Long, saveToProgram: Boolean) {
         viewModelScope.launch {
             if (saveToProgram) {
                 workouts.persistExerciseSwap(programExercise, newExerciseId)
+                sessionOverrides.remove(programExercise.id)
             } else {
-                // Retarget existing SetEntry rows for this slot in this session.
-                workouts.retargetSetsForSlot(sessionId, programExercise.id, newExerciseId)
+                sessionOverrides[programExercise.id] = newExerciseId
             }
+            workouts.retargetSetsForSlot(sessionId, programExercise.id, newExerciseId)
             load()
         }
     }
@@ -128,7 +139,15 @@ class SessionViewModel @Inject constructor(
                     completedAt = LocalDateTime.now()
                 )
             )
-            RestTimerService.start(appContext, programExercise.restSec, exercise.name)
+            // Only start the rest timer when there is actually another set to come. After the very
+            // last set of the very last exercise, the user is done — no 90s nag.
+            val items = _state.value.items
+            val itemIndex = items.indexOfFirst { it.programExercise.id == programExercise.id }
+            val isLastSet = setIndex >= programExercise.sets
+            val isLastExercise = itemIndex == items.size - 1
+            if (!(isLastSet && isLastExercise)) {
+                RestTimerService.start(appContext, programExercise.restSec, exercise.name)
+            }
             load()
         }
     }

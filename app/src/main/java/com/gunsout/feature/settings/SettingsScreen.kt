@@ -244,6 +244,8 @@ private fun BackupRow(vm: SettingsViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
+    var pendingImport by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+
     val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
@@ -260,7 +262,7 @@ private fun BackupRow(vm: SettingsViewModel) {
         if (uri != null) {
             scope.launch {
                 val text = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-                if (text != null) vm.importFromJsonText(text)
+                if (text != null) pendingImport = text
             }
         }
     }
@@ -269,5 +271,24 @@ private fun BackupRow(vm: SettingsViewModel) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(onClick = { exportLauncher.launch("gunsout-backup-$ts.json") }) { Text("Export JSON") }
         OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }) { Text("Import JSON") }
+    }
+
+    pendingImport?.let { jsonText ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pendingImport = null },
+            title = { Text("Replace all data?") },
+            text = {
+                Text(
+                    "Importing will permanently delete the current programs, meal plans, ingredients, sessions, sets, food entries, supplements, body metrics and profile in this install, and replace them with the contents of the selected file. This cannot be undone."
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    vm.importFromJsonText(jsonText)
+                    pendingImport = null
+                }) { Text("Replace") }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { pendingImport = null }) { Text("Cancel") } }
+        )
     }
 }

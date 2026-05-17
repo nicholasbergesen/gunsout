@@ -37,7 +37,15 @@ data class WorkoutSession(
         childColumns = ["sessionId"],
         onDelete = ForeignKey.CASCADE
     )],
-    indices = [Index("sessionId"), Index("exerciseIdSnapshot")]
+    indices = [
+        Index("sessionId"),
+        Index("exerciseIdSnapshot"),
+        Index(
+            value = ["sessionId", "programExerciseId", "setIndex", "isWarmup"],
+            unique = true,
+            name = "idx_set_entry_unique_slot"
+        )
+    ]
 )
 data class SetEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

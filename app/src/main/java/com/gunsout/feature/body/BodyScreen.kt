@@ -152,6 +152,10 @@ fun BodyScreen(vm: BodyViewModel = hiltViewModel()) {
 @Composable
 private fun WeightChart(logs: List<BodyMetricsLog>, goalKg: Double) {
     if (logs.size < 2) return
+    val minDate = logs.first().date
+    val maxDate = logs.last().date
+    val totalDays = java.time.temporal.ChronoUnit.DAYS.between(minDate, maxDate).coerceAtLeast(1L).toFloat()
+
     val weights = logs.map { it.weightKg }
     val minW = (weights.min() - 2).coerceAtMost(goalKg - 2)
     val maxW = (weights.max() + 2).coerceAtLeast(goalKg + 2)
@@ -162,15 +166,14 @@ private fun WeightChart(logs: List<BodyMetricsLog>, goalKg: Double) {
     Canvas(modifier = Modifier.fillMaxWidth().height(180.dp)) {
         val w = size.width
         val h = size.height
-        val stepX = if (weights.size > 1) w / (weights.size - 1) else w
         val path = Path()
-        weights.forEachIndexed { i, value ->
-            val x = stepX * i
-            val y = h - ((value - minW) / range * h).toFloat()
+        logs.forEachIndexed { i, log ->
+            val daysIn = java.time.temporal.ChronoUnit.DAYS.between(minDate, log.date).toFloat()
+            val x = w * (daysIn / totalDays)
+            val y = h - ((log.weightKg - minW) / range * h).toFloat()
             if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
         drawPath(path = path, color = primary, style = Stroke(width = 4f))
-        // Goal line
         val goalY = h - ((goalKg - minW) / range * h).toFloat()
         drawLine(color = goalColor, start = Offset(0f, goalY), end = Offset(w, goalY), strokeWidth = 2f)
     }

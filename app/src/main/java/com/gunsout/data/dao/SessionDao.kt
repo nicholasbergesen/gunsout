@@ -61,6 +61,17 @@ interface SetEntryDao {
     """)
     suspend fun getRecentForExercise(exerciseId: Long): List<SetEntry>
 
+    @Query("""
+        SELECT * FROM set_entry
+        WHERE sessionId = :sessionId AND programExerciseId = :programExerciseId
+          AND setIndex = :setIndex AND isWarmup = :isWarmup
+        LIMIT 1
+    """)
+    suspend fun findExisting(sessionId: Long, programExerciseId: Long?, setIndex: Int, isWarmup: Boolean): SetEntry?
+
+    @androidx.room.Upsert
+    suspend fun upsert(set: SetEntry): Long
+
     @Insert
     suspend fun insert(set: SetEntry): Long
 

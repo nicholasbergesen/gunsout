@@ -68,7 +68,7 @@ Every push to `main` builds a debug-signed APK and publishes it to the [`latest`
 ./gradlew :app:testDebugUnitTest
 ```
 
-32 unit tests covering the progression engine, schedule resolver (including the marked-rest-day rotation edge case), macro calculator, kcal-trend analyzer, and CalorieNinjas response parsing.
+42 unit tests covering the progression engine, schedule resolver (including the marked-rest-day rotation edge case), macro calculator, kcal-trend analyzer (linear regression robust to a single noisy weigh-in), and CalorieNinjas response parsing.
 
 ## Notes
 

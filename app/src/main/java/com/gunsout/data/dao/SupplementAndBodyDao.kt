@@ -40,6 +40,9 @@ interface SupplementLogDao {
     @Query("SELECT * FROM supplement_log WHERE supplementId = :supplementId AND date >= :since ORDER BY date DESC")
     suspend fun recentForSupplement(supplementId: Long, since: LocalDate): List<SupplementLog>
 
+    @Query("SELECT * FROM supplement_log ORDER BY id")
+    suspend fun getAll(): List<SupplementLog>
+
     @Query("SELECT COUNT(*) FROM supplement_log WHERE supplementId = :supplementId AND date = :date")
     suspend fun countForDate(supplementId: Long, date: LocalDate): Int
 
@@ -60,6 +63,9 @@ interface BodyMetricsLogDao {
 
     @Query("SELECT * FROM body_metrics_log ORDER BY date DESC, id DESC LIMIT 1")
     suspend fun getLatest(): BodyMetricsLog?
+
+    @Query("SELECT * FROM body_metrics_log WHERE date = :date LIMIT 1")
+    suspend fun getOnDate(date: LocalDate): BodyMetricsLog?
 
     @Insert
     suspend fun insert(log: BodyMetricsLog): Long

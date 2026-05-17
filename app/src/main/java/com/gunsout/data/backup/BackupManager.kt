@@ -2,6 +2,9 @@ package com.gunsout.data.backup
 
 import androidx.room.withTransaction
 import com.gunsout.data.db.GunsoutDatabase
+import com.gunsout.data.prefs.ThemeMode
+import com.gunsout.data.prefs.UserPreferences
+import com.gunsout.data.prefs.UserProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -12,7 +15,8 @@ import javax.inject.Singleton
 
 @Singleton
 class BackupManager @Inject constructor(
-    private val db: GunsoutDatabase
+    private val db: GunsoutDatabase,
+    private val userPrefs: UserPreferences
 ) {
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
@@ -21,13 +25,8 @@ class BackupManager @Inject constructor(
         val days = programs.flatMap { db.programDayDao().getForProgram(it.id) }.map { it.toBackup() }
         val exercises = db.exerciseDao().observeAll().first().map { it.toBackup() }
 
-        // ExerciseAlternates have no direct list-all DAO. We synthesize entries by walking exercises
-        // and querying alternates per exercise. Reason is lost in this minimal export path; if you
-        // need fidelity here, add an exposeAll() DAO query. PREFERENCE is the safest default.
-        val alternates = exercises.flatMap { ex ->
-            db.exerciseAlternateDao().getAlternates(ex.id)
-                .map { ExerciseAlternateBackup(exerciseId = ex.id, alternateExerciseId = it.id, reason = "PREFERENCE") }
-        }
+        // Full list of alternate links including the reason — lossless round-trip.
+        val alternates = db.exerciseAlternateDao().getAll().map { it.toBackup() }
 
         val programExercises = days.flatMap { day -> db.programExerciseDao().getForDay(day.id).map { it.toBackup() } }
 
@@ -35,25 +34,35 @@ class BackupManager @Inject constructor(
         val setEntries = sessions.flatMap { db.setEntryDao().getForSession(it.id).map { it.toBackup() } }
 
         val mealPlans = db.mealPlanDao().observeAll().first().map { it.toBackup() }
-        val templates = mealPlans.flatMap { plan ->
-            db.mealTemplateDao().observeForPlan(plan.id).first()
-        }.distinctBy { it.id }.map { it.toBackup() }
+        // Use getAll(), not observeForPlan() per plan, so global (mealPlanId IS NULL) templates
+        // are included even when there are no plans.
+        val templates = db.mealTemplateDao().getAll().map { it.toBackup() }
 
         val ingredients = db.ingredientDao().observeAll().first().map { it.toBackup() }
-        val mealTemplateIngredients = templates.flatMap { t -> db.mealTemplateIngredientDao().getForTemplate(t.id) }.map { it.toBackup() }
+        val mealTemplateIngredients = db.mealTemplateIngredientDao().getAll().map { it.toBackup() }
 
-        val foodEntries = db.foodEntryDao().observeRange(
-            java.time.LocalDate.of(1970, 1, 1), java.time.LocalDate.of(9999, 12, 31)
-        ).first().map { it.toBackup() }
+        val foodEntries = db.foodEntryDao().getAll().map { it.toBackup() }
 
         val supplements = db.supplementDao().observeAll().first().map { it.toBackup() }
-        val supplementLogs = supplements.flatMap { sup ->
-            db.supplementLogDao().recentForSupplement(sup.id, java.time.LocalDate.of(1970, 1, 1))
-        }.map { it.toBackup() }
+        val supplementLogs = db.supplementLogDao().getAll().map { it.toBackup() }
 
         val bodyMetrics = db.bodyMetricsLogDao().observeAll().first().map { it.toBackup() }
 
+        // User profile lives in DataStore, not Room — include it explicitly.
+        val profile = userPrefs.profile.first()
+        val profileBackup = UserProfileBackup(
+            currentBodyWeightKg = profile.currentBodyWeightKg,
+            goalBodyWeightKg = profile.goalBodyWeightKg,
+            goalBodyFatPct = profile.goalBodyFatPct,
+            heightCm = profile.heightCm,
+            kneeInjuryFlag = profile.kneeInjuryFlag,
+            baselineWeekActive = profile.baselineWeekActive,
+            themeMode = profile.themeMode.name,
+            firstRunDone = profile.firstRunDone
+        )
+
         val backup = GunsoutBackup(
+            schemaVersion = 2,
             exportedAtIso = LocalDateTime.now().toString(),
             programs = programs,
             programDays = days,
@@ -69,7 +78,8 @@ class BackupManager @Inject constructor(
             foodEntries = foodEntries,
             supplements = supplements,
             supplementLogs = supplementLogs,
-            bodyMetricsLogs = bodyMetrics
+            bodyMetricsLogs = bodyMetrics,
+            userProfile = profileBackup
         )
         json.encodeToString(GunsoutBackup.serializer(), backup)
     }
@@ -78,18 +88,19 @@ class BackupManager @Inject constructor(
      * Replace all user data with the contents of [jsonText]. Wrapped in a transaction so a partial
      * import never leaves the DB half-populated. The current implementation REPLACES rather than
      * merges; callers should warn the user.
+     *
+     * Accepts schemaVersion 1 (no userProfile) and 2.
      */
     suspend fun importFromJson(jsonText: String): ImportResult = withContext(Dispatchers.IO) {
         val parsed = runCatching { json.decodeFromString(GunsoutBackup.serializer(), jsonText) }
             .getOrElse { return@withContext ImportResult.Error(it.message ?: "Parse failed") }
 
-        if (parsed.schemaVersion != 1) {
+        if (parsed.schemaVersion !in 1..2) {
             return@withContext ImportResult.Error("Unsupported backup schema v${parsed.schemaVersion}")
         }
 
         db.withTransaction {
             val helper = db.openHelper.writableDatabase
-            // Clear in child-first order to respect foreign keys.
             for (sql in listOf(
                 "DELETE FROM set_entry",
                 "DELETE FROM workout_session",
@@ -124,6 +135,23 @@ class BackupManager @Inject constructor(
             parsed.supplementLogs.forEach { db.supplementLogDao().insert(it.toEntity()) }
             parsed.bodyMetricsLogs.forEach { db.bodyMetricsLogDao().insert(it.toEntity()) }
         }
+
+        // Restore profile outside the Room transaction.
+        parsed.userProfile?.let { p ->
+            userPrefs.update {
+                UserProfile(
+                    currentBodyWeightKg = p.currentBodyWeightKg,
+                    goalBodyWeightKg = p.goalBodyWeightKg,
+                    goalBodyFatPct = p.goalBodyFatPct,
+                    heightCm = p.heightCm,
+                    kneeInjuryFlag = p.kneeInjuryFlag,
+                    baselineWeekActive = p.baselineWeekActive,
+                    themeMode = runCatching { ThemeMode.valueOf(p.themeMode) }.getOrDefault(ThemeMode.SYSTEM),
+                    firstRunDone = p.firstRunDone
+                )
+            }
+        }
+
         ImportResult.Success(
             totalRows = parsed.programs.size + parsed.programDays.size + parsed.exercises.size +
                 parsed.programExercises.size + parsed.sessions.size + parsed.setEntries.size +

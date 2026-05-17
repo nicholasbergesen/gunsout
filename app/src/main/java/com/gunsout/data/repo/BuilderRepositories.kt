@@ -122,9 +122,10 @@ class MealPlanRepository @Inject constructor(
         newId
     }
 
-    suspend fun deletePlan(id: Long) = mealPlanDao.update(mealPlanDao.getById(id)!!.copy(isActive = false)).also {
-        // CASCADE removes templates and ingredient rows scoped to it.
-        // Note: meal_plan has no soft-delete; consumer can also just hide it.
+    suspend fun deletePlan(id: Long) {
+        val plan = mealPlanDao.getById(id) ?: return
+        if (plan.isTemplate) return // refuse to delete seeded templates; user can hide via duplicate.
+        mealPlanDao.delete(id)
     }
 
     suspend fun createTemplate(template: MealTemplate): Long = mealTemplateDao.insert(template)
@@ -133,9 +134,20 @@ class MealPlanRepository @Inject constructor(
     suspend fun getTemplateIngredients(templateId: Long): List<MealTemplateIngredient> =
         mealTemplateIngredientDao.getForTemplate(templateId)
 
+    /** Replace the full ingredient list for a template. Clears existing rows first. */
     suspend fun setTemplateIngredients(templateId: Long, rows: List<MealTemplateIngredient>) {
-        // For simplicity, this just inserts. Editing templates with ingredient mutations is a future enhancement.
-        rows.forEach { mealTemplateIngredientDao.insert(it.copy(mealTemplateId = templateId)) }
+        mealTemplateIngredientDao.deleteForTemplate(templateId)
+        rows.forEachIndexed { index, row ->
+            mealTemplateIngredientDao.insert(row.copy(id = 0, mealTemplateId = templateId, orderIndex = index))
+        }
+        recomputeTemplateMacros(templateId)
+    }
+
+    /** Add a single ingredient row to a template, appending to the end. */
+    suspend fun appendTemplateIngredient(templateId: Long, row: MealTemplateIngredient) {
+        val existing = mealTemplateIngredientDao.getForTemplate(templateId)
+        val nextOrder = (existing.maxOfOrNull { it.orderIndex } ?: -1) + 1
+        mealTemplateIngredientDao.insert(row.copy(id = 0, mealTemplateId = templateId, orderIndex = nextOrder))
         recomputeTemplateMacros(templateId)
     }
 

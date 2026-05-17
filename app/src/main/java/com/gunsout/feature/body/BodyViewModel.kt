@@ -14,6 +14,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -22,8 +23,7 @@ import javax.inject.Inject
 data class BodyUiState(
     val profile: UserProfile = UserProfile(),
     val logs: List<BodyMetricsLog> = emptyList(),
-    val activeMealPlan: MealPlan? = null,
-    val kcalSuggestion: KcalTrendAnalyzer.Suggestion? = null
+    val activeMealPlan: MealPlan? = null
 )
 
 @HiltViewModel
@@ -73,16 +73,16 @@ class BodyViewModel @Inject constructor(
             currentWeightKg = s.profile.currentBodyWeightKg,
             goalWeightKg = s.profile.goalBodyWeightKg
         )
-        // Re-emit by setting the suggestion through the state; we use a small side-channel here
-        // since BodyUiState comes from combine().
         _kcalSuggestion.value = suggestion
     }
 
-    /** Apply the latest suggested kcal target to the active meal plan. */
+    /** Apply the latest suggested kcal target to whatever plan is currently active. */
     fun applyKcalSuggestion() = viewModelScope.launch {
         val sug = _kcalSuggestion.value ?: return@launch
         val newTarget = sug.newKcalTarget ?: return@launch
-        val plan = state.value.activeMealPlan ?: return@launch
+        // Re-fetch the currently active plan at apply time so we never overwrite a different plan
+        // because the user activated something else between Suggest and Apply.
+        val plan = mealPlanRepo.observePlans().first().firstOrNull { it.isActive } ?: return@launch
         mealPlanRepo.updatePlan(plan.copy(kcalTarget = newTarget))
         _kcalSuggestion.value = null
     }

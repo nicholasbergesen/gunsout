@@ -37,6 +37,9 @@ interface MealPlanDao {
     @Update
     suspend fun update(plan: MealPlan)
 
+    @Query("DELETE FROM meal_plan WHERE id = :id")
+    suspend fun delete(id: Long)
+
     @Query("UPDATE meal_plan SET isActive = 0")
     suspend fun clearActive()
 
@@ -56,6 +59,10 @@ interface MealTemplateDao {
         ORDER BY mealType, name
     """)
     fun observeForPlan(planId: Long): Flow<List<MealTemplate>>
+
+    /** All templates including the global (mealPlanId IS NULL) bucket, for backup. */
+    @Query("SELECT * FROM meal_template ORDER BY id")
+    suspend fun getAll(): List<MealTemplate>
 
     @Query("SELECT * FROM meal_template WHERE id = :id")
     suspend fun getById(id: Long): MealTemplate?
@@ -93,6 +100,12 @@ interface MealTemplateIngredientDao {
     @Query("SELECT * FROM meal_template_ingredient WHERE mealTemplateId = :templateId ORDER BY orderIndex")
     suspend fun getForTemplate(templateId: Long): List<MealTemplateIngredient>
 
+    @Query("SELECT * FROM meal_template_ingredient")
+    suspend fun getAll(): List<MealTemplateIngredient>
+
+    @Query("DELETE FROM meal_template_ingredient WHERE mealTemplateId = :templateId")
+    suspend fun deleteForTemplate(templateId: Long)
+
     @Insert
     suspend fun insert(mti: MealTemplateIngredient): Long
 }
@@ -104,6 +117,9 @@ interface FoodEntryDao {
 
     @Query("SELECT * FROM food_entry WHERE date BETWEEN :start AND :end ORDER BY date ASC, createdAt ASC")
     fun observeRange(start: LocalDate, end: LocalDate): Flow<List<FoodEntry>>
+
+    @Query("SELECT * FROM food_entry ORDER BY id")
+    suspend fun getAll(): List<FoodEntry>
 
     @Insert
     suspend fun insert(entry: FoodEntry): Long

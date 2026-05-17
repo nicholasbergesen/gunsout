@@ -22,7 +22,7 @@ import java.time.LocalTime
 
 @Serializable
 data class GunsoutBackup(
-    val schemaVersion: Int = 1,
+    val schemaVersion: Int = 2,
     val exportedAtIso: String,
     val programs: List<ProgramBackup>,
     val programDays: List<ProgramDayBackup>,
@@ -38,7 +38,20 @@ data class GunsoutBackup(
     val foodEntries: List<FoodEntryBackup>,
     val supplements: List<SupplementBackup>,
     val supplementLogs: List<SupplementLogBackup>,
-    val bodyMetricsLogs: List<BodyMetricsLogBackup>
+    val bodyMetricsLogs: List<BodyMetricsLogBackup>,
+    val userProfile: UserProfileBackup? = null
+)
+
+@Serializable
+data class UserProfileBackup(
+    val currentBodyWeightKg: Double,
+    val goalBodyWeightKg: Double,
+    val goalBodyFatPct: Double? = null,
+    val heightCm: Int? = null,
+    val kneeInjuryFlag: Boolean,
+    val baselineWeekActive: Boolean,
+    val themeMode: String,
+    val firstRunDone: Boolean
 )
 
 @Serializable data class ProgramBackup(val id: Long, val name: String, val type: String, val notes: String? = null, val isActive: Boolean, val isTemplate: Boolean, val seedKey: String? = null, val createdAt: Long)

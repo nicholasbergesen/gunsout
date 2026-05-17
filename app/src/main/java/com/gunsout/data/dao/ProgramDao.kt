@@ -98,6 +98,10 @@ interface ExerciseAlternateDao {
     """)
     suspend fun getAlternates(exerciseId: Long): List<Exercise>
 
+    /** All links, for backup. */
+    @Query("SELECT * FROM exercise_alternate")
+    suspend fun getAll(): List<ExerciseAlternate>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(link: ExerciseAlternate)
 }

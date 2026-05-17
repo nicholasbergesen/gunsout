@@ -79,7 +79,15 @@ class WorkoutRepository @Inject constructor(
     suspend fun getPreviousSetsForExercise(exerciseId: Long): List<SetEntry> =
         setEntryDao.getRecentForExercise(exerciseId)
 
-    suspend fun logSet(set: SetEntry): Long = setEntryDao.insert(set)
+    suspend fun logSet(set: SetEntry): Long {
+        val existing = setEntryDao.findExisting(set.sessionId, set.programExerciseId, set.setIndex, set.isWarmup)
+        return if (existing == null) {
+            setEntryDao.insert(set)
+        } else {
+            setEntryDao.update(set.copy(id = existing.id))
+            existing.id
+        }
+    }
 
     suspend fun updateSet(set: SetEntry) = setEntryDao.update(set)
 

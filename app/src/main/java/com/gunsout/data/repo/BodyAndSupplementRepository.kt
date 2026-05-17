@@ -18,7 +18,13 @@ class BodyRepository @Inject constructor(
     fun observeAll(): Flow<List<BodyMetricsLog>> = bodyMetricsLogDao.observeAll()
     fun observeSince(since: LocalDate): Flow<List<BodyMetricsLog>> = bodyMetricsLogDao.observeSince(since)
     suspend fun getLatest(): BodyMetricsLog? = bodyMetricsLogDao.getLatest()
+    suspend fun getOnDate(date: LocalDate): BodyMetricsLog? = bodyMetricsLogDao.getOnDate(date)
 
+    /**
+     * Upsert a body-metrics row by [date]. If a row already exists for that date, its existing
+     * composition fields are preserved when the new input leaves them null. This way a quick
+     * weight-only update at 6pm doesn't wipe out a full smart-scale snapshot taken in the morning.
+     */
     suspend fun log(
         date: LocalDate,
         weightKg: Double,
@@ -28,11 +34,28 @@ class BodyRepository @Inject constructor(
         boneMassKg: Double? = null,
         visceralFatRating: Int? = null,
         notes: String? = null
-    ): Long = bodyMetricsLogDao.insert(BodyMetricsLog(
-        date = date, weightKg = weightKg,
-        bodyFatPct = bodyFatPct, muscleMassKg = muscleMassKg, waterPct = waterPct,
-        boneMassKg = boneMassKg, visceralFatRating = visceralFatRating, notes = notes
-    ))
+    ): Long {
+        val existing = bodyMetricsLogDao.getOnDate(date)
+        return if (existing == null) {
+            bodyMetricsLogDao.insert(BodyMetricsLog(
+                date = date, weightKg = weightKg,
+                bodyFatPct = bodyFatPct, muscleMassKg = muscleMassKg, waterPct = waterPct,
+                boneMassKg = boneMassKg, visceralFatRating = visceralFatRating, notes = notes
+            ))
+        } else {
+            val merged = existing.copy(
+                weightKg = weightKg,
+                bodyFatPct = bodyFatPct ?: existing.bodyFatPct,
+                muscleMassKg = muscleMassKg ?: existing.muscleMassKg,
+                waterPct = waterPct ?: existing.waterPct,
+                boneMassKg = boneMassKg ?: existing.boneMassKg,
+                visceralFatRating = visceralFatRating ?: existing.visceralFatRating,
+                notes = notes ?: existing.notes
+            )
+            bodyMetricsLogDao.update(merged)
+            existing.id
+        }
+    }
 
     suspend fun delete(id: Long) = bodyMetricsLogDao.delete(id)
 }

@@ -1,19 +1,22 @@
 package com.gunsout.domain.kcal
 
 import com.gunsout.data.entity.BodyMetricsLog
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 /**
  * Suggests a kcal-target adjustment based on recent body weight trend.
  *
- * Conservative rules:
- *  - Needs at least 3 logs in the last [windowDays].
- *  - Computes a simple linear rate (kg / week) using first and last log in the window.
- *  - Cut goal (current > goal + 1 kg): aim for 0.3 to 1.2 kg/week loss.
- *      * Too fast (loss > 1.2 kg/week): suggest +150 kcal.
- *      * Too slow (loss < 0.3 kg/week, maintained, or gained): suggest -150 kcal.
- *      * In range: hold.
- *  - Bulk and maintain use mirrored thresholds.
+ * Method: linear regression over all weigh-ins within the last [windowDays]. The slope (kg/day)
+ * scaled to kg/week is robust to one or two noisy weigh-ins because the regression considers every
+ * point — a single outlier moves the slope only slightly when the rest of the points stay on a
+ * line.
+ *
+ * Rules:
+ *  - Needs at least 4 logs spanning at least 7 days inside [windowDays].
+ *  - Cut goal (current > goal + 1 kg): target 0.3-1.2 kg/week loss.
+ *  - Bulk goal (current < goal - 1 kg): target 0.1-0.5 kg/week gain.
+ *  - Otherwise: hold.
  *
  * Suggested target is rounded to the nearest 50 kcal and floored at 1200 kcal.
  */
@@ -34,19 +37,26 @@ object KcalTrendAnalyzer {
         goalWeightKg: Double,
         windowDays: Int = 14
     ): Suggestion {
-        if (logs.size < 3) {
-            return Suggestion("Need at least 3 weigh-ins to suggest an adjustment.", null, null)
+        if (logs.size < 4) {
+            return Suggestion("Need at least 4 weigh-ins to suggest an adjustment.", null, null)
         }
         val sorted = logs.sortedBy { it.date }
-        val last = sorted.last()
-        val cutoff = last.date.minusDays(windowDays.toLong())
+        val last = sorted.last().date
+        val cutoff = last.minusDays(windowDays.toLong())
         val windowed = sorted.filter { it.date >= cutoff }
-        if (windowed.size < 2) {
+        if (windowed.size < 4) {
             return Suggestion("Not enough recent weigh-ins in the last $windowDays days.", null, null)
         }
-        val first = windowed.first()
-        val days = ChronoUnit.DAYS.between(first.date, last.date).coerceAtLeast(1L).toDouble()
-        val rateKgPerDay = (last.weightKg - first.weightKg) / days
+        val spanDays = ChronoUnit.DAYS.between(windowed.first().date, windowed.last().date)
+        if (spanDays < 7) {
+            return Suggestion("Trend window too short. Keep logging for a few more days.", null, null)
+        }
+
+        val base = windowed.first().date
+        val points = windowed.map { row ->
+            Point(day = ChronoUnit.DAYS.between(base, row.date), weight = row.weightKg)
+        }
+        val rateKgPerDay = linearSlope(points) ?: return Suggestion("Could not fit a trend.", null, null)
         val rateKgPerWeek = rateKgPerDay * 7.0
 
         val direction = when {
@@ -95,6 +105,24 @@ object KcalTrendAnalyzer {
                 null, rateKgPerWeek
             )
         }
+    }
+
+    private data class Point(val day: Long, val weight: Double)
+
+    /** Linear regression slope (kg per day). Returns null when the points are degenerate. */
+    private fun linearSlope(points: List<Point>): Double? {
+        if (points.size < 2) return null
+        val n = points.size
+        val meanX = points.sumOf { it.day.toDouble() } / n
+        val meanY = points.sumOf { it.weight } / n
+        var num = 0.0
+        var den = 0.0
+        for (p in points) {
+            val dx = p.day - meanX
+            num += dx * (p.weight - meanY)
+            den += dx * dx
+        }
+        return if (den == 0.0) null else num / den
     }
 
     private fun roundTo50(value: Int): Int {
