@@ -33,6 +33,7 @@ local.properties
 *.apk
 *.aab
 *.keystore
+!app/gunsout-debug.keystore
 *.jks
 release/
 /app/release/

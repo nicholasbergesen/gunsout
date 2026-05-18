@@ -62,6 +62,31 @@ For CI builds, the key is read from the repository's `CALORIE_NINJAS_API_KEY` Gi
 
 Every push to `main` builds a debug-signed APK and publishes it to the [`latest`](https://github.com/nicholasbergesen/gunsout/releases/tag/latest) pre-release. Sideload onto your phone via system settings.
 
+### Sideload-friendly updates
+
+For Android to install a new APK in-place over the previous one (preserving the on-device Room DB, profile, and API key), every build must:
+
+1. Share the **same signing certificate**.
+2. Use an **increasing `versionCode`**.
+3. Use the **same `applicationId`** (debug builds install as `com.gunsout.debug`).
+
+This repo handles (3) automatically and CI handles (2) by driving `versionCode` and `versionName` from `${{ github.run_number }}`. For (1), the build expects a checked-in debug keystore at `app/gunsout-debug.keystore`.
+
+**One-time setup** (run once per clone, then commit the keystore):
+
+```
+./gradlew :app:generateDebugKeystore
+git add app/gunsout-debug.keystore
+git commit -m "Add stable debug keystore for sideload updates"
+git push
+```
+
+After that, every CI build is signed with the same key, has a strictly higher `versionCode`, and installs on top of the previous APK without uninstalling. Tap the APK from the [`latest`](https://github.com/nicholasbergesen/gunsout/releases/tag/latest) release in your phone's browser and confirm "Update".
+
+> The first time you adopt this on a phone that already has a CI-built copy of Gunsout from before the stable keystore landed, you must uninstall the old build once. Export your data via Settings → Export JSON first. From the next install onward, updates are in-place.
+
+The keystore is a debug keystore (not a release signing key), uses the conventional `android` / `android` / `androiddebugkey` triple, and is safe to commit.
+
 ## Tests
 
 ```

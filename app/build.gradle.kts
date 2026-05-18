@@ -22,6 +22,18 @@ fun readBuildSecret(name: String): String {
 
 val calorieNinjasApiKey: String = readBuildSecret("CALORIE_NINJAS_API_KEY")
 
+// Version is driven by env vars in CI so each pushed APK installs cleanly over the previous one.
+// Locally these fall through to the defaults; the values still produce a valid APK.
+val ciVersionCode: Int = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+val ciVersionName: String = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.1.0"
+
+// Stable debug keystore checked in at app/gunsout-debug.keystore. When present, every build
+// (CI or local) signs with the same certificate so sideloaded APKs update in place instead of
+// being rejected with INSTALL_FAILED_UPDATE_INCOMPATIBLE. When absent, AGP falls back to the
+// default ~/.android/debug.keystore behaviour, which keeps a first-time `./gradlew assembleDebug`
+// working before the user has generated the shared keystore.
+val sharedDebugKeystore = rootProject.file("app/gunsout-debug.keystore")
+
 android {
     namespace = "com.gunsout"
     compileSdk = 36
@@ -30,13 +42,24 @@ android {
         applicationId = "com.gunsout"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = ciVersionCode
+        versionName = ciVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
         buildConfigField("String", "CALORIE_NINJAS_API_KEY", "\"" + calorieNinjasApiKey.replace("\"", "\\\"") + "\"")
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            if (sharedDebugKeystore.exists()) {
+                storeFile = sharedDebugKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
     }
 
     buildTypes {
@@ -84,6 +107,36 @@ android {
 // checked-in baseline.
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+// One-time helper: generate the shared debug keystore that every build (local and CI) signs with.
+// Run `./gradlew generateDebugKeystore` once, commit `app/gunsout-debug.keystore`, and from then
+// on every published APK installs as an in-place update over previous CI builds.
+tasks.register<Exec>("generateDebugKeystore") {
+    group = "gunsout"
+    description = "Creates the checked-in debug keystore used for sideload-friendly signing."
+    val keystoreFile = sharedDebugKeystore
+    outputs.file(keystoreFile)
+    onlyIf {
+        val exists = keystoreFile.exists()
+        if (exists) {
+            logger.lifecycle("Debug keystore already exists at ${keystoreFile.absolutePath}. Skipping.")
+        }
+        !exists
+    }
+    doFirst { keystoreFile.parentFile.mkdirs() }
+    commandLine(
+        "keytool", "-genkeypair", "-v",
+        "-keystore", keystoreFile.absolutePath,
+        "-storetype", "PKCS12",
+        "-storepass", "android",
+        "-keypass", "android",
+        "-alias", "androiddebugkey",
+        "-keyalg", "RSA",
+        "-keysize", "2048",
+        "-validity", "36500",
+        "-dname", "CN=Android Debug,O=Android,C=US"
+    )
 }
 
 dependencies {
