@@ -135,8 +135,8 @@ private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
                     setIndex = setIndex,
                     existing = existing,
                     suggestedKg = (item.previousBest?.weightKg) ?: 0.0,
-                    onLog = { weight, reps, rpe ->
-                        vm.logSet(item.programExercise, item.exercise, setIndex, weight, reps, rpe)
+                    onLog = { weight, reps, rpe, isWarmup ->
+                        vm.logSet(item.programExercise, item.exercise, setIndex, weight, reps, rpe, isWarmup)
                     }
                 )
             }
@@ -207,44 +207,54 @@ private fun SetRow(
     setIndex: Int,
     existing: com.gunsout.data.entity.SetEntry?,
     suggestedKg: Double,
-    onLog: (weight: Double?, reps: Int?, rpe: Int?) -> Unit
+    onLog: (weight: Double?, reps: Int?, rpe: Int?, isWarmup: Boolean) -> Unit
 ) {
     var weightText by remember(existing?.id) { mutableStateOf(existing?.weightKg?.toString() ?: "") }
     var repsText by remember(existing?.id) { mutableStateOf(existing?.reps?.toString() ?: "") }
     var rpeText by remember(existing?.id) { mutableStateOf(existing?.rpe?.toString() ?: "") }
+    var isWarmup by remember(existing?.id) { mutableStateOf(existing?.isWarmup ?: false) }
 
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Text("$setIndex", modifier = Modifier.padding(top = 16.dp).padding(end = 4.dp))
-        OutlinedTextField(
-            value = weightText,
-            onValueChange = { weightText = it.filter { c -> c.isDigit() || c == '.' } },
-            label = { Text("kg") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.weight(1f)
-        )
-        OutlinedTextField(
-            value = repsText,
-            onValueChange = { repsText = it.filter(Char::isDigit) },
-            label = { Text("reps") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f)
-        )
-        OutlinedTextField(
-            value = rpeText,
-            onValueChange = { rpeText = it.filter(Char::isDigit) },
-            label = { Text("RPE") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f)
-        )
-        Button(onClick = {
-            onLog(weightText.toDoubleOrNull(), repsText.toIntOrNull(), rpeText.toIntOrNull())
-        }) { Text(if (existing == null) "Log" else "Save") }
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text("$setIndex", modifier = Modifier.padding(top = 16.dp).padding(end = 4.dp))
+            OutlinedTextField(
+                value = weightText,
+                onValueChange = { weightText = it.filter { c -> c.isDigit() || c == '.' } },
+                label = { Text("kg") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = repsText,
+                onValueChange = { repsText = it.filter(Char::isDigit) },
+                label = { Text("reps") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = rpeText,
+                onValueChange = { rpeText = it.filter(Char::isDigit) },
+                label = { Text("RPE") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f)
+            )
+            androidx.compose.material3.Button(onClick = {
+                onLog(weightText.toDoubleOrNull(), repsText.toIntOrNull(), rpeText.toIntOrNull(), isWarmup)
+            }) { Text(if (existing == null) "Log" else "Save") }
+        }
+        Row(
+            modifier = Modifier.padding(start = 24.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            androidx.compose.material3.Checkbox(checked = isWarmup, onCheckedChange = { isWarmup = it })
+            Text("Warmup", style = MaterialTheme.typography.bodySmall)
+        }
     }
 }
 

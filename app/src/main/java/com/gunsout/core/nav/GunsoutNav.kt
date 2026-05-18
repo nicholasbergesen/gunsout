@@ -25,6 +25,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.gunsout.feature.body.BodyScreen
 import com.gunsout.feature.diet.DietScreen
+import com.gunsout.feature.history.HistoryDetailScreen
+import com.gunsout.feature.history.HistoryListScreen
 import com.gunsout.feature.ingredients.IngredientEditScreen
 import com.gunsout.feature.ingredients.IngredientListScreen
 import com.gunsout.feature.library.ExerciseEditScreen
@@ -82,7 +84,10 @@ fun GunsoutApp() {
             modifier = Modifier.padding(inner)
         ) {
             composable(Routes.TODAY) {
-                TodayScreen(onStartSession = { id -> navController.navigate(Routes.session(id)) })
+                TodayScreen(
+                    onStartSession = { id -> navController.navigate(Routes.session(id)) },
+                    onOpenHistory = { navController.navigate(Routes.HISTORY) }
+                )
             }
             composable(
                 Routes.SESSION,
@@ -101,6 +106,17 @@ fun GunsoutApp() {
             ) { entry ->
                 val id = entry.arguments?.getLong("programId") ?: 0L
                 ProgramEditScreen(programId = id, onBack = { navController.popBackStack() })
+            }
+
+            composable(Routes.HISTORY) {
+                HistoryListScreen(onOpenSession = { id -> navController.navigate(Routes.history(id)) })
+            }
+            composable(
+                Routes.HISTORY_DETAIL,
+                arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+            ) { entry ->
+                val id = entry.arguments?.getLong("sessionId") ?: 0L
+                HistoryDetailScreen(sessionId = id, onBack = { navController.popBackStack() })
             }
 
             composable(Routes.DIET) {

@@ -43,7 +43,6 @@ class TodayViewModel @Inject constructor(
 ) : ViewModel() {
     private val resolver = ScheduleResolver()
 
-    // External "trigger refresh" so a finished session or a marked rest day refreshes Today.
     private val refreshTicker = MutableStateFlow(0)
 
     private val activeProgramFlow = workouts.observeActiveProgram().distinctUntilChanged()
@@ -56,15 +55,17 @@ class TodayViewModel @Inject constructor(
         daysFlow,
         recentSessionsFlow,
         userPrefs.profile,
+        activeProgramFlow,
         refreshTicker
-    ) { days, recent, profile, _ ->
-        compute(days, recent, profile.baselineWeekActive)
+    ) { days, recent, profile, program, _ ->
+        compute(days, recent, profile.baselineWeekActive, program?.createdAt)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState())
 
     private fun compute(
         days: List<ProgramDay>,
         recent: List<WorkoutSession>,
-        baseline: Boolean
+        baselineFlag: Boolean,
+        programCreatedAt: Long?
     ): TodayUiState {
         val sorted = recent.sortedByDescending { it.date }
         val suggestion = resolver.resolveNext(days, sorted, LocalDate.now())
@@ -78,6 +79,10 @@ class TodayViewModel @Inject constructor(
         }
         val sessionsTarget = days.count { !it.isRest }
         val lastSession = sorted.firstOrNull { it.status == com.gunsout.data.entity.SessionStatus.COMPLETED }
+        val baselineActive = com.gunsout.domain.baseline.BaselineWeekResolver.isActive(
+            programCreatedAt = programCreatedAt,
+            forcedFlag = baselineFlag
+        )
         return TodayUiState(
             loading = false,
             nextDay = suggestion.nextDay,
@@ -88,7 +93,7 @@ class TodayViewModel @Inject constructor(
             lastSessionLabel = lastSession?.programDayLabelSnapshot,
             completedThisWeek = completedThisWeek,
             sessionsTargetThisWeek = sessionsTarget,
-            baselineWeekActive = baseline
+            baselineWeekActive = baselineActive
         )
     }
 

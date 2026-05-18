@@ -40,7 +40,13 @@ class BodyViewModel @Inject constructor(
         diet.observeActivePlan()
     ) { profile, logs, plan ->
         val sortedLogs = logs.sortedBy { it.date }
-        BodyUiState(profile, sortedLogs, plan)
+        // Keep the displayed "current weight" anchored to the latest logged row, falling back to
+        // the persisted profile only when no logs exist yet. This stops the body screen showing a
+        // 100 kg "current" alongside an 80 kg "latest" because they came from different sources.
+        val effectiveProfile = sortedLogs.lastOrNull()?.let {
+            profile.copy(currentBodyWeightKg = it.weightKg)
+        } ?: profile
+        BodyUiState(effectiveProfile, sortedLogs, plan)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BodyUiState())
 
     fun logToday(

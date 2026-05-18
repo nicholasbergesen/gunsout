@@ -63,12 +63,23 @@ class BodyRepository @Inject constructor(
 @Singleton
 class SupplementRepository @Inject constructor(
     private val supplementDao: SupplementDao,
-    private val supplementLogDao: SupplementLogDao
+    private val supplementLogDao: SupplementLogDao,
+    private val scheduler: com.gunsout.feature.supplements.SupplementReminderScheduler
 ) {
     fun observeActive(): Flow<List<Supplement>> = supplementDao.observeActive()
     fun observeAll(): Flow<List<Supplement>> = supplementDao.observeAll()
 
-    suspend fun update(supplement: Supplement) = supplementDao.update(supplement)
+    suspend fun update(supplement: Supplement) {
+        supplementDao.update(supplement)
+        scheduler.reschedule(supplement)
+    }
+
+    suspend fun setReminderTime(supplementId: Long, time: java.time.LocalTime?) {
+        val s = supplementDao.getById(supplementId) ?: return
+        val updated = s.copy(reminderTime = time)
+        supplementDao.update(updated)
+        scheduler.reschedule(updated)
+    }
 
     fun observeLogsForDate(date: LocalDate): Flow<List<SupplementLog>> =
         supplementLogDao.observeForDate(date)

@@ -37,17 +37,27 @@ class DietRepository @Inject constructor(
     fun observeEntriesRange(start: LocalDate, end: LocalDate): Flow<List<FoodEntry>> =
         foodEntryDao.observeRange(start, end)
 
-    suspend fun logFromTemplate(template: MealTemplate, date: LocalDate = LocalDate.now()): Long =
-        foodEntryDao.insert(FoodEntry(
+    suspend fun logFromTemplate(
+        template: MealTemplate,
+        date: LocalDate = LocalDate.now(),
+        multiplier: Double = 1.0
+    ): Long {
+        val m = multiplier.coerceAtLeast(0.0)
+        val displayName = if (m == 1.0) template.name else "${template.name} (${formatMul(m)}x)"
+        return foodEntryDao.insert(FoodEntry(
             date = date,
             mealType = template.mealType,
-            name = template.name,
-            kcal = template.kcal,
-            proteinG = template.proteinG,
-            carbsG = template.carbsG,
-            fatG = template.fatG,
+            name = displayName,
+            kcal = (template.kcal * m).toInt(),
+            proteinG = template.proteinG * m,
+            carbsG = template.carbsG * m,
+            fatG = template.fatG * m,
             sourceTemplateId = template.id
         ))
+    }
+
+    private fun formatMul(m: Double): String =
+        if (m == m.toInt().toDouble()) m.toInt().toString() else "%.1f".format(m).trimEnd('0').trimEnd('.')
 
     suspend fun logCustomFood(
         date: LocalDate,

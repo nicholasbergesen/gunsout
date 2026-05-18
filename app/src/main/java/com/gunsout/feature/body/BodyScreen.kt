@@ -111,9 +111,9 @@ fun BodyScreen(vm: BodyViewModel = hiltViewModel()) {
         if (state.logs.size >= 2) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Weight trend", style = MaterialTheme.typography.titleMedium)
+                    Text("Trend", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
-                    WeightChart(
+                    BodyTrendChart(
                         logs = state.logs,
                         goalKg = state.profile.goalBodyWeightKg
                     )
@@ -150,31 +150,81 @@ fun BodyScreen(vm: BodyViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun WeightChart(logs: List<BodyMetricsLog>, goalKg: Double) {
+private fun BodyTrendChart(logs: List<BodyMetricsLog>, goalKg: Double) {
     if (logs.size < 2) return
-    val minDate = logs.first().date
-    val maxDate = logs.last().date
+
+    val seriesOptions = listOf(
+        "Weight (kg)" to logs.map { it.date to it.weightKg },
+        "Body fat %" to logs.mapNotNull { row -> row.bodyFatPct?.let { row.date to it } },
+        "Muscle (kg)" to logs.mapNotNull { row -> row.muscleMassKg?.let { row.date to it } },
+        "Water %" to logs.mapNotNull { row -> row.waterPct?.let { row.date to it } }
+    ).filter { it.second.size >= 2 }
+
+    var selected by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(seriesOptions.first().first) }
+    val current = seriesOptions.firstOrNull { it.first == selected } ?: seriesOptions.first()
+
+    Column {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            seriesOptions.forEach { (label, _) ->
+                androidx.compose.material3.FilterChip(
+                    selected = selected == label,
+                    onClick = { selected = label },
+                    label = { Text(label) }
+                )
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        DateAxisLineChart(
+            points = current.second,
+            goalValue = if (current.first == "Weight (kg)") goalKg else null
+        )
+    }
+}
+
+@Composable
+private fun DateAxisLineChart(
+    points: List<Pair<java.time.LocalDate, Double>>,
+    goalValue: Double?
+) {
+    if (points.size < 2) return
+    val minDate = points.first().first
+    val maxDate = points.last().first
     val totalDays = java.time.temporal.ChronoUnit.DAYS.between(minDate, maxDate).coerceAtLeast(1L).toFloat()
 
-    val weights = logs.map { it.weightKg }
-    val minW = (weights.min() - 2).coerceAtMost(goalKg - 2)
-    val maxW = (weights.max() + 2).coerceAtLeast(goalKg + 2)
-    val range = (maxW - minW).coerceAtLeast(1.0)
+    val values = points.map { it.second }
+    val minVal = minOf(values.min() - (values.max() - values.min()) * 0.1, goalValue ?: values.min())
+    val maxVal = maxOf(values.max() + (values.max() - values.min()) * 0.1, goalValue ?: values.max())
+    val range = (maxVal - minVal).coerceAtLeast(0.01)
+
     val primary = MaterialTheme.colorScheme.primary
     val goalColor = MaterialTheme.colorScheme.tertiary
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
 
-    Canvas(modifier = Modifier.fillMaxWidth().height(180.dp)) {
-        val w = size.width
-        val h = size.height
-        val path = Path()
-        logs.forEachIndexed { i, log ->
-            val daysIn = java.time.temporal.ChronoUnit.DAYS.between(minDate, log.date).toFloat()
-            val x = w * (daysIn / totalDays)
-            val y = h - ((log.weightKg - minW) / range * h).toFloat()
-            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+    Column {
+        // Axis label row above the canvas.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("${"%.1f".format(maxVal)}", style = MaterialTheme.typography.labelSmall, color = muted)
+            Text("→", style = MaterialTheme.typography.labelSmall, color = muted)
         }
-        drawPath(path = path, color = primary, style = Stroke(width = 4f))
-        val goalY = h - ((goalKg - minW) / range * h).toFloat()
-        drawLine(color = goalColor, start = Offset(0f, goalY), end = Offset(w, goalY), strokeWidth = 2f)
+        Canvas(modifier = Modifier.fillMaxWidth().height(160.dp)) {
+            val w = size.width
+            val h = size.height
+            val path = Path()
+            points.forEachIndexed { i, (date, value) ->
+                val daysIn = java.time.temporal.ChronoUnit.DAYS.between(minDate, date).toFloat()
+                val x = w * (daysIn / totalDays)
+                val y = h - ((value - minVal) / range * h).toFloat()
+                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(path = path, color = primary, style = Stroke(width = 4f))
+            goalValue?.let { gv ->
+                val goalY = h - ((gv - minVal) / range * h).toFloat()
+                drawLine(color = goalColor, start = Offset(0f, goalY), end = Offset(w, goalY), strokeWidth = 2f)
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("${"%.1f".format(minVal)}", style = MaterialTheme.typography.labelSmall, color = muted)
+            Text("${minDate}  →  ${maxDate}", style = MaterialTheme.typography.labelSmall, color = muted)
+        }
     }
 }

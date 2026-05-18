@@ -40,7 +40,8 @@ class Seeder @Inject constructor(
     private val ingredientDao: IngredientDao,
     private val supplementDao: SupplementDao,
     private val userPrefs: UserPreferences,
-    private val apiKeyStore: ApiKeyStore
+    private val apiKeyStore: ApiKeyStore,
+    private val reminderScheduler: com.gunsout.feature.supplements.SupplementReminderScheduler
 ) {
 
     suspend fun seedIfNeeded() {
@@ -52,9 +53,17 @@ class Seeder @Inject constructor(
         seedMealPlan(activateOnFirstRun = firstRun)
         seedSupplements()
         seedApiKeyFromBuildIfPresent()
+        // Re-arm any supplement reminders saved in the DB (e.g. after install on a new device or
+        // after a backup-import). Boot is handled separately by SupplementBootReceiver.
+        rearmReminders()
         if (firstRun) {
             userPrefs.update { it.copy(firstRunDone = true) }
         }
+    }
+
+    private suspend fun rearmReminders() {
+        supplementDao.allActiveOnce().forEach { reminderScheduler.reschedule(it) }
+        reminderScheduler.ensureChannel()
     }
 
     /**

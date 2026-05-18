@@ -108,6 +108,7 @@ fun SettingsScreen(
     var goalWeight by remember(profile) { mutableStateOf(profile.goalBodyWeightKg.toString()) }
     var kneeInjury by remember(profile) { mutableStateOf(profile.kneeInjuryFlag) }
     var baselineWeek by remember(profile) { mutableStateOf(profile.baselineWeekActive) }
+    var showApiKey by remember { mutableStateOf(false) }
 
     Column(
         Modifier.fillMaxWidth().padding(16.dp).verticalScroll(scroll),
@@ -170,6 +171,12 @@ fun SettingsScreen(
                     onValueChange = vm::setApiKey,
                     label = { Text("API key") },
                     singleLine = true,
+                    visualTransformation = if (showApiKey) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    trailingIcon = {
+                        androidx.compose.material3.IconButton(onClick = { showApiKey = !showApiKey }) {
+                            Text(if (showApiKey) "hide" else "show", style = MaterialTheme.typography.labelSmall)
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))

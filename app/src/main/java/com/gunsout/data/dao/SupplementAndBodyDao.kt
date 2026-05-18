@@ -16,6 +16,9 @@ interface SupplementDao {
     @Query("SELECT * FROM supplement WHERE isActive = 1 ORDER BY name")
     fun observeActive(): Flow<List<Supplement>>
 
+    @Query("SELECT * FROM supplement WHERE isActive = 1 ORDER BY name")
+    suspend fun allActiveOnce(): List<Supplement>
+
     @Query("SELECT * FROM supplement ORDER BY name")
     fun observeAll(): Flow<List<Supplement>>
 

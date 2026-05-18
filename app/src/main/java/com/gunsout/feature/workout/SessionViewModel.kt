@@ -64,9 +64,14 @@ class SessionViewModel @Inject constructor(
     init { load() }
 
     private fun load() = viewModelScope.launch {
-        val baseline = userPrefs.profile.first().baselineWeekActive
+        val profile = userPrefs.profile.first()
         val session = workouts.getSessionById(sessionId) ?: return@launch
         val pdId = session.programDayId ?: return@launch
+        val activeProgram = workouts.getActiveProgram()
+        val baseline = com.gunsout.domain.baseline.BaselineWeekResolver.isActive(
+            programCreatedAt = activeProgram?.createdAt,
+            forcedFlag = profile.baselineWeekActive
+        )
         val pds = workouts.getProgramExercises(pdId)
         val items = pds.map { pe ->
             val effectiveId = sessionOverrides[pe.id] ?: pe.exerciseId
@@ -124,7 +129,15 @@ class SessionViewModel @Inject constructor(
         }
     }
 
-    fun logSet(programExercise: ProgramExercise, exercise: Exercise, setIndex: Int, weightKg: Double?, reps: Int?, rpe: Int?) {
+    fun logSet(
+        programExercise: ProgramExercise,
+        exercise: Exercise,
+        setIndex: Int,
+        weightKg: Double?,
+        reps: Int?,
+        rpe: Int?,
+        isWarmup: Boolean = false
+    ) {
         viewModelScope.launch {
             workouts.logSet(
                 SetEntry(
@@ -136,16 +149,16 @@ class SessionViewModel @Inject constructor(
                     weightKg = weightKg,
                     reps = reps,
                     rpe = rpe,
+                    isWarmup = isWarmup,
                     completedAt = LocalDateTime.now()
                 )
             )
-            // Only start the rest timer when there is actually another set to come. After the very
-            // last set of the very last exercise, the user is done — no 90s nag.
+            // Skip rest timer on warmup sets and on the very last set of the last exercise.
             val items = _state.value.items
             val itemIndex = items.indexOfFirst { it.programExercise.id == programExercise.id }
             val isLastSet = setIndex >= programExercise.sets
             val isLastExercise = itemIndex == items.size - 1
-            if (!(isLastSet && isLastExercise)) {
+            if (!isWarmup && !(isLastSet && isLastExercise)) {
                 RestTimerService.start(appContext, programExercise.restSec, exercise.name)
             }
             load()

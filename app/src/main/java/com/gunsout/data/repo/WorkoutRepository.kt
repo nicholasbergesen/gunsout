@@ -33,6 +33,9 @@ class WorkoutRepository @Inject constructor(
     fun observeDaysFor(programId: Long): Flow<List<ProgramDay>> = programDayDao.observeForProgram(programId)
     fun observeRecentCompletedAndSkipped(limit: Int = 50): Flow<List<WorkoutSession>> =
         workoutSessionDao.observeRecentRotation(limit)
+    fun observeAllSessions(): Flow<List<WorkoutSession>> = workoutSessionDao.observeAll()
+
+    suspend fun getActiveProgram(): Program? = programDao.getActive()
 
     suspend fun getActiveProgramDays(): List<ProgramDay> {
         val active = programDao.getActive() ?: return emptyList()

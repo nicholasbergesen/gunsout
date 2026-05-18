@@ -28,6 +28,7 @@ import com.gunsout.data.entity.ProgramDay
 @Composable
 fun TodayScreen(
     onStartSession: (Long) -> Unit,
+    onOpenHistory: () -> Unit = {},
     vm: TodayViewModel = hiltViewModel()
 ) {
     val state by vm.state.collectAsState()
@@ -132,7 +133,10 @@ fun TodayScreen(
         // Summary
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                Text("This week", style = MaterialTheme.typography.titleMedium)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("This week", style = MaterialTheme.typography.titleMedium)
+                    androidx.compose.material3.TextButton(onClick = onOpenHistory) { Text("History") }
+                }
                 Spacer(Modifier.height(4.dp))
                 Text("${state.completedThisWeek} of ${state.sessionsTargetThisWeek} sessions completed")
                 state.lastSessionLabel?.let { last ->

@@ -21,6 +21,7 @@ import com.gunsout.data.entity.ProgramDay
 import com.gunsout.data.entity.ProgramExercise
 import com.gunsout.domain.macros.MacroCalculator
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -124,7 +125,11 @@ class MealPlanRepository @Inject constructor(
 
     suspend fun deletePlan(id: Long) {
         val plan = mealPlanDao.getById(id) ?: return
-        if (plan.isTemplate) return // refuse to delete seeded templates; user can hide via duplicate.
+        if (plan.isTemplate) {
+            val allPlans = mealPlanDao.observeAll().firstOrNull() ?: emptyList()
+            val replacementExists = allPlans.any { it.id != id }
+            if (!replacementExists) return
+        }
         mealPlanDao.delete(id)
     }
 

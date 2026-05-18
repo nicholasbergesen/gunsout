@@ -87,16 +87,34 @@ class DietViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DietUiState())
 
-    fun logTemplate(template: MealTemplate) = viewModelScope.launch {
-        diet.logFromTemplate(template, dayFlow.value)
+    fun logTemplate(template: MealTemplate, multiplier: Double = 1.0) = viewModelScope.launch {
+        diet.logFromTemplate(template, dayFlow.value, multiplier)
     }
 
     fun toggleSupplement(supplement: Supplement) = viewModelScope.launch {
         supplements.markTakenToday(supplement)
     }
 
+    fun setReminder(supplementId: Long, time: java.time.LocalTime?) = viewModelScope.launch {
+        supplements.setReminderTime(supplementId, time)
+    }
+
     fun deleteEntry(entryId: Long) = viewModelScope.launch {
         diet.deleteEntry(entryId)
+    }
+
+    fun restoreEntry(entry: FoodEntry) = viewModelScope.launch {
+        // Re-insert with the original macros. ID auto-regenerates; createdAt stays the same so it
+        // sorts back to its original position in today's list.
+        diet.logCustomFood(
+            date = entry.date,
+            mealType = entry.mealType,
+            name = entry.name,
+            kcal = entry.kcal,
+            proteinG = entry.proteinG,
+            carbsG = entry.carbsG,
+            fatG = entry.fatG
+        )
     }
 
     fun updateEntry(entry: FoodEntry) = viewModelScope.launch {
