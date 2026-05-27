@@ -27,13 +27,8 @@ import com.gunsout.feature.body.BodyScreen
 import com.gunsout.feature.diet.DietScreen
 import com.gunsout.feature.history.HistoryDetailScreen
 import com.gunsout.feature.history.HistoryListScreen
-import com.gunsout.feature.ingredients.IngredientEditScreen
-import com.gunsout.feature.ingredients.IngredientListScreen
 import com.gunsout.feature.library.ExerciseEditScreen
 import com.gunsout.feature.library.LibraryListScreen
-import com.gunsout.feature.mealplan.MealPlanEditScreen
-import com.gunsout.feature.mealplan.MealPlanListScreen
-import com.gunsout.feature.mealplan.MealTemplateEditScreen
 import com.gunsout.feature.program.ProgramEditScreen
 import com.gunsout.feature.program.ProgramListScreen
 import com.gunsout.feature.settings.SettingsScreen
@@ -120,45 +115,7 @@ fun GunsoutApp() {
             }
 
             composable(Routes.DIET) {
-                DietScreen(
-                    onOpenMealPlans = { navController.navigate(Routes.MEAL_PLANS) },
-                    onOpenIngredients = { navController.navigate(Routes.INGREDIENTS) }
-                )
-            }
-            composable(Routes.MEAL_PLANS) {
-                MealPlanListScreen(onEdit = { id -> navController.navigate(Routes.mealPlan(id)) })
-            }
-            composable(
-                Routes.MEAL_PLAN_EDIT,
-                arguments = listOf(navArgument("planId") { type = NavType.LongType })
-            ) { entry ->
-                val id = entry.arguments?.getLong("planId") ?: 0L
-                MealPlanEditScreen(
-                    planId = id,
-                    onEditTemplate = { tid -> navController.navigate(Routes.mealTemplate(tid)) },
-                    onBack = { navController.popBackStack() }
-                )
-            }
-            composable(
-                Routes.MEAL_TEMPLATE_EDIT,
-                arguments = listOf(navArgument("templateId") { type = NavType.LongType })
-            ) { entry ->
-                val id = entry.arguments?.getLong("templateId") ?: 0L
-                MealTemplateEditScreen(templateId = id, onBack = { navController.popBackStack() })
-            }
-
-            composable(Routes.INGREDIENTS) {
-                IngredientListScreen(
-                    onEdit = { id -> navController.navigate(Routes.ingredient(id)) },
-                    onCreate = { navController.navigate(Routes.ingredient(0L)) }
-                )
-            }
-            composable(
-                Routes.INGREDIENT_EDIT,
-                arguments = listOf(navArgument("ingredientId") { type = NavType.LongType })
-            ) { entry ->
-                val id = entry.arguments?.getLong("ingredientId") ?: 0L
-                IngredientEditScreen(ingredientId = id, onBack = { navController.popBackStack() })
+                DietScreen()
             }
 
             composable(Routes.LIBRARY) {

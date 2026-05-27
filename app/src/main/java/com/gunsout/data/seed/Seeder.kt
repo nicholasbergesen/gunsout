@@ -1,6 +1,5 @@
 package com.gunsout.data.seed
 
-import com.gunsout.BuildConfig
 import com.gunsout.data.dao.ExerciseAlternateDao
 import com.gunsout.data.dao.ExerciseDao
 import com.gunsout.data.dao.IngredientDao
@@ -23,7 +22,6 @@ import com.gunsout.data.entity.ProgramType
 import com.gunsout.data.entity.Supplement
 import com.gunsout.data.entity.SupplementUnit
 import com.gunsout.data.prefs.UserPreferences
-import com.gunsout.data.remote.ApiKeyStore
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -40,7 +38,6 @@ class Seeder @Inject constructor(
     private val ingredientDao: IngredientDao,
     private val supplementDao: SupplementDao,
     private val userPrefs: UserPreferences,
-    private val apiKeyStore: ApiKeyStore,
     private val reminderScheduler: com.gunsout.feature.supplements.SupplementReminderScheduler
 ) {
 
@@ -52,7 +49,6 @@ class Seeder @Inject constructor(
         seedProgram(activateOnFirstRun = firstRun)
         seedMealPlan(activateOnFirstRun = firstRun)
         seedSupplements()
-        seedApiKeyFromBuildIfPresent()
         // Re-arm any supplement reminders saved in the DB (e.g. after install on a new device or
         // after a backup-import). Boot is handled separately by SupplementBootReceiver.
         rearmReminders()
@@ -64,18 +60,6 @@ class Seeder @Inject constructor(
     private suspend fun rearmReminders() {
         supplementDao.allActiveOnce().forEach { reminderScheduler.reschedule(it) }
         reminderScheduler.ensureChannel()
-    }
-
-    /**
-     * If the build was packaged with a CALORIE_NINJAS_API_KEY and the local encrypted store is
-     * empty, seed the encrypted store with that value. The user can overwrite or clear it in
-     * Settings at any time.
-     */
-    private fun seedApiKeyFromBuildIfPresent() {
-        val baked = BuildConfig.CALORIE_NINJAS_API_KEY
-        if (baked.isBlank()) return
-        if (!apiKeyStore.getCalorieNinjasKey().isNullOrBlank()) return
-        apiKeyStore.setCalorieNinjasKey(baked)
     }
 
     private suspend fun seedExercises() {

@@ -39,8 +39,6 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun DietScreen(
-    onOpenMealPlans: () -> Unit = {},
-    onOpenIngredients: () -> Unit = {},
     vm: DietViewModel = hiltViewModel()
 ) {
     val state by vm.state.collectAsState()
@@ -72,10 +70,6 @@ fun DietScreen(
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text("Diet", style = MaterialTheme.typography.headlineMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                androidx.compose.material3.TextButton(onClick = onOpenMealPlans) { Text("Plans") }
-                androidx.compose.material3.TextButton(onClick = onOpenIngredients) { Text("Ingredients") }
-            }
         }
         state.activePlan?.let { plan ->
             Card(modifier = Modifier.fillMaxWidth()) {

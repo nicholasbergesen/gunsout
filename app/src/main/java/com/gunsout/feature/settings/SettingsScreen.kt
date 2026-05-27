@@ -32,7 +32,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gunsout.data.prefs.UserPreferences
 import com.gunsout.data.prefs.UserProfile
-import com.gunsout.data.remote.ApiKeyStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -45,26 +44,14 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userPrefs: UserPreferences,
-    private val apiKeyStore: ApiKeyStore,
     private val backupManager: com.gunsout.data.backup.BackupManager
 ) : ViewModel() {
     val profile: StateFlow<UserProfile> = userPrefs.profile.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5_000), UserProfile()
     )
 
-    private val _apiKey = MutableStateFlow(apiKeyStore.getCalorieNinjasKey().orEmpty())
-    val apiKey: StateFlow<String> = _apiKey.asStateFlow()
-
     private val _backupMessage = MutableStateFlow<String?>(null)
     val backupMessage: StateFlow<String?> = _backupMessage.asStateFlow()
-
-    fun setApiKey(value: String) {
-        _apiKey.value = value
-    }
-
-    fun saveApiKey() {
-        apiKeyStore.setCalorieNinjasKey(_apiKey.value)
-    }
 
     fun clearMessage() { _backupMessage.value = null }
 
@@ -101,14 +88,12 @@ fun SettingsScreen(
     vm: SettingsViewModel = hiltViewModel()
 ) {
     val profile by vm.profile.collectAsState()
-    val apiKey by vm.apiKey.collectAsState()
     val scroll = rememberScrollState()
 
     var currentWeight by remember(profile) { mutableStateOf(profile.currentBodyWeightKg.toString()) }
     var goalWeight by remember(profile) { mutableStateOf(profile.goalBodyWeightKg.toString()) }
     var kneeInjury by remember(profile) { mutableStateOf(profile.kneeInjuryFlag) }
     var baselineWeek by remember(profile) { mutableStateOf(profile.baselineWeekActive) }
-    var showApiKey by remember { mutableStateOf(false) }
 
     Column(
         Modifier.fillMaxWidth().padding(16.dp).verticalScroll(scroll),
@@ -155,32 +140,6 @@ fun SettingsScreen(
                     checked = baselineWeek,
                     onCheckedChange = { baselineWeek = it }
                 )
-            }
-        }
-
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text("CalorieNinjas API key (optional)", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Used only for the \"Look up\" button in the ingredient editor. Stored encrypted on-device. Get a free key at calorieninjas.com.",
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = apiKey,
-                    onValueChange = vm::setApiKey,
-                    label = { Text("API key") },
-                    singleLine = true,
-                    visualTransformation = if (showApiKey) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                    trailingIcon = {
-                        androidx.compose.material3.IconButton(onClick = { showApiKey = !showApiKey }) {
-                            Text(if (showApiKey) "hide" else "show", style = MaterialTheme.typography.labelSmall)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = { vm.saveApiKey() }) { Text("Save key") }
             }
         }
 
@@ -286,7 +245,7 @@ private fun BackupRow(vm: SettingsViewModel) {
             title = { Text("Replace all data?") },
             text = {
                 Text(
-                    "Importing will permanently delete the current programs, meal plans, ingredients, sessions, sets, food entries, supplements, body metrics and profile in this install, and replace them with the contents of the selected file. This cannot be undone."
+                    "Importing will permanently delete the current programs, meal plans, sessions, sets, food entries, supplements, body metrics and profile in this install, and replace them with the contents of the selected file. This cannot be undone."
                 )
             },
             confirmButton = {
