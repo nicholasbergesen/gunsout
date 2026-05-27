@@ -67,6 +67,8 @@ class DietRepository @Inject constructor(
         fatG = fatG
     ))
 
+    suspend fun saveTemplate(template: MealTemplate): Long = mealTemplateDao.insert(template)
+
     suspend fun updateEntry(entry: FoodEntry) = foodEntryDao.update(entry)
 
     suspend fun deleteEntry(id: Long) = foodEntryDao.delete(id)

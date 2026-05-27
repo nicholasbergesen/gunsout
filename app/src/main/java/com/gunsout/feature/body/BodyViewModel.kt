@@ -8,12 +8,14 @@ import com.gunsout.data.prefs.UserPreferences
 import com.gunsout.data.prefs.UserProfile
 import com.gunsout.data.repo.BodyRepository
 import com.gunsout.domain.kcal.KcalTrendAnalyzer
+import com.gunsout.domain.nutrition.MacroTargetCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -33,8 +35,6 @@ class BodyViewModel @Inject constructor(
     private val currentUserIdProvider: CurrentUserIdProvider
 ) : ViewModel() {
 
-    // userPrefs.profile stays single-user in Phase 2b-2; it becomes per-user in Phase 3 when the
-    // DataStore router lands. The Room-backed body logs are already scoped by userId here.
     val state: StateFlow<BodyUiState> = currentUserIdProvider.currentUserId
         .filterNotNull()
         .flatMapLatest { userId ->
@@ -77,14 +77,29 @@ class BodyViewModel @Inject constructor(
         userPrefs.update { it.copy(currentBodyWeightKg = weightKg) }
     }
 
-    // TODO Phase 3: rebuild kcal suggestion against UserPreferences.overrideKcal once macro
-    // targets are driven by MacroTargetCalculator instead of MealPlan.
     fun suggestKcalAdjustment() = viewModelScope.launch {
-        _kcalSuggestion.value = null
+        val current = state.value
+        val effective = MacroTargetCalculator.effectiveTarget(current.profile, userPrefs.overrides.first())
+        if (effective == null) {
+            _kcalSuggestion.value = KcalTrendAnalyzer.Suggestion(
+                text = "Add your age, sex, height, current weight, and goal weight in Settings, or set a manual kcal override there, before asking for a suggestion.",
+                newKcalTarget = null,
+                ratePerWeekKg = null
+            )
+            return@launch
+        }
+        _kcalSuggestion.value = KcalTrendAnalyzer.analyze(
+            logs = current.logs,
+            currentTargetKcal = effective.kcal,
+            currentWeightKg = current.profile.currentBodyWeightKg,
+            goalWeightKg = current.profile.goalBodyWeightKg
+        )
     }
 
-    // TODO Phase 3: write the suggested kcal to UserPreferences.overrideKcal.
     fun applyKcalSuggestion() = viewModelScope.launch {
+        val suggestion = _kcalSuggestion.value ?: return@launch
+        val newTarget = suggestion.newKcalTarget ?: return@launch
+        userPrefs.updateOverrides { it.copy(kcal = newTarget) }
         _kcalSuggestion.value = null
     }
 
@@ -95,3 +110,4 @@ class BodyViewModel @Inject constructor(
     private val _kcalSuggestion = kotlinx.coroutines.flow.MutableStateFlow<KcalTrendAnalyzer.Suggestion?>(null)
     val kcalSuggestion: StateFlow<KcalTrendAnalyzer.Suggestion?> = _kcalSuggestion
 }
+

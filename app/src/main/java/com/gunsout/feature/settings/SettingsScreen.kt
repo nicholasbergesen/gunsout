@@ -33,14 +33,21 @@ import androidx.lifecycle.viewModelScope
 import com.gunsout.auth.AuthRepository
 import com.gunsout.auth.AuthUser
 import com.gunsout.auth.CurrentUserIdProvider
+import com.gunsout.data.prefs.ActivityLevel
+import com.gunsout.data.prefs.GoalType
+import com.gunsout.data.prefs.MacroOverrides
+import com.gunsout.data.prefs.Sex
 import com.gunsout.data.prefs.UserPreferences
 import com.gunsout.data.prefs.UserProfile
+import com.gunsout.domain.nutrition.MacroTarget
+import com.gunsout.domain.nutrition.MacroTargetCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -56,6 +63,20 @@ class SettingsViewModel @Inject constructor(
     val profile: StateFlow<UserProfile> = userPrefs.profile.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5_000), UserProfile()
     )
+
+    val overrides: StateFlow<MacroOverrides> = userPrefs.overrides.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000), MacroOverrides()
+    )
+
+    val target: StateFlow<MacroTarget?> = kotlinx.coroutines.flow.combine(
+        userPrefs.profile,
+        userPrefs.overrides
+    ) { p, o -> MacroTargetCalculator.effectiveTarget(p, o) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val suggestion: StateFlow<com.gunsout.domain.nutrition.MacroSuggestion?> = userPrefs.profile
+        .map { MacroTargetCalculator.suggest(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val signedInUser: StateFlow<AuthUser?> = authRepository.signedInUser
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -88,6 +109,11 @@ class SettingsViewModel @Inject constructor(
     fun save(
         currentWeight: Double,
         goalWeight: Double,
+        heightCm: Int?,
+        age: Int?,
+        sex: Sex?,
+        activityLevel: ActivityLevel,
+        goalType: GoalType,
         kneeInjury: Boolean,
         baselineWeek: Boolean
     ) = viewModelScope.launch {
@@ -95,10 +121,23 @@ class SettingsViewModel @Inject constructor(
             it.copy(
                 currentBodyWeightKg = currentWeight,
                 goalBodyWeightKg = goalWeight,
+                heightCm = heightCm,
+                age = age,
+                sex = sex,
+                activityLevel = activityLevel,
+                goalType = goalType,
                 kneeInjuryFlag = kneeInjury,
                 baselineWeekActive = baselineWeek
             )
         }
+    }
+
+    fun saveOverrides(kcal: Int?, proteinG: Int?, carbsG: Int?, fatG: Int?) = viewModelScope.launch {
+        userPrefs.updateOverrides { MacroOverrides(kcal, proteinG, carbsG, fatG) }
+    }
+
+    fun resetOverrides() = viewModelScope.launch {
+        userPrefs.resetOverrides()
     }
 }
 
@@ -108,13 +147,26 @@ fun SettingsScreen(
     vm: SettingsViewModel = hiltViewModel()
 ) {
     val profile by vm.profile.collectAsState()
+    val overrides by vm.overrides.collectAsState()
+    val target by vm.target.collectAsState()
+    val suggestion by vm.suggestion.collectAsState()
     val authUser by vm.signedInUser.collectAsState()
     val scroll = rememberScrollState()
 
     var currentWeight by remember(profile) { mutableStateOf(profile.currentBodyWeightKg.toString()) }
     var goalWeight by remember(profile) { mutableStateOf(profile.goalBodyWeightKg.toString()) }
+    var heightCm by remember(profile) { mutableStateOf(profile.heightCm?.toString() ?: "") }
+    var age by remember(profile) { mutableStateOf(profile.age?.toString() ?: "") }
+    var sex by remember(profile) { mutableStateOf(profile.sex) }
+    var activityLevel by remember(profile) { mutableStateOf(profile.activityLevel) }
+    var goalType by remember(profile) { mutableStateOf(profile.goalType) }
     var kneeInjury by remember(profile) { mutableStateOf(profile.kneeInjuryFlag) }
     var baselineWeek by remember(profile) { mutableStateOf(profile.baselineWeekActive) }
+
+    var overrideKcal by remember(overrides) { mutableStateOf(overrides.kcal?.toString() ?: "") }
+    var overrideProtein by remember(overrides) { mutableStateOf(overrides.proteinG?.toString() ?: "") }
+    var overrideCarbs by remember(overrides) { mutableStateOf(overrides.carbsG?.toString() ?: "") }
+    var overrideFat by remember(overrides) { mutableStateOf(overrides.fatG?.toString() ?: "") }
 
     var confirmSignOut by remember { mutableStateOf(false) }
 
@@ -163,6 +215,135 @@ fun SettingsScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = heightCm,
+                        onValueChange = { heightCm = it.filter(Char::isDigit) },
+                        label = { Text("Height (cm)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = age,
+                        onValueChange = { age = it.filter(Char::isDigit) },
+                        label = { Text("Age") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                LabeledChoiceRow(
+                    label = "Sex",
+                    selected = sex?.name,
+                    options = Sex.values().map { it.name to it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                    onSelect = { sex = it?.let { Sex.valueOf(it) } }
+                )
+                Spacer(Modifier.height(10.dp))
+                LabeledChoiceRow(
+                    label = "Activity",
+                    selected = activityLevel.name,
+                    options = ActivityLevel.values().map { it.name to it.name.lowercase().replace('_', ' ').replaceFirstChar { c -> c.uppercase() } },
+                    onSelect = { activityLevel = ActivityLevel.valueOf(it!!) }
+                )
+                Spacer(Modifier.height(10.dp))
+                LabeledChoiceRow(
+                    label = "Goal",
+                    selected = goalType.name,
+                    options = GoalType.values().map { it.name to it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                    onSelect = { goalType = GoalType.valueOf(it!!) }
+                )
+            }
+        }
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Daily targets", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(4.dp))
+                if (suggestion == null) {
+                    Text(
+                        "Fill in age, sex, height, current weight, and goal weight above to compute a suggested target. You can also set manual overrides below.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                } else {
+                    val s = suggestion!!
+                    Text(
+                        "Suggested: ${s.kcal} kcal | ${s.proteinG}g P | ${s.carbsG}g C | ${s.fatG}g F",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = overrideKcal,
+                        onValueChange = { overrideKcal = it.filter(Char::isDigit) },
+                        label = { Text("kcal") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = overrideProtein,
+                        onValueChange = { overrideProtein = it.filter(Char::isDigit) },
+                        label = { Text("P g") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = overrideCarbs,
+                        onValueChange = { overrideCarbs = it.filter(Char::isDigit) },
+                        label = { Text("C g") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = overrideFat,
+                        onValueChange = { overrideFat = it.filter(Char::isDigit) },
+                        label = { Text("F g") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Leave a field blank to fall back to the suggested value.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = {
+                        vm.saveOverrides(
+                            kcal = overrideKcal.toIntOrNull(),
+                            proteinG = overrideProtein.toIntOrNull(),
+                            carbsG = overrideCarbs.toIntOrNull(),
+                            fatG = overrideFat.toIntOrNull()
+                        )
+                    }) { Text("Save overrides") }
+                    OutlinedButton(onClick = {
+                        overrideKcal = ""
+                        overrideProtein = ""
+                        overrideCarbs = ""
+                        overrideFat = ""
+                        vm.resetOverrides()
+                    }) { Text("Reset to suggested") }
+                }
+                target?.let { t ->
+                    Spacer(Modifier.height(8.dp))
+                    val caption = when (t.source) {
+                        MacroTarget.Source.SUGGESTED -> "Active target (suggested)"
+                        MacroTarget.Source.OVERRIDDEN -> "Active target (overridden)"
+                    }
+                    Text(caption, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "${t.kcal} kcal | ${t.proteinG}g P | ${t.carbsG}g C | ${t.fatG}g F",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
         }
 
@@ -217,6 +398,11 @@ fun SettingsScreen(
                 vm.save(
                     currentWeight = currentWeight.toDoubleOrNull() ?: profile.currentBodyWeightKg,
                     goalWeight = goalWeight.toDoubleOrNull() ?: profile.goalBodyWeightKg,
+                    heightCm = heightCm.toIntOrNull(),
+                    age = age.toIntOrNull(),
+                    sex = sex,
+                    activityLevel = activityLevel,
+                    goalType = goalType,
                     kneeInjury = kneeInjury,
                     baselineWeek = baselineWeek
                 )
@@ -242,6 +428,28 @@ fun SettingsScreen(
             },
             dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } }
         )
+    }
+}
+
+@Composable
+private fun LabeledChoiceRow(
+    label: String,
+    selected: String?,
+    options: List<Pair<String, String>>,
+    onSelect: (String?) -> Unit
+) {
+    Column {
+        Text(label, style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            options.forEach { (value, display) ->
+                androidx.compose.material3.FilterChip(
+                    selected = selected == value,
+                    onClick = { onSelect(value) },
+                    label = { Text(display) }
+                )
+            }
+        }
     }
 }
 

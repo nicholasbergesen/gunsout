@@ -5,9 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.gunsout.auth.CurrentUserIdProvider
 import com.gunsout.data.entity.FoodEntry
 import com.gunsout.data.entity.MealTemplate
+import com.gunsout.data.entity.MealType
 import com.gunsout.data.entity.Supplement
+import com.gunsout.data.prefs.UserPreferences
 import com.gunsout.data.repo.DietRepository
 import com.gunsout.data.repo.SupplementRepository
+import com.gunsout.domain.nutrition.MacroTarget
+import com.gunsout.domain.nutrition.MacroTargetCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -29,7 +33,8 @@ data class DietUiState(
     val templates: List<MealTemplate> = emptyList(),
     val todayEntries: List<FoodEntry> = emptyList(),
     val supplements: List<Supplement> = emptyList(),
-    val supplementsTakenToday: Set<Long> = emptySet()
+    val supplementsTakenToday: Set<Long> = emptySet(),
+    val target: MacroTarget? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -37,6 +42,7 @@ data class DietUiState(
 class DietViewModel @Inject constructor(
     private val diet: DietRepository,
     private val supplements: SupplementRepository,
+    private val userPreferences: UserPreferences,
     private val currentUserIdProvider: CurrentUserIdProvider
 ) : ViewModel() {
 
@@ -74,14 +80,18 @@ class DietViewModel @Inject constructor(
                 diet.observeTemplates(userId),
                 entriesFlow,
                 supplements.observeActive(userId),
-                supplementLogsFlow
-            ) { templates, entries, supps, supLogs ->
+                supplementLogsFlow,
+                combine(userPreferences.profile, userPreferences.overrides) { profile, overrides ->
+                    MacroTargetCalculator.effectiveTarget(profile, overrides)
+                }
+            ) { templates, entries, supps, supLogs, target ->
                 DietUiState(
                     today = dayFlow.value,
                     templates = templates,
                     todayEntries = entries,
                     supplements = supps,
-                    supplementsTakenToday = supLogs.map { it.supplementId }.toSet()
+                    supplementsTakenToday = supLogs.map { it.supplementId }.toSet(),
+                    target = target
                 )
             }
         }
@@ -90,6 +100,43 @@ class DietViewModel @Inject constructor(
     fun logTemplate(template: MealTemplate, multiplier: Double = 1.0) = viewModelScope.launch {
         val userId = currentUserIdProvider.requireUserId()
         diet.logFromTemplate(userId, template, dayFlow.value, multiplier)
+    }
+
+    fun addMeal(
+        name: String,
+        mealType: MealType,
+        kcal: Int,
+        proteinG: Double,
+        carbsG: Double,
+        fatG: Double,
+        saveAsTemplate: Boolean
+    ) = viewModelScope.launch {
+        val userId = currentUserIdProvider.requireUserId()
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return@launch
+        diet.logCustomFood(
+            userId = userId,
+            date = dayFlow.value,
+            mealType = mealType,
+            name = trimmed,
+            kcal = kcal,
+            proteinG = proteinG,
+            carbsG = carbsG,
+            fatG = fatG
+        )
+        if (saveAsTemplate) {
+            diet.saveTemplate(
+                MealTemplate(
+                    userId = userId,
+                    name = trimmed,
+                    mealType = mealType,
+                    kcal = kcal,
+                    proteinG = proteinG,
+                    carbsG = carbsG,
+                    fatG = fatG
+                )
+            )
+        }
     }
 
     fun toggleSupplement(supplement: Supplement) = viewModelScope.launch {
@@ -125,3 +172,4 @@ class DietViewModel @Inject constructor(
         diet.updateEntry(entry)
     }
 }
+
