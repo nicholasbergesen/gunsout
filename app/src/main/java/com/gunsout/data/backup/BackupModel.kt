@@ -62,37 +62,88 @@ data class UserProfileBackup(
 @Serializable data class BodyMetricsLogBackup(val id: Long, val date: String, val weightKg: Double, val bodyFatPct: Double? = null, val muscleMassKg: Double? = null, val waterPct: Double? = null, val boneMassKg: Double? = null, val visceralFatRating: Int? = null, val notes: String? = null)
 
 fun Program.toBackup() = ProgramBackup(id, name, type.name, notes, isActive, isTemplate, seedKey, createdAt)
-fun ProgramBackup.toEntity() = Program(id, name, com.gunsout.data.entity.ProgramType.valueOf(type), notes, isActive, isTemplate, seedKey, createdAt)
+fun ProgramBackup.toEntity(userId: String) = Program(
+    id = id, userId = userId, name = name, type = com.gunsout.data.entity.ProgramType.valueOf(type),
+    notes = notes, isActive = isActive, isTemplate = isTemplate, seedKey = seedKey, createdAt = createdAt
+)
 
 fun ProgramDay.toBackup() = ProgramDayBackup(id, programId, orderIndex, label, preferredDayOfWeek?.name, isRest)
-fun ProgramDayBackup.toEntity() = ProgramDay(id, programId, orderIndex, label, preferredDayOfWeek?.let { com.gunsout.data.entity.DayHint.valueOf(it) }, isRest)
+fun ProgramDayBackup.toEntity(userId: String) = ProgramDay(
+    id = id, userId = userId, programId = programId, orderIndex = orderIndex, label = label,
+    preferredDayOfWeek = preferredDayOfWeek?.let { com.gunsout.data.entity.DayHint.valueOf(it) }, isRest = isRest
+)
 
 fun Exercise.toBackup() = ExerciseBackup(id, name, primaryMuscleGroup.name, equipment.name, formNotes, defaultRestSec, baselineNote, isUserCreated, isArchived, seedKey)
-fun ExerciseBackup.toEntity() = Exercise(id, name, com.gunsout.data.entity.MuscleGroup.valueOf(primaryMuscleGroup), com.gunsout.data.entity.Equipment.valueOf(equipment), formNotes, defaultRestSec, baselineNote, isUserCreated, isArchived, seedKey)
+fun ExerciseBackup.toEntity(userId: String) = Exercise(
+    id = id, userId = userId, name = name,
+    primaryMuscleGroup = com.gunsout.data.entity.MuscleGroup.valueOf(primaryMuscleGroup),
+    equipment = com.gunsout.data.entity.Equipment.valueOf(equipment),
+    formNotes = formNotes, defaultRestSec = defaultRestSec, baselineNote = baselineNote,
+    isUserCreated = isUserCreated, isArchived = isArchived, seedKey = seedKey
+)
 
 fun ExerciseAlternate.toBackup() = ExerciseAlternateBackup(exerciseId, alternateExerciseId, reason.name)
-fun ExerciseAlternateBackup.toEntity() = ExerciseAlternate(exerciseId, alternateExerciseId, com.gunsout.data.entity.AlternateReason.valueOf(reason))
+fun ExerciseAlternateBackup.toEntity(userId: String) = ExerciseAlternate(
+    userId = userId, exerciseId = exerciseId, alternateExerciseId = alternateExerciseId,
+    reason = com.gunsout.data.entity.AlternateReason.valueOf(reason)
+)
 
 fun ProgramExercise.toBackup() = ProgramExerciseBackup(id, programDayId, orderIndex, exerciseId, sets, repsMin, repsMax, restSec, rpeTarget, supersetGroupId, protocol.name)
-fun ProgramExerciseBackup.toEntity() = ProgramExercise(id, programDayId, orderIndex, exerciseId, sets, repsMin, repsMax, restSec, rpeTarget, supersetGroupId, com.gunsout.data.entity.Protocol.valueOf(protocol))
+fun ProgramExerciseBackup.toEntity(userId: String) = ProgramExercise(
+    id = id, userId = userId, programDayId = programDayId, orderIndex = orderIndex, exerciseId = exerciseId,
+    sets = sets, repsMin = repsMin, repsMax = repsMax, restSec = restSec, rpeTarget = rpeTarget,
+    supersetGroupId = supersetGroupId, protocol = com.gunsout.data.entity.Protocol.valueOf(protocol)
+)
 
 fun WorkoutSession.toBackup() = WorkoutSessionBackup(id, date.toString(), programDayId, programDayLabelSnapshot, status.name, notes, kneeFeel, startedAt.toString(), completedAt?.toString())
-fun WorkoutSessionBackup.toEntity() = WorkoutSession(id, LocalDate.parse(date), programDayId, programDayLabelSnapshot, com.gunsout.data.entity.SessionStatus.valueOf(status), notes, kneeFeel, LocalDateTime.parse(startedAt), completedAt?.let(LocalDateTime::parse))
+fun WorkoutSessionBackup.toEntity(userId: String) = WorkoutSession(
+    id = id, userId = userId, date = LocalDate.parse(date), programDayId = programDayId,
+    programDayLabelSnapshot = programDayLabelSnapshot,
+    status = com.gunsout.data.entity.SessionStatus.valueOf(status),
+    notes = notes, kneeFeel = kneeFeel, startedAt = LocalDateTime.parse(startedAt),
+    completedAt = completedAt?.let(LocalDateTime::parse)
+)
 
 fun SetEntry.toBackup() = SetEntryBackup(id, sessionId, programExerciseId, exerciseIdSnapshot, exerciseNameSnapshot, setIndex, weightKg, reps, rpe, isWarmup, completedAt?.toString())
-fun SetEntryBackup.toEntity() = SetEntry(id, sessionId, programExerciseId, exerciseIdSnapshot, exerciseNameSnapshot, setIndex, weightKg, reps, rpe, isWarmup, completedAt?.let(LocalDateTime::parse))
+fun SetEntryBackup.toEntity(userId: String) = SetEntry(
+    id = id, userId = userId, sessionId = sessionId, programExerciseId = programExerciseId,
+    exerciseIdSnapshot = exerciseIdSnapshot, exerciseNameSnapshot = exerciseNameSnapshot,
+    setIndex = setIndex, weightKg = weightKg, reps = reps, rpe = rpe, isWarmup = isWarmup,
+    completedAt = completedAt?.let(LocalDateTime::parse)
+)
 
 fun MealTemplate.toBackup() = MealTemplateBackup(id, name, mealType.name, kcal, proteinG, carbsG, fatG, notes, seedKey)
-fun MealTemplateBackup.toEntity() = MealTemplate(id, name, com.gunsout.data.entity.MealType.valueOf(mealType), kcal, proteinG, carbsG, fatG, notes, seedKey)
+fun MealTemplateBackup.toEntity(userId: String) = MealTemplate(
+    id = id, userId = userId, name = name, mealType = com.gunsout.data.entity.MealType.valueOf(mealType),
+    kcal = kcal, proteinG = proteinG, carbsG = carbsG, fatG = fatG, notes = notes, seedKey = seedKey
+)
 
 fun FoodEntry.toBackup() = FoodEntryBackup(id, date.toString(), mealType.name, name, kcal, proteinG, carbsG, fatG, sourceTemplateId, createdAt)
-fun FoodEntryBackup.toEntity() = FoodEntry(id, LocalDate.parse(date), com.gunsout.data.entity.MealType.valueOf(mealType), name, kcal, proteinG, carbsG, fatG, sourceTemplateId, createdAt)
+fun FoodEntryBackup.toEntity(userId: String) = FoodEntry(
+    id = id, userId = userId, date = LocalDate.parse(date),
+    mealType = com.gunsout.data.entity.MealType.valueOf(mealType), name = name, kcal = kcal,
+    proteinG = proteinG, carbsG = carbsG, fatG = fatG,
+    sourceTemplateId = sourceTemplateId, createdAt = createdAt
+)
 
 fun Supplement.toBackup() = SupplementBackup(id, name, defaultDose, unit.name, notes, takeWith, reminderTime?.toString(), isActive, isUserCreated, seedKey)
-fun SupplementBackup.toEntity() = Supplement(id, name, defaultDose, com.gunsout.data.entity.SupplementUnit.valueOf(unit), notes, takeWith, reminderTime?.let(LocalTime::parse), isActive, isUserCreated, seedKey)
+fun SupplementBackup.toEntity(userId: String) = Supplement(
+    id = id, userId = userId, name = name, defaultDose = defaultDose,
+    unit = com.gunsout.data.entity.SupplementUnit.valueOf(unit),
+    notes = notes, takeWith = takeWith, reminderTime = reminderTime?.let(LocalTime::parse),
+    isActive = isActive, isUserCreated = isUserCreated, seedKey = seedKey
+)
 
 fun SupplementLog.toBackup() = SupplementLogBackup(id, supplementId, date.toString(), doseTaken, unit.name, takenAt.toString())
-fun SupplementLogBackup.toEntity() = SupplementLog(id, supplementId, LocalDate.parse(date), doseTaken, com.gunsout.data.entity.SupplementUnit.valueOf(unit), LocalDateTime.parse(takenAt))
+fun SupplementLogBackup.toEntity(userId: String) = SupplementLog(
+    id = id, userId = userId, supplementId = supplementId, date = LocalDate.parse(date),
+    doseTaken = doseTaken, unit = com.gunsout.data.entity.SupplementUnit.valueOf(unit),
+    takenAt = LocalDateTime.parse(takenAt)
+)
 
 fun BodyMetricsLog.toBackup() = BodyMetricsLogBackup(id, date.toString(), weightKg, bodyFatPct, muscleMassKg, waterPct, boneMassKg, visceralFatRating, notes)
-fun BodyMetricsLogBackup.toEntity() = BodyMetricsLog(id, LocalDate.parse(date), weightKg, bodyFatPct, muscleMassKg, waterPct, boneMassKg, visceralFatRating, notes)
+fun BodyMetricsLogBackup.toEntity(userId: String) = BodyMetricsLog(
+    id = id, userId = userId, date = LocalDate.parse(date), weightKg = weightKg,
+    bodyFatPct = bodyFatPct, muscleMassKg = muscleMassKg, waterPct = waterPct,
+    boneMassKg = boneMassKg, visceralFatRating = visceralFatRating, notes = notes
+)

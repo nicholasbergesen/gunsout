@@ -5,9 +5,13 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.LocalDate
 
-@Entity(tableName = "meal_template")
+@Entity(
+    tableName = "meal_template",
+    indices = [Index("userId")]
+)
 data class MealTemplate(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
     val name: String,
     val mealType: MealType,
     val kcal: Int = 0,
@@ -20,10 +24,11 @@ data class MealTemplate(
 
 @Entity(
     tableName = "food_entry",
-    indices = [Index("date")]
+    indices = [Index("date"), Index("userId")]
 )
 data class FoodEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
     val date: LocalDate,
     val mealType: MealType,
     val name: String,

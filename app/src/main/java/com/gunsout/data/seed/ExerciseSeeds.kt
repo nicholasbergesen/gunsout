@@ -13,6 +13,7 @@ object ExerciseSeeds {
     val all: List<Seed> = listOf(
         // Upper A
         Seed("inc_db_bench", Exercise(
+            userId = "",
             name = "Incline Dumbbell Bench Press",
             primaryMuscleGroup = MuscleGroup.CHEST,
             equipment = Equipment.DUMBBELL,
@@ -22,6 +23,7 @@ object ExerciseSeeds {
             seedKey = "inc_db_bench"
         )),
         Seed("pull_ups", Exercise(
+            userId = "",
             name = "Pull-Ups (5x2-3 Protocol)",
             primaryMuscleGroup = MuscleGroup.BACK,
             equipment = Equipment.BODYWEIGHT,
@@ -34,6 +36,7 @@ object ExerciseSeeds {
             "assisted_pullup" to AlternateReason.STRENGTH_LOW
         )),
         Seed("lat_pulldown", Exercise(
+            userId = "",
             name = "Lat Pulldown",
             primaryMuscleGroup = MuscleGroup.BACK,
             equipment = Equipment.CABLE,
@@ -42,6 +45,7 @@ object ExerciseSeeds {
             seedKey = "lat_pulldown"
         )),
         Seed("assisted_pullup", Exercise(
+            userId = "",
             name = "Assisted Pull-Up (Band or Machine)",
             primaryMuscleGroup = MuscleGroup.BACK,
             equipment = Equipment.MACHINE,
@@ -50,6 +54,7 @@ object ExerciseSeeds {
             seedKey = "assisted_pullup"
         )),
         Seed("db_shoulder_press", Exercise(
+            userId = "",
             name = "Seated Dumbbell Shoulder Press",
             primaryMuscleGroup = MuscleGroup.SHOULDERS,
             equipment = Equipment.DUMBBELL,
@@ -59,6 +64,7 @@ object ExerciseSeeds {
             seedKey = "db_shoulder_press"
         )),
         Seed("db_rear_delt_fly", Exercise(
+            userId = "",
             name = "Dumbbell Rear Delt Flyes",
             primaryMuscleGroup = MuscleGroup.SHOULDERS,
             equipment = Equipment.DUMBBELL,
@@ -70,6 +76,7 @@ object ExerciseSeeds {
 
         // Lower A
         Seed("leg_press", Exercise(
+            userId = "",
             name = "Leg Press",
             primaryMuscleGroup = MuscleGroup.QUADS,
             equipment = Equipment.MACHINE,
@@ -82,6 +89,7 @@ object ExerciseSeeds {
             "bulgarian_split_squat" to AlternateReason.HOME
         )),
         Seed("back_squat", Exercise(
+            userId = "",
             name = "Barbell Back Squat",
             primaryMuscleGroup = MuscleGroup.QUADS,
             equipment = Equipment.BARBELL,
@@ -90,6 +98,7 @@ object ExerciseSeeds {
             seedKey = "back_squat"
         )),
         Seed("bulgarian_split_squat", Exercise(
+            userId = "",
             name = "Bulgarian Split Squat",
             primaryMuscleGroup = MuscleGroup.QUADS,
             equipment = Equipment.DUMBBELL,
@@ -98,6 +107,7 @@ object ExerciseSeeds {
             seedKey = "bulgarian_split_squat"
         )),
         Seed("rdl", Exercise(
+            userId = "",
             name = "Romanian Deadlift",
             primaryMuscleGroup = MuscleGroup.HAMSTRINGS,
             equipment = Equipment.DUMBBELL,
@@ -107,6 +117,7 @@ object ExerciseSeeds {
             seedKey = "rdl"
         )),
         Seed("leg_extension", Exercise(
+            userId = "",
             name = "Leg Extensions",
             primaryMuscleGroup = MuscleGroup.QUADS,
             equipment = Equipment.MACHINE,
@@ -117,6 +128,7 @@ object ExerciseSeeds {
             "goblet_cyclist_squat" to AlternateReason.HOME
         )),
         Seed("goblet_cyclist_squat", Exercise(
+            userId = "",
             name = "Goblet Cyclist Squat",
             primaryMuscleGroup = MuscleGroup.QUADS,
             equipment = Equipment.DUMBBELL,
@@ -125,6 +137,7 @@ object ExerciseSeeds {
             seedKey = "goblet_cyclist_squat"
         )),
         Seed("standing_calf_raise", Exercise(
+            userId = "",
             name = "Standing Dumbbell Calf Raises",
             primaryMuscleGroup = MuscleGroup.CALVES,
             equipment = Equipment.DUMBBELL,
@@ -135,6 +148,7 @@ object ExerciseSeeds {
 
         // Upper B
         Seed("chest_supported_row", Exercise(
+            userId = "",
             name = "Chest-Supported Dumbbell Row",
             primaryMuscleGroup = MuscleGroup.BACK,
             equipment = Equipment.DUMBBELL,
@@ -143,6 +157,7 @@ object ExerciseSeeds {
             seedKey = "chest_supported_row"
         ), alternates = listOf("barbell_row" to AlternateReason.PREFERENCE)),
         Seed("barbell_row", Exercise(
+            userId = "",
             name = "Barbell Row",
             primaryMuscleGroup = MuscleGroup.BACK,
             equipment = Equipment.BARBELL,
@@ -151,6 +166,7 @@ object ExerciseSeeds {
             seedKey = "barbell_row"
         )),
         Seed("flat_db_bench", Exercise(
+            userId = "",
             name = "Flat Dumbbell Bench Press",
             primaryMuscleGroup = MuscleGroup.CHEST,
             equipment = Equipment.DUMBBELL,
@@ -160,6 +176,7 @@ object ExerciseSeeds {
             seedKey = "flat_db_bench"
         )),
         Seed("db_lateral_raise", Exercise(
+            userId = "",
             name = "Dumbbell Lateral Raises",
             primaryMuscleGroup = MuscleGroup.SHOULDERS,
             equipment = Equipment.DUMBBELL,
@@ -169,6 +186,7 @@ object ExerciseSeeds {
             seedKey = "db_lateral_raise"
         )),
         Seed("db_bicep_curl", Exercise(
+            userId = "",
             name = "Dumbbell Bicep Curl",
             primaryMuscleGroup = MuscleGroup.BICEPS,
             equipment = Equipment.DUMBBELL,
@@ -177,6 +195,7 @@ object ExerciseSeeds {
             seedKey = "db_bicep_curl"
         )),
         Seed("db_overhead_tricep", Exercise(
+            userId = "",
             name = "Dumbbell Overhead Tricep Extension",
             primaryMuscleGroup = MuscleGroup.TRICEPS,
             equipment = Equipment.DUMBBELL,
@@ -187,6 +206,7 @@ object ExerciseSeeds {
 
         // Lower B
         Seed("leg_curl", Exercise(
+            userId = "",
             name = "Lying or Seated Leg Curl",
             primaryMuscleGroup = MuscleGroup.HAMSTRINGS,
             equipment = Equipment.MACHINE,
@@ -195,6 +215,7 @@ object ExerciseSeeds {
             seedKey = "leg_curl"
         ), alternates = listOf("db_lying_leg_curl" to AlternateReason.HOME)),
         Seed("db_lying_leg_curl", Exercise(
+            userId = "",
             name = "Dumbbell Lying Leg Curl",
             primaryMuscleGroup = MuscleGroup.HAMSTRINGS,
             equipment = Equipment.DUMBBELL,
@@ -203,6 +224,7 @@ object ExerciseSeeds {
             seedKey = "db_lying_leg_curl"
         )),
         Seed("goblet_squat", Exercise(
+            userId = "",
             name = "Goblet Squat",
             primaryMuscleGroup = MuscleGroup.QUADS,
             equipment = Equipment.DUMBBELL,
@@ -212,6 +234,7 @@ object ExerciseSeeds {
             seedKey = "goblet_squat"
         )),
         Seed("hip_thrust", Exercise(
+            userId = "",
             name = "Hip Thrusts",
             primaryMuscleGroup = MuscleGroup.GLUTES,
             equipment = Equipment.BARBELL,
@@ -220,6 +243,7 @@ object ExerciseSeeds {
             seedKey = "hip_thrust"
         )),
         Seed("lying_leg_raise", Exercise(
+            userId = "",
             name = "Lying Leg Raises",
             primaryMuscleGroup = MuscleGroup.CORE,
             equipment = Equipment.BODYWEIGHT,

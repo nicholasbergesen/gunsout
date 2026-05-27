@@ -15,10 +15,11 @@ import java.time.LocalDateTime
         childColumns = ["programDayId"],
         onDelete = ForeignKey.SET_NULL
     )],
-    indices = [Index("programDayId"), Index("date")]
+    indices = [Index("programDayId"), Index("date"), Index("userId")]
 )
 data class WorkoutSession(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
     val date: LocalDate,
     val programDayId: Long?,
     val programDayLabelSnapshot: String,
@@ -40,6 +41,7 @@ data class WorkoutSession(
     indices = [
         Index("sessionId"),
         Index("exerciseIdSnapshot"),
+        Index("userId"),
         Index(
             value = ["sessionId", "programExerciseId", "setIndex", "isWarmup"],
             unique = true,
@@ -49,6 +51,7 @@ data class WorkoutSession(
 )
 data class SetEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
     val sessionId: Long,
     val programExerciseId: Long?,
     val exerciseIdSnapshot: Long,

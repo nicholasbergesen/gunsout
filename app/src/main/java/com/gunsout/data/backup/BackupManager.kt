@@ -23,29 +23,34 @@ class BackupManager @Inject constructor(
     // silently. Phase 4 will reintroduce dedicated legacy-only fields with id remapping.
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
-    suspend fun exportToJson(): String = withContext(Dispatchers.IO) {
-        val programs = db.programDao().observeAll().first().map { it.toBackup() }
+    /**
+     * Export everything for [userId] to a JSON envelope. Every query is user-scoped so other
+     * users' data on the same device never leaks into the file.
+     */
+    suspend fun exportToJson(userId: String): String = withContext(Dispatchers.IO) {
+        val programs = db.programDao().observeAll(userId).first().map { it.toBackup() }
         val days = programs.flatMap { db.programDayDao().getForProgram(it.id) }.map { it.toBackup() }
-        val exercises = db.exerciseDao().observeAll().first().map { it.toBackup() }
+        val exercises = db.exerciseDao().observeAll(userId).first().map { it.toBackup() }
 
-        // Full list of alternate links including the reason — lossless round-trip.
-        val alternates = db.exerciseAlternateDao().getAll().map { it.toBackup() }
+        // Full list of alternate links for this user, including the reason — lossless round-trip.
+        val alternates = db.exerciseAlternateDao().getAll(userId).map { it.toBackup() }
 
         val programExercises = days.flatMap { day -> db.programExerciseDao().getForDay(day.id).map { it.toBackup() } }
 
-        val sessions = db.workoutSessionDao().observeAll().first().map { it.toBackup() }
+        val sessions = db.workoutSessionDao().observeAll(userId).first().map { it.toBackup() }
         val setEntries = sessions.flatMap { db.setEntryDao().getForSession(it.id).map { it.toBackup() } }
 
-        val templates = db.mealTemplateDao().getAll().map { it.toBackup() }
+        val templates = db.mealTemplateDao().getAll(userId).map { it.toBackup() }
 
-        val foodEntries = db.foodEntryDao().getAll().map { it.toBackup() }
+        val foodEntries = db.foodEntryDao().getAll(userId).map { it.toBackup() }
 
-        val supplements = db.supplementDao().observeAll().first().map { it.toBackup() }
-        val supplementLogs = db.supplementLogDao().getAll().map { it.toBackup() }
+        val supplements = db.supplementDao().observeAll(userId).first().map { it.toBackup() }
+        val supplementLogs = db.supplementLogDao().getAll(userId).map { it.toBackup() }
 
-        val bodyMetrics = db.bodyMetricsLogDao().observeAll().first().map { it.toBackup() }
+        val bodyMetrics = db.bodyMetricsLogDao().observeAll(userId).first().map { it.toBackup() }
 
-        // User profile lives in DataStore, not Room — include it explicitly.
+        // User profile lives in DataStore, not Room. Phase 2b-2 keeps UserPreferences single-user;
+        // Phase 3 makes it per-user and this read switches to the per-user DataStore.
         val profile = userPrefs.profile.first()
         val profileBackup = UserProfileBackup(
             currentBodyWeightKg = profile.currentBodyWeightKg,
@@ -79,13 +84,14 @@ class BackupManager @Inject constructor(
     }
 
     /**
-     * Replace all user data with the contents of [jsonText]. Wrapped in a transaction so a partial
-     * import never leaves the DB half-populated. The current implementation REPLACES rather than
-     * merges; callers should warn the user.
+     * Replace [userId]'s data with the contents of [jsonText]. Wrapped in a transaction so a
+     * partial import never leaves the DB half-populated. Other users' rows are untouched: every
+     * delete is scoped by userId, and every imported row is stamped with [userId] regardless of
+     * the userId carried in the file.
      *
      * Accepts schemaVersion 1 (no userProfile) and 2.
      */
-    suspend fun importFromJson(jsonText: String): ImportResult = withContext(Dispatchers.IO) {
+    suspend fun importFromJson(userId: String, jsonText: String): ImportResult = withContext(Dispatchers.IO) {
         val parsed = runCatching { json.decodeFromString(GunsoutBackup.serializer(), jsonText) }
             .getOrElse { return@withContext ImportResult.Error(it.message ?: "Parse failed") }
 
@@ -95,36 +101,39 @@ class BackupManager @Inject constructor(
 
         db.withTransaction {
             val helper = db.openHelper.writableDatabase
+            // Child-first delete order so FK constraints (when enabled) do not block the wipe.
+            // Each delete is scoped to this user's rows only.
             for (sql in listOf(
-                "DELETE FROM set_entry",
-                "DELETE FROM workout_session",
-                "DELETE FROM supplement_log",
-                "DELETE FROM supplement",
-                "DELETE FROM body_metrics_log",
-                "DELETE FROM food_entry",
-                "DELETE FROM meal_template",
-                "DELETE FROM program_exercise",
-                "DELETE FROM exercise_alternate",
-                "DELETE FROM exercise",
-                "DELETE FROM program_day",
-                "DELETE FROM program"
-            )) helper.execSQL(sql)
+                "DELETE FROM set_entry WHERE userId = ?",
+                "DELETE FROM workout_session WHERE userId = ?",
+                "DELETE FROM supplement_log WHERE userId = ?",
+                "DELETE FROM supplement WHERE userId = ?",
+                "DELETE FROM body_metrics_log WHERE userId = ?",
+                "DELETE FROM food_entry WHERE userId = ?",
+                "DELETE FROM meal_template WHERE userId = ?",
+                "DELETE FROM program_exercise WHERE userId = ?",
+                "DELETE FROM exercise_alternate WHERE userId = ?",
+                "DELETE FROM exercise WHERE userId = ?",
+                "DELETE FROM program_day WHERE userId = ?",
+                "DELETE FROM program WHERE userId = ?"
+            )) helper.execSQL(sql, arrayOf(userId))
 
-            parsed.programs.forEach { db.programDao().insert(it.toEntity()) }
-            parsed.programDays.forEach { db.programDayDao().insert(it.toEntity()) }
-            parsed.exercises.forEach { db.exerciseDao().insert(it.toEntity()) }
-            parsed.exerciseAlternates.forEach { db.exerciseAlternateDao().insert(it.toEntity()) }
-            parsed.programExercises.forEach { db.programExerciseDao().insert(it.toEntity()) }
-            parsed.sessions.forEach { db.workoutSessionDao().insert(it.toEntity()) }
-            parsed.setEntries.forEach { db.setEntryDao().insert(it.toEntity()) }
-            parsed.mealTemplates.forEach { db.mealTemplateDao().insert(it.toEntity()) }
-            parsed.foodEntries.forEach { db.foodEntryDao().insert(it.toEntity()) }
-            parsed.supplements.forEach { db.supplementDao().insert(it.toEntity()) }
-            parsed.supplementLogs.forEach { db.supplementLogDao().insert(it.toEntity()) }
-            parsed.bodyMetricsLogs.forEach { db.bodyMetricsLogDao().insert(it.toEntity()) }
+            parsed.programs.forEach { db.programDao().insert(it.toEntity(userId)) }
+            parsed.programDays.forEach { db.programDayDao().insert(it.toEntity(userId)) }
+            parsed.exercises.forEach { db.exerciseDao().insert(it.toEntity(userId)) }
+            parsed.exerciseAlternates.forEach { db.exerciseAlternateDao().insert(it.toEntity(userId)) }
+            parsed.programExercises.forEach { db.programExerciseDao().insert(it.toEntity(userId)) }
+            parsed.sessions.forEach { db.workoutSessionDao().insert(it.toEntity(userId)) }
+            parsed.setEntries.forEach { db.setEntryDao().insert(it.toEntity(userId)) }
+            parsed.mealTemplates.forEach { db.mealTemplateDao().insert(it.toEntity(userId)) }
+            parsed.foodEntries.forEach { db.foodEntryDao().insert(it.toEntity(userId)) }
+            parsed.supplements.forEach { db.supplementDao().insert(it.toEntity(userId)) }
+            parsed.supplementLogs.forEach { db.supplementLogDao().insert(it.toEntity(userId)) }
+            parsed.bodyMetricsLogs.forEach { db.bodyMetricsLogDao().insert(it.toEntity(userId)) }
         }
 
-        // Restore profile outside the Room transaction.
+        // Restore profile outside the Room transaction. UserPreferences is still single-user in
+        // Phase 2b-2, so the imported profile fully replaces the current values.
         parsed.userProfile?.let { p ->
             userPrefs.update {
                 UserProfile(

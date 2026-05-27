@@ -13,26 +13,26 @@ import java.time.LocalDate
 
 @Dao
 interface WorkoutSessionDao {
-    @Query("SELECT * FROM workout_session ORDER BY date DESC, id DESC")
-    fun observeAll(): Flow<List<WorkoutSession>>
+    @Query("SELECT * FROM workout_session WHERE userId = :userId ORDER BY date DESC, id DESC")
+    fun observeAll(userId: String): Flow<List<WorkoutSession>>
 
-    @Query("SELECT * FROM workout_session WHERE status = 'COMPLETED' ORDER BY date DESC, id DESC LIMIT :limit")
-    fun observeRecentCompleted(limit: Int = 20): Flow<List<WorkoutSession>>
+    @Query("SELECT * FROM workout_session WHERE userId = :userId AND status = 'COMPLETED' ORDER BY date DESC, id DESC LIMIT :limit")
+    fun observeRecentCompleted(userId: String, limit: Int = 20): Flow<List<WorkoutSession>>
 
-    @Query("SELECT * FROM workout_session WHERE status IN ('COMPLETED','SKIPPED') ORDER BY date DESC, id DESC LIMIT :limit")
-    fun observeRecentRotation(limit: Int = 50): Flow<List<WorkoutSession>>
+    @Query("SELECT * FROM workout_session WHERE userId = :userId AND status IN ('COMPLETED','SKIPPED') ORDER BY date DESC, id DESC LIMIT :limit")
+    fun observeRecentRotation(userId: String, limit: Int = 50): Flow<List<WorkoutSession>>
 
-    @Query("SELECT * FROM workout_session WHERE status = 'COMPLETED' ORDER BY date DESC, id DESC LIMIT 1")
-    suspend fun getLastCompleted(): WorkoutSession?
+    @Query("SELECT * FROM workout_session WHERE userId = :userId AND status = 'COMPLETED' ORDER BY date DESC, id DESC LIMIT 1")
+    suspend fun getLastCompleted(userId: String): WorkoutSession?
 
-    @Query("SELECT * FROM workout_session WHERE status = 'IN_PROGRESS' ORDER BY date DESC, id DESC LIMIT 1")
-    suspend fun getInProgress(): WorkoutSession?
+    @Query("SELECT * FROM workout_session WHERE userId = :userId AND status = 'IN_PROGRESS' ORDER BY date DESC, id DESC LIMIT 1")
+    suspend fun getInProgress(userId: String): WorkoutSession?
 
     @Query("SELECT * FROM workout_session WHERE id = :id")
     suspend fun getById(id: Long): WorkoutSession?
 
-    @Query("SELECT * FROM workout_session WHERE date >= :since ORDER BY date ASC")
-    suspend fun getSince(since: LocalDate): List<WorkoutSession>
+    @Query("SELECT * FROM workout_session WHERE userId = :userId AND date >= :since ORDER BY date ASC")
+    suspend fun getSince(userId: String, since: LocalDate): List<WorkoutSession>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(session: WorkoutSession): Long
@@ -54,12 +54,13 @@ interface SetEntryDao {
 
     @Query("""
         SELECT * FROM set_entry
-        WHERE exerciseIdSnapshot = :exerciseId
-          AND sessionId IN (SELECT id FROM workout_session WHERE status = 'COMPLETED')
+        WHERE userId = :userId
+          AND exerciseIdSnapshot = :exerciseId
+          AND sessionId IN (SELECT id FROM workout_session WHERE userId = :userId AND status = 'COMPLETED')
         ORDER BY id DESC
         LIMIT 50
     """)
-    suspend fun getRecentForExercise(exerciseId: Long): List<SetEntry>
+    suspend fun getRecentForExercise(userId: String, exerciseId: Long): List<SetEntry>
 
     @Query("""
         SELECT * FROM set_entry

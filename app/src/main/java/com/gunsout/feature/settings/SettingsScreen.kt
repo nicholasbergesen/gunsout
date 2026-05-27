@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gunsout.auth.CurrentUserIdProvider
 import com.gunsout.data.prefs.UserPreferences
 import com.gunsout.data.prefs.UserProfile
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,7 +45,8 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userPrefs: UserPreferences,
-    private val backupManager: com.gunsout.data.backup.BackupManager
+    private val backupManager: com.gunsout.data.backup.BackupManager,
+    private val currentUserIdProvider: CurrentUserIdProvider
 ) : ViewModel() {
     val profile: StateFlow<UserProfile> = userPrefs.profile.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5_000), UserProfile()
@@ -55,10 +57,12 @@ class SettingsViewModel @Inject constructor(
 
     fun clearMessage() { _backupMessage.value = null }
 
-    suspend fun exportToJsonText(): String = backupManager.exportToJson()
+    suspend fun exportToJsonText(): String =
+        backupManager.exportToJson(currentUserIdProvider.requireUserId())
 
     fun importFromJsonText(json: String) = viewModelScope.launch {
-        val result = backupManager.importFromJson(json)
+        val userId = currentUserIdProvider.requireUserId()
+        val result = backupManager.importFromJson(userId, json)
         _backupMessage.value = when (result) {
             is com.gunsout.data.backup.ImportResult.Success -> "Imported ${result.totalRows} rows."
             is com.gunsout.data.backup.ImportResult.Error -> "Import failed: ${result.message}"

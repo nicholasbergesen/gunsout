@@ -3,6 +3,7 @@ package com.gunsout.feature.workout
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gunsout.auth.CurrentUserIdProvider
 import com.gunsout.data.entity.Exercise
 import com.gunsout.data.entity.ProgramExercise
 import com.gunsout.data.entity.SetEntry
@@ -45,6 +46,7 @@ class SessionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val workouts: WorkoutRepository,
     private val userPrefs: UserPreferences,
+    private val currentUserIdProvider: CurrentUserIdProvider,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
@@ -64,10 +66,11 @@ class SessionViewModel @Inject constructor(
     init { load() }
 
     private fun load() = viewModelScope.launch {
+        val userId = currentUserIdProvider.requireUserId()
         val profile = userPrefs.profile.first()
         val session = workouts.getSessionById(sessionId) ?: return@launch
         val pdId = session.programDayId ?: return@launch
-        val activeProgram = workouts.getActiveProgram()
+        val activeProgram = workouts.getActiveProgram(userId)
         val baseline = com.gunsout.domain.baseline.BaselineWeekResolver.isActive(
             programCreatedAt = activeProgram?.createdAt,
             forcedFlag = profile.baselineWeekActive
@@ -76,10 +79,14 @@ class SessionViewModel @Inject constructor(
         val items = pds.map { pe ->
             val effectiveId = sessionOverrides[pe.id] ?: pe.exerciseId
             val ex = workouts.getExercise(effectiveId)
-                ?: Exercise(id = effectiveId, name = "(unknown)",
+                ?: Exercise(
+                    id = effectiveId,
+                    userId = userId,
+                    name = "(unknown)",
                     primaryMuscleGroup = com.gunsout.data.entity.MuscleGroup.OTHER,
-                    equipment = com.gunsout.data.entity.Equipment.OTHER)
-            val recent = workouts.getPreviousSetsForExercise(ex.id)
+                    equipment = com.gunsout.data.entity.Equipment.OTHER
+                )
+            val recent = workouts.getPreviousSetsForExercise(userId, ex.id)
             // Group recent sets into prior-session batches and order them by the session date so
             // backup-restored IDs (which may be out of chronological order) still surface the
             // genuinely most recent session.
@@ -139,8 +146,10 @@ class SessionViewModel @Inject constructor(
         isWarmup: Boolean = false
     ) {
         viewModelScope.launch {
+            val userId = currentUserIdProvider.requireUserId()
             workouts.logSet(
                 SetEntry(
+                    userId = userId,
                     sessionId = sessionId,
                     programExerciseId = programExercise.id,
                     exerciseIdSnapshot = exercise.id,

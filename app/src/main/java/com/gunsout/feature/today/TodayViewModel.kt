@@ -2,6 +2,7 @@ package com.gunsout.feature.today
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gunsout.auth.CurrentUserIdProvider
 import com.gunsout.data.entity.ProgramDay
 import com.gunsout.data.entity.WorkoutSession
 import com.gunsout.data.repo.WorkoutRepository
@@ -10,9 +11,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -39,27 +40,32 @@ data class TodayUiState(
 @HiltViewModel
 class TodayViewModel @Inject constructor(
     private val workouts: WorkoutRepository,
-    private val userPrefs: com.gunsout.data.prefs.UserPreferences
+    private val userPrefs: com.gunsout.data.prefs.UserPreferences,
+    private val currentUserIdProvider: CurrentUserIdProvider
 ) : ViewModel() {
     private val resolver = ScheduleResolver()
 
     private val refreshTicker = MutableStateFlow(0)
 
-    private val activeProgramFlow = workouts.observeActiveProgram().distinctUntilChanged()
-    private val daysFlow = activeProgramFlow.flatMapLatest { program ->
-        if (program == null) flowOf(emptyList()) else workouts.observeDaysFor(program.id)
-    }
-    private val recentSessionsFlow = workouts.observeRecentCompletedAndSkipped(limit = 50)
-
-    val state: StateFlow<TodayUiState> = combine(
-        daysFlow,
-        recentSessionsFlow,
-        userPrefs.profile,
-        activeProgramFlow,
-        refreshTicker
-    ) { days, recent, profile, program, _ ->
-        compute(days, recent, profile.baselineWeekActive, program?.createdAt)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState())
+    val state: StateFlow<TodayUiState> = currentUserIdProvider.currentUserId
+        .filterNotNull()
+        .flatMapLatest { userId ->
+            val activeProgramFlow = workouts.observeActiveProgram(userId).distinctUntilChanged()
+            val daysFlow = activeProgramFlow.flatMapLatest { program ->
+                if (program == null) flowOf(emptyList()) else workouts.observeDaysFor(program.id)
+            }
+            val recentSessionsFlow = workouts.observeRecentCompletedAndSkipped(userId, limit = 50)
+            combine(
+                daysFlow,
+                recentSessionsFlow,
+                userPrefs.profile,
+                activeProgramFlow,
+                refreshTicker
+            ) { days, recent, profile, program, _ ->
+                compute(days, recent, profile.baselineWeekActive, program?.createdAt)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState())
 
     private fun compute(
         days: List<ProgramDay>,
@@ -103,18 +109,21 @@ class TodayViewModel @Inject constructor(
     }
 
     fun startSession(day: ProgramDay, onCreated: (Long) -> Unit) = viewModelScope.launch {
-        val id = workouts.startSession(day)
+        val userId = currentUserIdProvider.requireUserId()
+        val id = workouts.startSession(userId, day)
         onCreated(id)
     }
 
     fun markRestDay() = viewModelScope.launch {
-        workouts.markRestDay()
+        val userId = currentUserIdProvider.requireUserId()
+        workouts.markRestDay(userId)
         refresh()
     }
 
     fun skipNextDay() = viewModelScope.launch {
+        val userId = currentUserIdProvider.requireUserId()
         val day = state.value.nextDay ?: return@launch
-        workouts.skipNextDay(day)
+        workouts.skipNextDay(userId, day)
         refresh()
     }
 }

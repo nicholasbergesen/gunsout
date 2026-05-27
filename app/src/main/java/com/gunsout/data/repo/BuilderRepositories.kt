@@ -22,8 +22,8 @@ class ProgramRepository @Inject constructor(
     private val programExerciseDao: ProgramExerciseDao,
     private val exerciseDao: ExerciseDao
 ) {
-    fun observePrograms(): Flow<List<Program>> = programDao.observeAll()
-    fun observeExercises(): Flow<List<Exercise>> = exerciseDao.observeAll()
+    fun observePrograms(userId: String): Flow<List<Program>> = programDao.observeAll(userId)
+    fun observeExercises(userId: String): Flow<List<Exercise>> = exerciseDao.observeAll(userId)
     fun observeDaysFor(programId: Long): Flow<List<ProgramDay>> = programDayDao.observeForProgram(programId)
     fun observeExercisesForDay(programDayId: Long): Flow<List<ProgramExercise>> = programExerciseDao.observeForDay(programDayId)
 
@@ -32,21 +32,23 @@ class ProgramRepository @Inject constructor(
     suspend fun getProgramExercise(id: Long): ProgramExercise? = programExerciseDao.getById(id)
     suspend fun getExercise(id: Long): Exercise? = exerciseDao.getById(id)
 
-    suspend fun setActive(programId: Long) = programDao.setActive(programId)
+    suspend fun setActive(userId: String, programId: Long) = programDao.setActive(userId, programId)
 
-    suspend fun createBlankProgram(name: String): Long = programDao.insert(
-        Program(name = name, isActive = false, isTemplate = false)
+    suspend fun createBlankProgram(userId: String, name: String): Long = programDao.insert(
+        Program(userId = userId, name = name, isActive = false, isTemplate = false)
     )
 
-    suspend fun duplicateProgram(programId: Long, newName: String): Long = db.withTransaction {
+    suspend fun duplicateProgram(userId: String, programId: Long, newName: String): Long = db.withTransaction {
         val src = programDao.getById(programId) ?: return@withTransaction -1L
-        val newId = programDao.insert(src.copy(id = 0, name = newName, isActive = false, isTemplate = false, seedKey = null))
+        val newId = programDao.insert(src.copy(
+            id = 0, userId = userId, name = newName, isActive = false, isTemplate = false, seedKey = null
+        ))
         val days = programDayDao.getForProgram(programId)
         for (day in days) {
-            val newDayId = programDayDao.insert(day.copy(id = 0, programId = newId))
+            val newDayId = programDayDao.insert(day.copy(id = 0, userId = userId, programId = newId))
             val exes = programExerciseDao.getForDay(day.id)
             for (pe in exes) {
-                programExerciseDao.insert(pe.copy(id = 0, programDayId = newDayId))
+                programExerciseDao.insert(pe.copy(id = 0, userId = userId, programDayId = newDayId))
             }
         }
         newId
@@ -60,18 +62,21 @@ class ProgramRepository @Inject constructor(
     suspend fun deleteProgram(programId: Long) = programDao.delete(programId)
 
     suspend fun updateDay(day: ProgramDay) = programDayDao.update(day)
-    suspend fun addDay(programId: Long, label: String): Long {
+    suspend fun addDay(userId: String, programId: Long, label: String): Long {
         val existing = programDayDao.getForProgram(programId)
         val nextOrder = (existing.maxOfOrNull { it.orderIndex } ?: -1) + 1
-        return programDayDao.insert(ProgramDay(programId = programId, orderIndex = nextOrder, label = label))
+        return programDayDao.insert(ProgramDay(
+            userId = userId, programId = programId, orderIndex = nextOrder, label = label
+        ))
     }
     suspend fun deleteDay(dayId: Long) = programDayDao.delete(dayId)
 
-    suspend fun addExerciseToDay(programDayId: Long, exerciseId: Long): Long {
+    suspend fun addExerciseToDay(userId: String, programDayId: Long, exerciseId: Long): Long {
         val existing = programExerciseDao.getForDay(programDayId)
         val order = (existing.maxOfOrNull { it.orderIndex } ?: -1) + 1
         val ex = exerciseDao.getById(exerciseId) ?: return -1L
         return programExerciseDao.insert(ProgramExercise(
+            userId = userId,
             programDayId = programDayId, orderIndex = order, exerciseId = exerciseId,
             restSec = ex.defaultRestSec
         ))

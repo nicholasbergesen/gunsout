@@ -3,33 +3,48 @@ package com.gunsout.feature.program
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gunsout.auth.CurrentUserIdProvider
 import com.gunsout.data.entity.Exercise
 import com.gunsout.data.entity.Program
 import com.gunsout.data.entity.ProgramDay
 import com.gunsout.data.entity.ProgramExercise
 import com.gunsout.data.repo.ProgramRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ProgramListViewModel @Inject constructor(
-    private val repo: ProgramRepository
+    private val repo: ProgramRepository,
+    private val currentUserIdProvider: CurrentUserIdProvider
 ) : ViewModel() {
-    val programs: StateFlow<List<Program>> = repo.observePrograms()
+    val programs: StateFlow<List<Program>> = currentUserIdProvider.currentUserId
+        .filterNotNull()
+        .flatMapLatest { userId -> repo.observePrograms(userId) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun activate(id: Long) = viewModelScope.launch { repo.setActive(id) }
-    fun duplicate(id: Long, name: String) = viewModelScope.launch { repo.duplicateProgram(id, name) }
+    fun activate(id: Long) = viewModelScope.launch {
+        val userId = currentUserIdProvider.requireUserId()
+        repo.setActive(userId, id)
+    }
+    fun duplicate(id: Long, name: String) = viewModelScope.launch {
+        val userId = currentUserIdProvider.requireUserId()
+        repo.duplicateProgram(userId, id, name)
+    }
     fun rename(id: Long, name: String) = viewModelScope.launch { repo.renameProgram(id, name) }
     fun delete(id: Long) = viewModelScope.launch { repo.deleteProgram(id) }
     fun createBlank(name: String, onCreated: (Long) -> Unit) = viewModelScope.launch {
-        val id = repo.createBlankProgram(name)
+        val userId = currentUserIdProvider.requireUserId()
+        val id = repo.createBlankProgram(userId, name)
         onCreated(id)
     }
 }
@@ -44,7 +59,8 @@ data class ProgramEditState(
 @HiltViewModel
 class ProgramEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val repo: ProgramRepository
+    private val repo: ProgramRepository,
+    private val currentUserIdProvider: CurrentUserIdProvider
 ) : ViewModel() {
     private val programId: Long = savedStateHandle.get<Long>("programId") ?: 0L
 
@@ -71,7 +87,8 @@ class ProgramEditViewModel @Inject constructor(
 
     fun addDay() = viewModelScope.launch {
         val p = _state.value.program ?: return@launch
-        repo.addDay(p.id, "Day ${_state.value.days.size + 1}")
+        val userId = currentUserIdProvider.requireUserId()
+        repo.addDay(userId, p.id, "Day ${_state.value.days.size + 1}")
         reload()
     }
 
@@ -91,7 +108,8 @@ class ProgramEditViewModel @Inject constructor(
     }
 
     fun addExerciseToDay(day: ProgramDay, exerciseId: Long) = viewModelScope.launch {
-        repo.addExerciseToDay(day.id, exerciseId)
+        val userId = currentUserIdProvider.requireUserId()
+        repo.addExerciseToDay(userId, day.id, exerciseId)
         reload()
     }
 

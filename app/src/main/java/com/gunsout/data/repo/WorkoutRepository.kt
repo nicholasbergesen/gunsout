@@ -1,5 +1,6 @@
 package com.gunsout.data.repo
 
+import com.gunsout.data.dao.ExerciseAlternateDao
 import com.gunsout.data.dao.ExerciseDao
 import com.gunsout.data.dao.ProgramDao
 import com.gunsout.data.dao.ProgramDayDao
@@ -25,20 +26,20 @@ class WorkoutRepository @Inject constructor(
     private val programDayDao: ProgramDayDao,
     private val programExerciseDao: ProgramExerciseDao,
     private val exerciseDao: ExerciseDao,
-    private val alternateDao: com.gunsout.data.dao.ExerciseAlternateDao,
+    private val alternateDao: ExerciseAlternateDao,
     private val workoutSessionDao: WorkoutSessionDao,
     private val setEntryDao: SetEntryDao
 ) {
-    fun observeActiveProgram(): Flow<Program?> = programDao.observeActive()
+    fun observeActiveProgram(userId: String): Flow<Program?> = programDao.observeActive(userId)
     fun observeDaysFor(programId: Long): Flow<List<ProgramDay>> = programDayDao.observeForProgram(programId)
-    fun observeRecentCompletedAndSkipped(limit: Int = 50): Flow<List<WorkoutSession>> =
-        workoutSessionDao.observeRecentRotation(limit)
-    fun observeAllSessions(): Flow<List<WorkoutSession>> = workoutSessionDao.observeAll()
+    fun observeRecentCompletedAndSkipped(userId: String, limit: Int = 50): Flow<List<WorkoutSession>> =
+        workoutSessionDao.observeRecentRotation(userId, limit)
+    fun observeAllSessions(userId: String): Flow<List<WorkoutSession>> = workoutSessionDao.observeAll(userId)
 
-    suspend fun getActiveProgram(): Program? = programDao.getActive()
+    suspend fun getActiveProgram(userId: String): Program? = programDao.getActive(userId)
 
-    suspend fun getActiveProgramDays(): List<ProgramDay> {
-        val active = programDao.getActive() ?: return emptyList()
+    suspend fun getActiveProgramDays(userId: String): List<ProgramDay> {
+        val active = programDao.getActive(userId) ?: return emptyList()
         return programDayDao.getForProgram(active.id)
     }
 
@@ -49,20 +50,23 @@ class WorkoutRepository @Inject constructor(
 
     suspend fun getExercise(id: Long): Exercise? = exerciseDao.getById(id)
 
-    fun observeAllExercises(): Flow<List<Exercise>> = exerciseDao.observeAll()
+    fun observeAllExercises(userId: String): Flow<List<Exercise>> = exerciseDao.observeAll(userId)
 
-    suspend fun getRecentSessions(): List<WorkoutSession> =
-        workoutSessionDao.getSince(LocalDate.now().minusDays(60))
+    suspend fun getRecentSessions(userId: String): List<WorkoutSession> =
+        workoutSessionDao.getSince(userId, LocalDate.now().minusDays(60))
 
-    suspend fun getLastCompletedSession(): WorkoutSession? = workoutSessionDao.getLastCompleted()
+    suspend fun getLastCompletedSession(userId: String): WorkoutSession? =
+        workoutSessionDao.getLastCompleted(userId)
 
-    fun observeRecentCompleted(limit: Int = 10): Flow<List<WorkoutSession>> =
-        workoutSessionDao.observeRecentCompleted(limit)
+    fun observeRecentCompleted(userId: String, limit: Int = 10): Flow<List<WorkoutSession>> =
+        workoutSessionDao.observeRecentCompleted(userId, limit)
 
-    suspend fun getInProgressSession(): WorkoutSession? = workoutSessionDao.getInProgress()
+    suspend fun getInProgressSession(userId: String): WorkoutSession? =
+        workoutSessionDao.getInProgress(userId)
 
-    suspend fun startSession(programDay: ProgramDay): Long {
+    suspend fun startSession(userId: String, programDay: ProgramDay): Long {
         val session = WorkoutSession(
+            userId = userId,
             date = LocalDate.now(),
             programDayId = programDay.id,
             programDayLabelSnapshot = programDay.label,
@@ -77,10 +81,10 @@ class WorkoutRepository @Inject constructor(
     fun observeSetsForSession(sessionId: Long): Flow<List<SetEntry>> =
         setEntryDao.observeForSession(sessionId)
 
-    suspend fun getSessionById(id: Long): com.gunsout.data.entity.WorkoutSession? = workoutSessionDao.getById(id)
+    suspend fun getSessionById(id: Long): WorkoutSession? = workoutSessionDao.getById(id)
 
-    suspend fun getPreviousSetsForExercise(exerciseId: Long): List<SetEntry> =
-        setEntryDao.getRecentForExercise(exerciseId)
+    suspend fun getPreviousSetsForExercise(userId: String, exerciseId: Long): List<SetEntry> =
+        setEntryDao.getRecentForExercise(userId, exerciseId)
 
     suspend fun logSet(set: SetEntry): Long {
         val existing = setEntryDao.findExisting(set.sessionId, set.programExerciseId, set.setIndex, set.isWarmup)
@@ -98,7 +102,7 @@ class WorkoutRepository @Inject constructor(
         alternateDao.getAlternates(exerciseId)
 
     /** Persist a swap on the ProgramExercise row so the change applies to future sessions. */
-    suspend fun persistExerciseSwap(pe: com.gunsout.data.entity.ProgramExercise, newExerciseId: Long) {
+    suspend fun persistExerciseSwap(pe: ProgramExercise, newExerciseId: Long) {
         programExerciseDao.update(pe.copy(exerciseId = newExerciseId))
     }
 
@@ -118,12 +122,13 @@ class WorkoutRepository @Inject constructor(
         )
     }
 
-    suspend fun markRestDay() {
-        val active = programDao.getActive() ?: return
+    suspend fun markRestDay(userId: String) {
+        val active = programDao.getActive(userId) ?: return
         val days = programDayDao.getForProgram(active.id)
         val rest = days.firstOrNull { it.isRest } ?: return
         workoutSessionDao.insert(
             WorkoutSession(
+                userId = userId,
                 date = LocalDate.now(),
                 // Important: keep programDayId null so the schedule resolver doesn't try to place this
                 // session in the rotation. Snapshot the label so the UI can still show "Rest" history.
@@ -136,9 +141,10 @@ class WorkoutRepository @Inject constructor(
         )
     }
 
-    suspend fun skipNextDay(nextProgramDay: ProgramDay) {
+    suspend fun skipNextDay(userId: String, nextProgramDay: ProgramDay) {
         workoutSessionDao.insert(
             WorkoutSession(
+                userId = userId,
                 date = LocalDate.now(),
                 programDayId = nextProgramDay.id,
                 programDayLabelSnapshot = nextProgramDay.label,

@@ -5,9 +5,13 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "program")
+@Entity(
+    tableName = "program",
+    indices = [Index("userId")]
+)
 data class Program(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
     val name: String,
     val type: ProgramType = ProgramType.CUSTOM,
     val notes: String? = null,
@@ -25,10 +29,11 @@ data class Program(
         childColumns = ["programId"],
         onDelete = ForeignKey.CASCADE
     )],
-    indices = [Index("programId")]
+    indices = [Index("programId"), Index("userId")]
 )
 data class ProgramDay(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
     val programId: Long,
     val orderIndex: Int,
     val label: String,
@@ -36,9 +41,13 @@ data class ProgramDay(
     val isRest: Boolean = false
 )
 
-@Entity(tableName = "exercise")
+@Entity(
+    tableName = "exercise",
+    indices = [Index("userId")]
+)
 data class Exercise(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
     val name: String,
     val primaryMuscleGroup: MuscleGroup,
     val equipment: Equipment,
@@ -67,11 +76,12 @@ data class Exercise(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("alternateExerciseId")]
+    indices = [Index("alternateExerciseId"), Index("userId")]
 )
 data class ExerciseAlternate(
     val exerciseId: Long,
     val alternateExerciseId: Long,
+    val userId: String,
     val reason: AlternateReason
 )
 
@@ -91,10 +101,11 @@ data class ExerciseAlternate(
             onDelete = ForeignKey.RESTRICT
         )
     ],
-    indices = [Index("programDayId"), Index("exerciseId")]
+    indices = [Index("programDayId"), Index("exerciseId"), Index("userId")]
 )
 data class ProgramExercise(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
     val programDayId: Long,
     val orderIndex: Int,
     val exerciseId: Long,

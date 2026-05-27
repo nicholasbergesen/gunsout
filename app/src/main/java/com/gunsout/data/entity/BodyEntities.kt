@@ -8,9 +8,13 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 
-@Entity(tableName = "supplement")
+@Entity(
+    tableName = "supplement",
+    indices = [Index("userId")]
+)
 data class Supplement(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
     val name: String,
     val defaultDose: Double,
     val unit: SupplementUnit,
@@ -30,10 +34,11 @@ data class Supplement(
         childColumns = ["supplementId"],
         onDelete = ForeignKey.CASCADE
     )],
-    indices = [Index("supplementId"), Index("date")]
+    indices = [Index("supplementId"), Index("date"), Index("userId")]
 )
 data class SupplementLog(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
     val supplementId: Long,
     val date: LocalDate,
     val doseTaken: Double,
@@ -43,10 +48,11 @@ data class SupplementLog(
 
 @Entity(
     tableName = "body_metrics_log",
-    indices = [Index("date")]
+    indices = [Index("date"), Index("userId")]
 )
 data class BodyMetricsLog(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: String,
     val date: LocalDate,
     val weightKg: Double,
     val bodyFatPct: Double? = null,

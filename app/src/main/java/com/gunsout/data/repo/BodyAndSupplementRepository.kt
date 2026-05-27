@@ -15,10 +15,12 @@ import javax.inject.Singleton
 class BodyRepository @Inject constructor(
     private val bodyMetricsLogDao: BodyMetricsLogDao
 ) {
-    fun observeAll(): Flow<List<BodyMetricsLog>> = bodyMetricsLogDao.observeAll()
-    fun observeSince(since: LocalDate): Flow<List<BodyMetricsLog>> = bodyMetricsLogDao.observeSince(since)
-    suspend fun getLatest(): BodyMetricsLog? = bodyMetricsLogDao.getLatest()
-    suspend fun getOnDate(date: LocalDate): BodyMetricsLog? = bodyMetricsLogDao.getOnDate(date)
+    fun observeAll(userId: String): Flow<List<BodyMetricsLog>> = bodyMetricsLogDao.observeAll(userId)
+    fun observeSince(userId: String, since: LocalDate): Flow<List<BodyMetricsLog>> =
+        bodyMetricsLogDao.observeSince(userId, since)
+    suspend fun getLatest(userId: String): BodyMetricsLog? = bodyMetricsLogDao.getLatest(userId)
+    suspend fun getOnDate(userId: String, date: LocalDate): BodyMetricsLog? =
+        bodyMetricsLogDao.getOnDate(userId, date)
 
     /**
      * Upsert a body-metrics row by [date]. If a row already exists for that date, its existing
@@ -26,6 +28,7 @@ class BodyRepository @Inject constructor(
      * weight-only update at 6pm doesn't wipe out a full smart-scale snapshot taken in the morning.
      */
     suspend fun log(
+        userId: String,
         date: LocalDate,
         weightKg: Double,
         bodyFatPct: Double? = null,
@@ -35,9 +38,10 @@ class BodyRepository @Inject constructor(
         visceralFatRating: Int? = null,
         notes: String? = null
     ): Long {
-        val existing = bodyMetricsLogDao.getOnDate(date)
+        val existing = bodyMetricsLogDao.getOnDate(userId, date)
         return if (existing == null) {
             bodyMetricsLogDao.insert(BodyMetricsLog(
+                userId = userId,
                 date = date, weightKg = weightKg,
                 bodyFatPct = bodyFatPct, muscleMassKg = muscleMassKg, waterPct = waterPct,
                 boneMassKg = boneMassKg, visceralFatRating = visceralFatRating, notes = notes
@@ -66,8 +70,8 @@ class SupplementRepository @Inject constructor(
     private val supplementLogDao: SupplementLogDao,
     private val scheduler: com.gunsout.feature.supplements.SupplementReminderScheduler
 ) {
-    fun observeActive(): Flow<List<Supplement>> = supplementDao.observeActive()
-    fun observeAll(): Flow<List<Supplement>> = supplementDao.observeAll()
+    fun observeActive(userId: String): Flow<List<Supplement>> = supplementDao.observeActive(userId)
+    fun observeAll(userId: String): Flow<List<Supplement>> = supplementDao.observeAll(userId)
 
     suspend fun update(supplement: Supplement) {
         supplementDao.update(supplement)
@@ -81,20 +85,21 @@ class SupplementRepository @Inject constructor(
         scheduler.reschedule(updated)
     }
 
-    fun observeLogsForDate(date: LocalDate): Flow<List<SupplementLog>> =
-        supplementLogDao.observeForDate(date)
+    fun observeLogsForDate(userId: String, date: LocalDate): Flow<List<SupplementLog>> =
+        supplementLogDao.observeForDate(userId, date)
 
-    suspend fun countForDate(supplementId: Long, date: LocalDate): Int =
-        supplementLogDao.countForDate(supplementId, date)
+    suspend fun countForDate(userId: String, supplementId: Long, date: LocalDate): Int =
+        supplementLogDao.countForDate(userId, supplementId, date)
 
-    suspend fun recentForSupplement(supplementId: Long, since: LocalDate): List<SupplementLog> =
-        supplementLogDao.recentForSupplement(supplementId, since)
+    suspend fun recentForSupplement(userId: String, supplementId: Long, since: LocalDate): List<SupplementLog> =
+        supplementLogDao.recentForSupplement(userId, supplementId, since)
 
     /** Logs a default-dose intake for today if not already logged. Returns true if a new log was created. */
-    suspend fun markTakenToday(supplement: Supplement): Boolean {
+    suspend fun markTakenToday(userId: String, supplement: Supplement): Boolean {
         val today = LocalDate.now()
-        if (supplementLogDao.countForDate(supplement.id, today) > 0) return false
+        if (supplementLogDao.countForDate(userId, supplement.id, today) > 0) return false
         supplementLogDao.insert(SupplementLog(
+            userId = userId,
             supplementId = supplement.id,
             date = today,
             doseTaken = supplement.defaultDose,

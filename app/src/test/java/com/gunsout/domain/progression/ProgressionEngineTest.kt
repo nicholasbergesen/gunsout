@@ -16,7 +16,7 @@ class ProgressionEngineTest {
 
     private fun pe(repsMin: Int = 8, repsMax: Int = 10, protocol: Protocol = Protocol.STANDARD, sets: Int = 3) =
         ProgramExercise(
-            id = 1, programDayId = 1, orderIndex = 0, exerciseId = 1,
+            id = 1, userId = "u", programDayId = 1, orderIndex = 0, exerciseId = 1,
             sets = sets, repsMin = repsMin, repsMax = repsMax, restSec = 90,
             protocol = protocol
         )
@@ -24,10 +24,11 @@ class ProgressionEngineTest {
     private fun exercise(
         muscle: MuscleGroup = MuscleGroup.CHEST,
         equipment: Equipment = Equipment.DUMBBELL
-    ) = Exercise(id = 1, name = "X", primaryMuscleGroup = muscle, equipment = equipment)
+    ) = Exercise(id = 1, userId = "u", name = "X", primaryMuscleGroup = muscle, equipment = equipment)
 
     private fun set(weight: Double?, reps: Int?, rpe: Int? = null, isWarmup: Boolean = false) =
         SetEntry(
+            userId = "u",
             sessionId = 1, programExerciseId = 1, exerciseIdSnapshot = 1,
             exerciseNameSnapshot = "X", setIndex = 1,
             weightKg = weight, reps = reps, rpe = rpe, isWarmup = isWarmup

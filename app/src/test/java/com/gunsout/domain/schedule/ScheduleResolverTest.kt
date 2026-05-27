@@ -18,16 +18,16 @@ class ScheduleResolverTest {
     private val resolver = ScheduleResolver()
 
     private val days = listOf(
-        ProgramDay(id = 1, programId = 1, orderIndex = 0, label = "Upper A", preferredDayOfWeek = DayHint.MON),
-        ProgramDay(id = 2, programId = 1, orderIndex = 1, label = "Lower A", preferredDayOfWeek = DayHint.TUE),
-        ProgramDay(id = 3, programId = 1, orderIndex = 2, label = "Rest", preferredDayOfWeek = DayHint.WED, isRest = true),
-        ProgramDay(id = 4, programId = 1, orderIndex = 3, label = "Upper B", preferredDayOfWeek = DayHint.THU),
-        ProgramDay(id = 5, programId = 1, orderIndex = 4, label = "Lower B", preferredDayOfWeek = DayHint.FRI)
+        ProgramDay(id = 1, userId = "u", programId = 1, orderIndex = 0, label = "Upper A", preferredDayOfWeek = DayHint.MON),
+        ProgramDay(id = 2, userId = "u", programId = 1, orderIndex = 1, label = "Lower A", preferredDayOfWeek = DayHint.TUE),
+        ProgramDay(id = 3, userId = "u", programId = 1, orderIndex = 2, label = "Rest", preferredDayOfWeek = DayHint.WED, isRest = true),
+        ProgramDay(id = 4, userId = "u", programId = 1, orderIndex = 3, label = "Upper B", preferredDayOfWeek = DayHint.THU),
+        ProgramDay(id = 5, userId = "u", programId = 1, orderIndex = 4, label = "Lower B", preferredDayOfWeek = DayHint.FRI)
     )
 
     private fun session(programDayId: Long, status: SessionStatus, date: LocalDate) =
         WorkoutSession(
-            id = programDayId * 10, date = date, programDayId = programDayId,
+            id = programDayId * 10, userId = "u", date = date, programDayId = programDayId,
             programDayLabelSnapshot = "L", status = status,
             startedAt = LocalDateTime.now(),
             completedAt = if (status == SessionStatus.COMPLETED) LocalDateTime.now() else null
@@ -77,7 +77,7 @@ class ScheduleResolverTest {
     }
 
     @Test fun `empty non-rest set returns null nextDay`() {
-        val onlyRest = listOf(ProgramDay(id = 1, programId = 1, orderIndex = 0, label = "Rest", isRest = true))
+        val onlyRest = listOf(ProgramDay(id = 1, userId = "u", programId = 1, orderIndex = 0, label = "Rest", isRest = true))
         val s = resolver.resolveNext(onlyRest, emptyList(), LocalDate.of(2026, 5, 18))
         assertNull(s.nextDay)
     }
@@ -95,7 +95,7 @@ class ScheduleResolverTest {
         // Yesterday: completed Upper A. Today (Wed): user marked rest. Pointer must remain at Upper A so next is Lower A.
         val sessions = listOf(
             WorkoutSession(
-                id = 999, date = today, programDayId = null,
+                id = 999, userId = "u", date = today, programDayId = null,
                 programDayLabelSnapshot = "Rest", status = SessionStatus.COMPLETED,
                 startedAt = LocalDateTime.now(), completedAt = LocalDateTime.now()
             ),

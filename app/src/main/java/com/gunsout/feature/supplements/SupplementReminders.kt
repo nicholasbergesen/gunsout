@@ -10,6 +10,7 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.gunsout.MainActivity
+import com.gunsout.auth.AuthSessionStore
 import com.gunsout.data.dao.SupplementDao
 import com.gunsout.data.entity.Supplement
 import dagger.hilt.android.AndroidEntryPoint
@@ -17,6 +18,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
@@ -134,7 +136,7 @@ class SupplementReminderReceiver : BroadcastReceiver() {
     }
 }
 
-/** Re-schedules every active supplement after device reboot. */
+/** Re-schedules every active supplement after device reboot, for the currently signed-in user. */
 @AndroidEntryPoint
 class SupplementBootReceiver : BroadcastReceiver() {
 
@@ -142,12 +144,15 @@ class SupplementBootReceiver : BroadcastReceiver() {
 
     @Inject lateinit var scheduler: SupplementReminderScheduler
 
+    @Inject lateinit var authSessionStore: AuthSessionStore
+
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_LOCKED_BOOT_COMPLETED) return
+        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         val pendingResult = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                val supplements = supplementDao.allActiveOnce()
+                val userId = authSessionStore.currentSignedInUserId.first() ?: return@launch
+                val supplements = supplementDao.allActiveOnce(userId)
                 supplements.forEach { scheduler.reschedule(it) }
             } finally {
                 pendingResult.finish()

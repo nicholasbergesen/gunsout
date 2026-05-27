@@ -3,6 +3,7 @@ package com.gunsout.feature.library
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gunsout.auth.CurrentUserIdProvider
 import com.gunsout.data.entity.Equipment
 import com.gunsout.data.entity.Exercise
 import com.gunsout.data.entity.MuscleGroup
@@ -10,20 +11,27 @@ import com.gunsout.data.entity.SetEntry
 import com.gunsout.data.repo.ProgramRepository
 import com.gunsout.data.repo.WorkoutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class LibraryListViewModel @Inject constructor(
-    private val repo: ProgramRepository
+    private val repo: ProgramRepository,
+    currentUserIdProvider: CurrentUserIdProvider
 ) : ViewModel() {
-    val exercises: StateFlow<List<Exercise>> = repo.observeExercises()
+    val exercises: StateFlow<List<Exercise>> = currentUserIdProvider.currentUserId
+        .filterNotNull()
+        .flatMapLatest { userId -> repo.observeExercises(userId) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 }
 
@@ -44,7 +52,8 @@ data class HistoryPoint(val sessionId: Long, val date: java.time.LocalDate, val 
 class ExerciseEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repo: ProgramRepository,
-    private val workoutRepo: WorkoutRepository
+    private val workoutRepo: WorkoutRepository,
+    private val currentUserIdProvider: CurrentUserIdProvider
 ) : ViewModel() {
     private val exerciseId: Long = savedStateHandle.get<Long>("exerciseId") ?: 0L
     private val _state = MutableStateFlow(ExerciseEditState())
@@ -67,7 +76,8 @@ class ExerciseEditViewModel @Inject constructor(
     }
 
     private suspend fun buildHistory(exerciseId: Long): List<HistoryPoint> {
-        val recent: List<SetEntry> = workoutRepo.getPreviousSetsForExercise(exerciseId)
+        val userId = currentUserIdProvider.requireUserId()
+        val recent: List<SetEntry> = workoutRepo.getPreviousSetsForExercise(userId, exerciseId)
         // Group by session, take the heaviest working-set per session, attach the session date.
         val sessionIds = recent.map { it.sessionId }.distinct()
         val sessionsById = sessionIds.mapNotNull { id ->
@@ -93,7 +103,9 @@ class ExerciseEditViewModel @Inject constructor(
     fun save() = viewModelScope.launch {
         val s = _state.value
         if (s.name.isBlank()) return@launch
+        val userId = currentUserIdProvider.requireUserId()
         val ex = (existing ?: Exercise(
+            userId = userId,
             name = "",
             primaryMuscleGroup = MuscleGroup.CHEST,
             equipment = Equipment.DUMBBELL,

@@ -15,20 +15,20 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ProgramDao {
-    @Query("SELECT * FROM program ORDER BY isActive DESC, name ASC")
-    fun observeAll(): Flow<List<Program>>
+    @Query("SELECT * FROM program WHERE userId = :userId ORDER BY isActive DESC, name ASC")
+    fun observeAll(userId: String): Flow<List<Program>>
 
-    @Query("SELECT * FROM program WHERE isActive = 1 LIMIT 1")
-    fun observeActive(): Flow<Program?>
+    @Query("SELECT * FROM program WHERE userId = :userId AND isActive = 1 LIMIT 1")
+    fun observeActive(userId: String): Flow<Program?>
 
-    @Query("SELECT * FROM program WHERE isActive = 1 LIMIT 1")
-    suspend fun getActive(): Program?
+    @Query("SELECT * FROM program WHERE userId = :userId AND isActive = 1 LIMIT 1")
+    suspend fun getActive(userId: String): Program?
 
     @Query("SELECT * FROM program WHERE id = :id")
     suspend fun getById(id: Long): Program?
 
-    @Query("SELECT * FROM program WHERE seedKey = :seedKey LIMIT 1")
-    suspend fun getBySeedKey(seedKey: String): Program?
+    @Query("SELECT * FROM program WHERE userId = :userId AND seedKey = :seedKey LIMIT 1")
+    suspend fun getBySeedKey(userId: String, seedKey: String): Program?
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(program: Program): Long
@@ -36,12 +36,12 @@ interface ProgramDao {
     @Update
     suspend fun update(program: Program)
 
-    @Query("UPDATE program SET isActive = 0")
-    suspend fun clearActive()
+    @Query("UPDATE program SET isActive = 0 WHERE userId = :userId")
+    suspend fun clearActive(userId: String)
 
     @Transaction
-    suspend fun setActive(id: Long) {
-        clearActive()
+    suspend fun setActive(userId: String, id: Long) {
+        clearActive(userId)
         val existing = getById(id) ?: return
         update(existing.copy(isActive = true))
     }
@@ -73,14 +73,14 @@ interface ProgramDayDao {
 
 @Dao
 interface ExerciseDao {
-    @Query("SELECT * FROM exercise WHERE isArchived = 0 ORDER BY primaryMuscleGroup, name")
-    fun observeAll(): Flow<List<Exercise>>
+    @Query("SELECT * FROM exercise WHERE userId = :userId AND isArchived = 0 ORDER BY primaryMuscleGroup, name")
+    fun observeAll(userId: String): Flow<List<Exercise>>
 
     @Query("SELECT * FROM exercise WHERE id = :id")
     suspend fun getById(id: Long): Exercise?
 
-    @Query("SELECT * FROM exercise WHERE seedKey = :seedKey LIMIT 1")
-    suspend fun getBySeedKey(seedKey: String): Exercise?
+    @Query("SELECT * FROM exercise WHERE userId = :userId AND seedKey = :seedKey LIMIT 1")
+    suspend fun getBySeedKey(userId: String, seedKey: String): Exercise?
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(exercise: Exercise): Long
@@ -98,9 +98,9 @@ interface ExerciseAlternateDao {
     """)
     suspend fun getAlternates(exerciseId: Long): List<Exercise>
 
-    /** All links, for backup. */
-    @Query("SELECT * FROM exercise_alternate")
-    suspend fun getAll(): List<ExerciseAlternate>
+    /** All links for the given user, for backup. */
+    @Query("SELECT * FROM exercise_alternate WHERE userId = :userId")
+    suspend fun getAll(userId: String): List<ExerciseAlternate>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(link: ExerciseAlternate)

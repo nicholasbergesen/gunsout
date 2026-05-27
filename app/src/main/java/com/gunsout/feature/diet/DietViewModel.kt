@@ -2,6 +2,7 @@ package com.gunsout.feature.diet
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gunsout.auth.CurrentUserIdProvider
 import com.gunsout.data.entity.FoodEntry
 import com.gunsout.data.entity.MealTemplate
 import com.gunsout.data.entity.Supplement
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -34,7 +36,8 @@ data class DietUiState(
 @HiltViewModel
 class DietViewModel @Inject constructor(
     private val diet: DietRepository,
-    private val supplements: SupplementRepository
+    private val supplements: SupplementRepository,
+    private val currentUserIdProvider: CurrentUserIdProvider
 ) : ViewModel() {
 
     // Emits the current date and re-emits whenever the day rolls over (or the user re-enters the
@@ -58,30 +61,40 @@ class DietViewModel @Inject constructor(
         dayFlow.value = LocalDate.now()
     }
 
-    private val entriesFlow = dayFlow.flatMapLatest { date -> diet.observeEntriesForDate(date) }
-    private val supplementLogsFlow = dayFlow.flatMapLatest { date -> supplements.observeLogsForDate(date) }
-
-    val state: StateFlow<DietUiState> = combine(
-        diet.observeTemplates(),
-        entriesFlow,
-        supplements.observeActive(),
-        supplementLogsFlow
-    ) { templates, entries, supps, supLogs ->
-        DietUiState(
-            today = dayFlow.value,
-            templates = templates,
-            todayEntries = entries,
-            supplements = supps,
-            supplementsTakenToday = supLogs.map { it.supplementId }.toSet()
-        )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DietUiState())
+    val state: StateFlow<DietUiState> = currentUserIdProvider.currentUserId
+        .filterNotNull()
+        .flatMapLatest { userId ->
+            val entriesFlow = dayFlow.flatMapLatest { date ->
+                diet.observeEntriesForDate(userId, date)
+            }
+            val supplementLogsFlow = dayFlow.flatMapLatest { date ->
+                supplements.observeLogsForDate(userId, date)
+            }
+            combine(
+                diet.observeTemplates(userId),
+                entriesFlow,
+                supplements.observeActive(userId),
+                supplementLogsFlow
+            ) { templates, entries, supps, supLogs ->
+                DietUiState(
+                    today = dayFlow.value,
+                    templates = templates,
+                    todayEntries = entries,
+                    supplements = supps,
+                    supplementsTakenToday = supLogs.map { it.supplementId }.toSet()
+                )
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DietUiState())
 
     fun logTemplate(template: MealTemplate, multiplier: Double = 1.0) = viewModelScope.launch {
-        diet.logFromTemplate(template, dayFlow.value, multiplier)
+        val userId = currentUserIdProvider.requireUserId()
+        diet.logFromTemplate(userId, template, dayFlow.value, multiplier)
     }
 
     fun toggleSupplement(supplement: Supplement) = viewModelScope.launch {
-        supplements.markTakenToday(supplement)
+        val userId = currentUserIdProvider.requireUserId()
+        supplements.markTakenToday(userId, supplement)
     }
 
     fun setReminder(supplementId: Long, time: java.time.LocalTime?) = viewModelScope.launch {
@@ -93,9 +106,11 @@ class DietViewModel @Inject constructor(
     }
 
     fun restoreEntry(entry: FoodEntry) = viewModelScope.launch {
+        val userId = currentUserIdProvider.requireUserId()
         // Re-insert with the original macros. ID auto-regenerates; createdAt stays the same so it
         // sorts back to its original position in today's list.
         diet.logCustomFood(
+            userId = userId,
             date = entry.date,
             mealType = entry.mealType,
             name = entry.name,

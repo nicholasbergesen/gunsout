@@ -9,7 +9,7 @@ import java.time.LocalDate
 
 class KcalTrendAnalyzerTest {
 
-    private fun log(date: LocalDate, weight: Double) = BodyMetricsLog(date = date, weightKg = weight)
+    private fun log(date: LocalDate, weight: Double) = BodyMetricsLog(userId = "u", date = date, weightKg = weight)
 
     private fun dailySeries(start: LocalDate, weights: List<Double>): List<BodyMetricsLog> =
         weights.mapIndexed { i, w -> log(start.plusDays(i.toLong()), w) }
