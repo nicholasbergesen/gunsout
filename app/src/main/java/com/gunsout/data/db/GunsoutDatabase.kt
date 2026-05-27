@@ -7,10 +7,7 @@ import com.gunsout.data.dao.BodyMetricsLogDao
 import com.gunsout.data.dao.ExerciseAlternateDao
 import com.gunsout.data.dao.ExerciseDao
 import com.gunsout.data.dao.FoodEntryDao
-import com.gunsout.data.dao.IngredientDao
-import com.gunsout.data.dao.MealPlanDao
 import com.gunsout.data.dao.MealTemplateDao
-import com.gunsout.data.dao.MealTemplateIngredientDao
 import com.gunsout.data.dao.ProgramDao
 import com.gunsout.data.dao.ProgramDayDao
 import com.gunsout.data.dao.ProgramExerciseDao
@@ -22,10 +19,7 @@ import com.gunsout.data.entity.BodyMetricsLog
 import com.gunsout.data.entity.Exercise
 import com.gunsout.data.entity.ExerciseAlternate
 import com.gunsout.data.entity.FoodEntry
-import com.gunsout.data.entity.Ingredient
-import com.gunsout.data.entity.MealPlan
 import com.gunsout.data.entity.MealTemplate
-import com.gunsout.data.entity.MealTemplateIngredient
 import com.gunsout.data.entity.Program
 import com.gunsout.data.entity.ProgramDay
 import com.gunsout.data.entity.ProgramExercise
@@ -35,7 +29,7 @@ import com.gunsout.data.entity.SupplementLog
 import com.gunsout.data.entity.WorkoutSession
 
 @Database(
-    version = 2,
+    version = 3,
     exportSchema = true,
     entities = [
         Program::class,
@@ -45,10 +39,7 @@ import com.gunsout.data.entity.WorkoutSession
         ProgramExercise::class,
         WorkoutSession::class,
         SetEntry::class,
-        MealPlan::class,
         MealTemplate::class,
-        Ingredient::class,
-        MealTemplateIngredient::class,
         FoodEntry::class,
         Supplement::class,
         SupplementLog::class,
@@ -64,10 +55,7 @@ abstract class GunsoutDatabase : RoomDatabase() {
     abstract fun programExerciseDao(): ProgramExerciseDao
     abstract fun workoutSessionDao(): WorkoutSessionDao
     abstract fun setEntryDao(): SetEntryDao
-    abstract fun mealPlanDao(): MealPlanDao
     abstract fun mealTemplateDao(): MealTemplateDao
-    abstract fun ingredientDao(): IngredientDao
-    abstract fun mealTemplateIngredientDao(): MealTemplateIngredientDao
     abstract fun foodEntryDao(): FoodEntryDao
     abstract fun supplementDao(): SupplementDao
     abstract fun supplementLogDao(): SupplementLogDao

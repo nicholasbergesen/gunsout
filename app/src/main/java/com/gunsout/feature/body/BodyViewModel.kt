@@ -3,18 +3,14 @@ package com.gunsout.feature.body
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gunsout.data.entity.BodyMetricsLog
-import com.gunsout.data.entity.MealPlan
 import com.gunsout.data.prefs.UserPreferences
 import com.gunsout.data.prefs.UserProfile
 import com.gunsout.data.repo.BodyRepository
-import com.gunsout.data.repo.DietRepository
-import com.gunsout.data.repo.MealPlanRepository
 import com.gunsout.domain.kcal.KcalTrendAnalyzer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -22,23 +18,19 @@ import javax.inject.Inject
 
 data class BodyUiState(
     val profile: UserProfile = UserProfile(),
-    val logs: List<BodyMetricsLog> = emptyList(),
-    val activeMealPlan: MealPlan? = null
+    val logs: List<BodyMetricsLog> = emptyList()
 )
 
 @HiltViewModel
 class BodyViewModel @Inject constructor(
     private val body: BodyRepository,
-    private val userPrefs: UserPreferences,
-    private val diet: DietRepository,
-    private val mealPlanRepo: MealPlanRepository
+    private val userPrefs: UserPreferences
 ) : ViewModel() {
 
     val state: StateFlow<BodyUiState> = combine(
         userPrefs.profile,
-        body.observeSince(LocalDate.now().minusYears(2)),
-        diet.observeActivePlan()
-    ) { profile, logs, plan ->
+        body.observeSince(LocalDate.now().minusYears(2))
+    ) { profile, logs ->
         val sortedLogs = logs.sortedBy { it.date }
         // Keep the displayed "current weight" anchored to the latest logged row, falling back to
         // the persisted profile only when no logs exist yet. This stops the body screen showing a
@@ -46,7 +38,7 @@ class BodyViewModel @Inject constructor(
         val effectiveProfile = sortedLogs.lastOrNull()?.let {
             profile.copy(currentBodyWeightKg = it.weightKg)
         } ?: profile
-        BodyUiState(effectiveProfile, sortedLogs, plan)
+        BodyUiState(effectiveProfile, sortedLogs)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BodyUiState())
 
     fun logToday(
@@ -69,27 +61,14 @@ class BodyViewModel @Inject constructor(
         userPrefs.update { it.copy(currentBodyWeightKg = weightKg) }
     }
 
-    /** Compute and surface a kcal target adjustment based on recent weight trend. */
+    // TODO Phase 3: rebuild kcal suggestion against UserPreferences.overrideKcal once macro
+    // targets are driven by MacroTargetCalculator instead of MealPlan.
     fun suggestKcalAdjustment() = viewModelScope.launch {
-        val s = state.value
-        val plan = s.activeMealPlan ?: return@launch
-        val suggestion = KcalTrendAnalyzer.analyze(
-            logs = s.logs,
-            currentTargetKcal = plan.kcalTarget,
-            currentWeightKg = s.profile.currentBodyWeightKg,
-            goalWeightKg = s.profile.goalBodyWeightKg
-        )
-        _kcalSuggestion.value = suggestion
+        _kcalSuggestion.value = null
     }
 
-    /** Apply the latest suggested kcal target to whatever plan is currently active. */
+    // TODO Phase 3: write the suggested kcal to UserPreferences.overrideKcal.
     fun applyKcalSuggestion() = viewModelScope.launch {
-        val sug = _kcalSuggestion.value ?: return@launch
-        val newTarget = sug.newKcalTarget ?: return@launch
-        // Re-fetch the currently active plan at apply time so we never overwrite a different plan
-        // because the user activated something else between Suggest and Apply.
-        val plan = mealPlanRepo.observePlans().first().firstOrNull { it.isActive } ?: return@launch
-        mealPlanRepo.updatePlan(plan.copy(kcalTarget = newTarget))
         _kcalSuggestion.value = null
     }
 

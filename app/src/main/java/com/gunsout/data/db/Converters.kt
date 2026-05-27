@@ -4,8 +4,6 @@ import androidx.room.TypeConverter
 import com.gunsout.data.entity.AlternateReason
 import com.gunsout.data.entity.DayHint
 import com.gunsout.data.entity.Equipment
-import com.gunsout.data.entity.IngredientUnit
-import com.gunsout.data.entity.MacroSource
 import com.gunsout.data.entity.MealType
 import com.gunsout.data.entity.MuscleGroup
 import com.gunsout.data.entity.ProgramType
@@ -43,12 +41,6 @@ class Converters {
 
     @TypeConverter fun mealTypeToString(v: MealType?): String? = v?.name
     @TypeConverter fun stringToMealType(v: String?): MealType? = v?.let(MealType::valueOf)
-
-    @TypeConverter fun macroSourceToString(v: MacroSource?): String? = v?.name
-    @TypeConverter fun stringToMacroSource(v: String?): MacroSource? = v?.let(MacroSource::valueOf)
-
-    @TypeConverter fun ingredientUnitToString(v: IngredientUnit?): String? = v?.name
-    @TypeConverter fun stringToIngredientUnit(v: String?): IngredientUnit? = v?.let(IngredientUnit::valueOf)
 
     @TypeConverter fun supplementUnitToString(v: SupplementUnit?): String? = v?.name
     @TypeConverter fun stringToSupplementUnit(v: String?): SupplementUnit? = v?.let(SupplementUnit::valueOf)

@@ -1,13 +1,8 @@
 package com.gunsout.data.repo
 
 import com.gunsout.data.dao.FoodEntryDao
-import com.gunsout.data.dao.IngredientDao
-import com.gunsout.data.dao.MealPlanDao
 import com.gunsout.data.dao.MealTemplateDao
-import com.gunsout.data.dao.MealTemplateIngredientDao
 import com.gunsout.data.entity.FoodEntry
-import com.gunsout.data.entity.Ingredient
-import com.gunsout.data.entity.MealPlan
 import com.gunsout.data.entity.MealTemplate
 import com.gunsout.data.entity.MealType
 import kotlinx.coroutines.flow.Flow
@@ -17,19 +12,10 @@ import javax.inject.Singleton
 
 @Singleton
 class DietRepository @Inject constructor(
-    private val mealPlanDao: MealPlanDao,
     private val mealTemplateDao: MealTemplateDao,
-    private val ingredientDao: IngredientDao,
-    private val mealTemplateIngredientDao: MealTemplateIngredientDao,
     private val foodEntryDao: FoodEntryDao
 ) {
-    fun observeActivePlan(): Flow<MealPlan?> = mealPlanDao.observeActive()
-    suspend fun getActivePlan(): MealPlan? = mealPlanDao.getActive()
-
-    fun observeTemplatesForPlan(planId: Long): Flow<List<MealTemplate>> =
-        mealTemplateDao.observeForPlan(planId)
-
-    fun observeIngredients(): Flow<List<Ingredient>> = ingredientDao.observeAll()
+    fun observeTemplates(): Flow<List<MealTemplate>> = mealTemplateDao.observeAll()
 
     fun observeEntriesForDate(date: LocalDate): Flow<List<FoodEntry>> =
         foodEntryDao.observeForDate(date)

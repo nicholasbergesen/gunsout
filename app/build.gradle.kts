@@ -21,7 +21,6 @@ fun readBuildSecret(name: String): String {
 }
 
 val googleWebClientId: String = readBuildSecret("GOOGLE_WEB_CLIENT_ID")
-val calorieNinjasApiKey: String = readBuildSecret("CALORIE_NINJAS_API_KEY")
 
 // Version is driven by env vars in CI so each pushed APK installs cleanly over the previous one.
 // Locally these fall through to the defaults; the values still produce a valid APK.
@@ -54,7 +53,6 @@ android {
             "GOOGLE_WEB_CLIENT_ID",
             "\"" + googleWebClientId.replace("\"", "\\\"") + "\""
         )
-        buildConfigField("String", "CALORIE_NINJAS_API_KEY", "\"" + calorieNinjasApiKey.replace("\"", "\\\"") + "\"")
     }
 
     signingConfigs {
@@ -171,7 +169,6 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.androidx.datastore.preferences)
-    implementation(libs.androidx.security.crypto)
 
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)

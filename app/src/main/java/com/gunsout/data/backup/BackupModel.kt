@@ -4,10 +4,7 @@ import com.gunsout.data.entity.BodyMetricsLog
 import com.gunsout.data.entity.Exercise
 import com.gunsout.data.entity.ExerciseAlternate
 import com.gunsout.data.entity.FoodEntry
-import com.gunsout.data.entity.Ingredient
-import com.gunsout.data.entity.MealPlan
 import com.gunsout.data.entity.MealTemplate
-import com.gunsout.data.entity.MealTemplateIngredient
 import com.gunsout.data.entity.Program
 import com.gunsout.data.entity.ProgramDay
 import com.gunsout.data.entity.ProgramExercise
@@ -31,10 +28,7 @@ data class GunsoutBackup(
     val programExercises: List<ProgramExerciseBackup>,
     val sessions: List<WorkoutSessionBackup>,
     val setEntries: List<SetEntryBackup>,
-    val mealPlans: List<MealPlanBackup>,
     val mealTemplates: List<MealTemplateBackup>,
-    val ingredients: List<IngredientBackup>,
-    val mealTemplateIngredients: List<MealTemplateIngredientBackup>,
     val foodEntries: List<FoodEntryBackup>,
     val supplements: List<SupplementBackup>,
     val supplementLogs: List<SupplementLogBackup>,
@@ -61,10 +55,7 @@ data class UserProfileBackup(
 @Serializable data class ProgramExerciseBackup(val id: Long, val programDayId: Long, val orderIndex: Int, val exerciseId: Long, val sets: Int, val repsMin: Int, val repsMax: Int, val restSec: Int, val rpeTarget: Int? = null, val supersetGroupId: Int? = null, val protocol: String)
 @Serializable data class WorkoutSessionBackup(val id: Long, val date: String, val programDayId: Long? = null, val programDayLabelSnapshot: String, val status: String, val notes: String? = null, val kneeFeel: Int? = null, val startedAt: String, val completedAt: String? = null)
 @Serializable data class SetEntryBackup(val id: Long, val sessionId: Long, val programExerciseId: Long? = null, val exerciseIdSnapshot: Long, val exerciseNameSnapshot: String, val setIndex: Int, val weightKg: Double? = null, val reps: Int? = null, val rpe: Int? = null, val isWarmup: Boolean, val completedAt: String? = null)
-@Serializable data class MealPlanBackup(val id: Long, val name: String, val kcalTarget: Int, val proteinG: Int, val carbsG: Int, val fatG: Int, val notes: String? = null, val isActive: Boolean, val isTemplate: Boolean, val seedKey: String? = null)
-@Serializable data class MealTemplateBackup(val id: Long, val mealPlanId: Long? = null, val name: String, val mealType: String, val macroSource: String, val kcal: Int, val proteinG: Double, val carbsG: Double, val fatG: Double, val notes: String? = null, val seedKey: String? = null)
-@Serializable data class IngredientBackup(val id: Long, val name: String, val kcalPer100g: Double, val proteinPer100g: Double, val carbsPer100g: Double, val fatPer100g: Double, val defaultUnit: String, val gramsPerUnit: Double, val isUserCreated: Boolean, val isArchived: Boolean, val seedKey: String? = null)
-@Serializable data class MealTemplateIngredientBackup(val id: Long, val mealTemplateId: Long, val ingredientId: Long, val quantity: Double, val unit: String, val orderIndex: Int)
+@Serializable data class MealTemplateBackup(val id: Long, val name: String, val mealType: String, val kcal: Int, val proteinG: Double, val carbsG: Double, val fatG: Double, val notes: String? = null, val seedKey: String? = null)
 @Serializable data class FoodEntryBackup(val id: Long, val date: String, val mealType: String, val name: String, val kcal: Int, val proteinG: Double, val carbsG: Double, val fatG: Double, val sourceTemplateId: Long? = null, val createdAt: Long)
 @Serializable data class SupplementBackup(val id: Long, val name: String, val defaultDose: Double, val unit: String, val notes: String? = null, val takeWith: String? = null, val reminderTime: String? = null, val isActive: Boolean, val isUserCreated: Boolean, val seedKey: String? = null)
 @Serializable data class SupplementLogBackup(val id: Long, val supplementId: Long, val date: String, val doseTaken: Double, val unit: String, val takenAt: String)
@@ -91,17 +82,8 @@ fun WorkoutSessionBackup.toEntity() = WorkoutSession(id, LocalDate.parse(date), 
 fun SetEntry.toBackup() = SetEntryBackup(id, sessionId, programExerciseId, exerciseIdSnapshot, exerciseNameSnapshot, setIndex, weightKg, reps, rpe, isWarmup, completedAt?.toString())
 fun SetEntryBackup.toEntity() = SetEntry(id, sessionId, programExerciseId, exerciseIdSnapshot, exerciseNameSnapshot, setIndex, weightKg, reps, rpe, isWarmup, completedAt?.let(LocalDateTime::parse))
 
-fun MealPlan.toBackup() = MealPlanBackup(id, name, kcalTarget, proteinG, carbsG, fatG, notes, isActive, isTemplate, seedKey)
-fun MealPlanBackup.toEntity() = MealPlan(id, name, kcalTarget, proteinG, carbsG, fatG, notes, isActive, isTemplate, seedKey)
-
-fun MealTemplate.toBackup() = MealTemplateBackup(id, mealPlanId, name, mealType.name, macroSource.name, kcal, proteinG, carbsG, fatG, notes, seedKey)
-fun MealTemplateBackup.toEntity() = MealTemplate(id, mealPlanId, name, com.gunsout.data.entity.MealType.valueOf(mealType), com.gunsout.data.entity.MacroSource.valueOf(macroSource), kcal, proteinG, carbsG, fatG, notes, seedKey)
-
-fun Ingredient.toBackup() = IngredientBackup(id, name, kcalPer100g, proteinPer100g, carbsPer100g, fatPer100g, defaultUnit.name, gramsPerUnit, isUserCreated, isArchived, seedKey)
-fun IngredientBackup.toEntity() = Ingredient(id, name, kcalPer100g, proteinPer100g, carbsPer100g, fatPer100g, com.gunsout.data.entity.IngredientUnit.valueOf(defaultUnit), gramsPerUnit, isUserCreated, isArchived, seedKey)
-
-fun MealTemplateIngredient.toBackup() = MealTemplateIngredientBackup(id, mealTemplateId, ingredientId, quantity, unit.name, orderIndex)
-fun MealTemplateIngredientBackup.toEntity() = MealTemplateIngredient(id, mealTemplateId, ingredientId, quantity, com.gunsout.data.entity.IngredientUnit.valueOf(unit), orderIndex)
+fun MealTemplate.toBackup() = MealTemplateBackup(id, name, mealType.name, kcal, proteinG, carbsG, fatG, notes, seedKey)
+fun MealTemplateBackup.toEntity() = MealTemplate(id, name, com.gunsout.data.entity.MealType.valueOf(mealType), kcal, proteinG, carbsG, fatG, notes, seedKey)
 
 fun FoodEntry.toBackup() = FoodEntryBackup(id, date.toString(), mealType.name, name, kcal, proteinG, carbsG, fatG, sourceTemplateId, createdAt)
 fun FoodEntryBackup.toEntity() = FoodEntry(id, LocalDate.parse(date), com.gunsout.data.entity.MealType.valueOf(mealType), name, kcal, proteinG, carbsG, fatG, sourceTemplateId, createdAt)

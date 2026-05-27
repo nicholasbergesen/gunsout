@@ -18,6 +18,9 @@ class BackupManager @Inject constructor(
     private val db: GunsoutDatabase,
     private val userPrefs: UserPreferences
 ) {
+    // ignoreUnknownKeys lets legacy v1/v2 files import cleanly: their dropped fields
+    // (mealPlans, ingredients, mealTemplateIngredients, macroSource, mealPlanId) are skipped
+    // silently. Phase 4 will reintroduce dedicated legacy-only fields with id remapping.
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
     suspend fun exportToJson(): String = withContext(Dispatchers.IO) {
@@ -33,13 +36,7 @@ class BackupManager @Inject constructor(
         val sessions = db.workoutSessionDao().observeAll().first().map { it.toBackup() }
         val setEntries = sessions.flatMap { db.setEntryDao().getForSession(it.id).map { it.toBackup() } }
 
-        val mealPlans = db.mealPlanDao().observeAll().first().map { it.toBackup() }
-        // Use getAll(), not observeForPlan() per plan, so global (mealPlanId IS NULL) templates
-        // are included even when there are no plans.
         val templates = db.mealTemplateDao().getAll().map { it.toBackup() }
-
-        val ingredients = db.ingredientDao().observeAll().first().map { it.toBackup() }
-        val mealTemplateIngredients = db.mealTemplateIngredientDao().getAll().map { it.toBackup() }
 
         val foodEntries = db.foodEntryDao().getAll().map { it.toBackup() }
 
@@ -71,10 +68,7 @@ class BackupManager @Inject constructor(
             programExercises = programExercises,
             sessions = sessions,
             setEntries = setEntries,
-            mealPlans = mealPlans,
             mealTemplates = templates,
-            ingredients = ingredients,
-            mealTemplateIngredients = mealTemplateIngredients,
             foodEntries = foodEntries,
             supplements = supplements,
             supplementLogs = supplementLogs,
@@ -108,10 +102,7 @@ class BackupManager @Inject constructor(
                 "DELETE FROM supplement",
                 "DELETE FROM body_metrics_log",
                 "DELETE FROM food_entry",
-                "DELETE FROM meal_template_ingredient",
                 "DELETE FROM meal_template",
-                "DELETE FROM meal_plan",
-                "DELETE FROM ingredient",
                 "DELETE FROM program_exercise",
                 "DELETE FROM exercise_alternate",
                 "DELETE FROM exercise",
@@ -126,10 +117,7 @@ class BackupManager @Inject constructor(
             parsed.programExercises.forEach { db.programExerciseDao().insert(it.toEntity()) }
             parsed.sessions.forEach { db.workoutSessionDao().insert(it.toEntity()) }
             parsed.setEntries.forEach { db.setEntryDao().insert(it.toEntity()) }
-            parsed.mealPlans.forEach { db.mealPlanDao().insert(it.toEntity()) }
             parsed.mealTemplates.forEach { db.mealTemplateDao().insert(it.toEntity()) }
-            parsed.ingredients.forEach { db.ingredientDao().insert(it.toEntity()) }
-            parsed.mealTemplateIngredients.forEach { db.mealTemplateIngredientDao().insert(it.toEntity()) }
             parsed.foodEntries.forEach { db.foodEntryDao().insert(it.toEntity()) }
             parsed.supplements.forEach { db.supplementDao().insert(it.toEntity()) }
             parsed.supplementLogs.forEach { db.supplementLogDao().insert(it.toEntity()) }
@@ -155,7 +143,7 @@ class BackupManager @Inject constructor(
         ImportResult.Success(
             totalRows = parsed.programs.size + parsed.programDays.size + parsed.exercises.size +
                 parsed.programExercises.size + parsed.sessions.size + parsed.setEntries.size +
-                parsed.mealPlans.size + parsed.mealTemplates.size + parsed.ingredients.size +
+                parsed.mealTemplates.size +
                 parsed.foodEntries.size + parsed.supplements.size + parsed.supplementLogs.size +
                 parsed.bodyMetricsLogs.size
         )

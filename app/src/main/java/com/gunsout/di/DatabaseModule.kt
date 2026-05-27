@@ -2,7 +2,6 @@ package com.gunsout.di
 
 import android.content.Context
 import androidx.room.Room
-import com.gunsout.BuildConfig
 import com.gunsout.data.db.GunsoutDatabase
 import com.gunsout.data.db.Migrations
 import dagger.Module
@@ -19,14 +18,14 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): GunsoutDatabase {
-        val builder = Room.databaseBuilder(context, GunsoutDatabase::class.java, "gunsout.db")
+        // v2 -> v3 wipes existing on-device data per the multi-user/diet-simplification plan
+        // (the schema dropped the Ingredient, MealTemplateIngredient and MealPlan tables and is
+        // about to add per-user scoping). Destructive fallback is enabled unconditionally for
+        // this transition so release builds wipe in the same way as debug builds.
+        return Room.databaseBuilder(context, GunsoutDatabase::class.java, "gunsout.db")
             .addMigrations(*Migrations.allMigrations)
-        // Only allow destructive fallback in debug builds. In release we'd rather crash on a
-        // missing migration than wipe the user's history.
-        if (BuildConfig.DEBUG) {
-            builder.fallbackToDestructiveMigration()
-        }
-        return builder.build()
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides fun provideProgramDao(db: GunsoutDatabase) = db.programDao()
@@ -36,10 +35,7 @@ object DatabaseModule {
     @Provides fun provideProgramExerciseDao(db: GunsoutDatabase) = db.programExerciseDao()
     @Provides fun provideWorkoutSessionDao(db: GunsoutDatabase) = db.workoutSessionDao()
     @Provides fun provideSetEntryDao(db: GunsoutDatabase) = db.setEntryDao()
-    @Provides fun provideMealPlanDao(db: GunsoutDatabase) = db.mealPlanDao()
     @Provides fun provideMealTemplateDao(db: GunsoutDatabase) = db.mealTemplateDao()
-    @Provides fun provideIngredientDao(db: GunsoutDatabase) = db.ingredientDao()
-    @Provides fun provideMealTemplateIngredientDao(db: GunsoutDatabase) = db.mealTemplateIngredientDao()
     @Provides fun provideFoodEntryDao(db: GunsoutDatabase) = db.foodEntryDao()
     @Provides fun provideSupplementDao(db: GunsoutDatabase) = db.supplementDao()
     @Provides fun provideSupplementLogDao(db: GunsoutDatabase) = db.supplementLogDao()

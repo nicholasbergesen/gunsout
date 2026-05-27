@@ -71,19 +71,14 @@ fun DietScreen(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text("Diet", style = MaterialTheme.typography.headlineMedium)
         }
-        state.activePlan?.let { plan ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(plan.name, style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(8.dp))
-                    MacroRow("Calories", totalKcal.toDouble(), plan.kcalTarget.toDouble(), "kcal")
-                    Spacer(Modifier.height(6.dp))
-                    MacroRow("Protein", totalProtein, plan.proteinG.toDouble(), "g")
-                    Spacer(Modifier.height(6.dp))
-                    MacroRow("Carbs", totalCarbs, plan.carbsG.toDouble(), "g")
-                    Spacer(Modifier.height(6.dp))
-                    MacroRow("Fat", totalFat, plan.fatG.toDouble(), "g")
-                }
+        // TODO Phase 3: render a "Daily targets" card backed by MacroTargetCalculator + the
+        // UserPreferences overrideKcal/Protein/Carbs/Fat fields. For now, show today's totals
+        // without a target comparison so the screen stays useful between phases.
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Today's macros", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                Text("${totalKcal} kcal | ${totalProtein.toInt()}g P | ${totalCarbs.toInt()}g C | ${totalFat.toInt()}g F")
             }
         }
 

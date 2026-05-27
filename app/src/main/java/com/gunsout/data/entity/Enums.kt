@@ -12,10 +12,6 @@ enum class SessionStatus { PLANNED, IN_PROGRESS, COMPLETED, SKIPPED }
 
 enum class MealType { BREAKFAST, LUNCH, DINNER, SNACK, SMOOTHIE }
 
-enum class MacroSource { FROM_INGREDIENTS, MANUAL }
-
-enum class IngredientUnit { G, ML, PIECE, TBSP, TSP, CUP }
-
 enum class SupplementUnit { MG, G, ML, CAPSULE }
 
 enum class ProgramType { UPPER_LOWER, PPL, FULL_BODY, CUSTOM }

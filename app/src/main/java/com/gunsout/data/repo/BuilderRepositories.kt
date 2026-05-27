@@ -2,26 +2,15 @@ package com.gunsout.data.repo
 
 import androidx.room.withTransaction
 import com.gunsout.data.dao.ExerciseDao
-import com.gunsout.data.dao.IngredientDao
-import com.gunsout.data.dao.MealPlanDao
-import com.gunsout.data.dao.MealTemplateDao
-import com.gunsout.data.dao.MealTemplateIngredientDao
 import com.gunsout.data.dao.ProgramDao
 import com.gunsout.data.dao.ProgramDayDao
 import com.gunsout.data.dao.ProgramExerciseDao
 import com.gunsout.data.db.GunsoutDatabase
 import com.gunsout.data.entity.Exercise
-import com.gunsout.data.entity.Ingredient
-import com.gunsout.data.entity.MacroSource
-import com.gunsout.data.entity.MealPlan
-import com.gunsout.data.entity.MealTemplate
-import com.gunsout.data.entity.MealTemplateIngredient
 import com.gunsout.data.entity.Program
 import com.gunsout.data.entity.ProgramDay
 import com.gunsout.data.entity.ProgramExercise
-import com.gunsout.domain.macros.MacroCalculator
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -93,83 +82,4 @@ class ProgramRepository @Inject constructor(
 
     suspend fun createExercise(exercise: Exercise): Long = exerciseDao.insert(exercise)
     suspend fun updateExercise(exercise: Exercise) = exerciseDao.update(exercise)
-}
-
-@Singleton
-class MealPlanRepository @Inject constructor(
-    private val db: GunsoutDatabase,
-    private val mealPlanDao: MealPlanDao,
-    private val mealTemplateDao: MealTemplateDao,
-    private val ingredientDao: IngredientDao,
-    private val mealTemplateIngredientDao: MealTemplateIngredientDao
-) {
-    fun observePlans(): Flow<List<MealPlan>> = mealPlanDao.observeAll()
-    fun observeTemplatesFor(planId: Long): Flow<List<MealTemplate>> = mealTemplateDao.observeForPlan(planId)
-    fun observeIngredients(): Flow<List<Ingredient>> = ingredientDao.observeAll()
-
-    suspend fun getPlan(id: Long): MealPlan? = mealPlanDao.getById(id)
-    suspend fun getTemplate(id: Long): MealTemplate? = mealTemplateDao.getById(id)
-    suspend fun getIngredient(id: Long): Ingredient? = ingredientDao.getById(id)
-
-    suspend fun setActive(id: Long) = mealPlanDao.setActive(id)
-
-    suspend fun createPlan(plan: MealPlan): Long = mealPlanDao.insert(plan)
-    suspend fun updatePlan(plan: MealPlan) = mealPlanDao.update(plan)
-
-    suspend fun duplicatePlan(planId: Long, newName: String): Long = db.withTransaction {
-        val src = mealPlanDao.getById(planId) ?: return@withTransaction -1L
-        val newId = mealPlanDao.insert(src.copy(id = 0, name = newName, isActive = false, isTemplate = false, seedKey = null))
-        // Note: shared templates (mealPlanId == null) are not duplicated; they remain shared.
-        newId
-    }
-
-    suspend fun deletePlan(id: Long) {
-        val plan = mealPlanDao.getById(id) ?: return
-        if (plan.isTemplate) {
-            val allPlans = mealPlanDao.observeAll().firstOrNull() ?: emptyList()
-            val replacementExists = allPlans.any { it.id != id }
-            if (!replacementExists) return
-        }
-        mealPlanDao.delete(id)
-    }
-
-    suspend fun createTemplate(template: MealTemplate): Long = mealTemplateDao.insert(template)
-    suspend fun updateTemplate(template: MealTemplate) = mealTemplateDao.update(template)
-
-    suspend fun getTemplateIngredients(templateId: Long): List<MealTemplateIngredient> =
-        mealTemplateIngredientDao.getForTemplate(templateId)
-
-    /** Replace the full ingredient list for a template. Clears existing rows first. */
-    suspend fun setTemplateIngredients(templateId: Long, rows: List<MealTemplateIngredient>) {
-        mealTemplateIngredientDao.deleteForTemplate(templateId)
-        rows.forEachIndexed { index, row ->
-            mealTemplateIngredientDao.insert(row.copy(id = 0, mealTemplateId = templateId, orderIndex = index))
-        }
-        recomputeTemplateMacros(templateId)
-    }
-
-    /** Add a single ingredient row to a template, appending to the end. */
-    suspend fun appendTemplateIngredient(templateId: Long, row: MealTemplateIngredient) {
-        val existing = mealTemplateIngredientDao.getForTemplate(templateId)
-        val nextOrder = (existing.maxOfOrNull { it.orderIndex } ?: -1) + 1
-        mealTemplateIngredientDao.insert(row.copy(id = 0, mealTemplateId = templateId, orderIndex = nextOrder))
-        recomputeTemplateMacros(templateId)
-    }
-
-    suspend fun recomputeTemplateMacros(templateId: Long) {
-        val template = mealTemplateDao.getById(templateId) ?: return
-        if (template.macroSource != MacroSource.FROM_INGREDIENTS) return
-        val rows = mealTemplateIngredientDao.getForTemplate(templateId)
-        val byId = rows.mapNotNull { row -> ingredientDao.getById(row.ingredientId)?.let { it.id to it } }.toMap()
-        val total = MacroCalculator.totalFor(rows, byId)
-        mealTemplateDao.update(template.copy(
-            kcal = total.kcal.toInt(),
-            proteinG = total.protein,
-            carbsG = total.carbs,
-            fatG = total.fat
-        ))
-    }
-
-    suspend fun createIngredient(ingredient: Ingredient): Long = ingredientDao.insert(ingredient)
-    suspend fun updateIngredient(ingredient: Ingredient) = ingredientDao.update(ingredient)
 }
