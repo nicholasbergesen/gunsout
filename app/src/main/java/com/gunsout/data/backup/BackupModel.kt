@@ -19,7 +19,7 @@ import java.time.LocalTime
 
 @Serializable
 data class GunsoutBackup(
-    val schemaVersion: Int = 2,
+    val schemaVersion: Int = 3,
     val exportedAtIso: String,
     val programs: List<ProgramBackup>,
     val programDays: List<ProgramDayBackup>,
@@ -33,7 +33,8 @@ data class GunsoutBackup(
     val supplements: List<SupplementBackup>,
     val supplementLogs: List<SupplementLogBackup>,
     val bodyMetricsLogs: List<BodyMetricsLogBackup>,
-    val userProfile: UserProfileBackup? = null
+    val userProfile: UserProfileBackup? = null,
+    val macroOverrides: MacroOverridesBackup? = null
 )
 
 @Serializable
@@ -42,10 +43,22 @@ data class UserProfileBackup(
     val goalBodyWeightKg: Double,
     val goalBodyFatPct: Double? = null,
     val heightCm: Int? = null,
+    val age: Int? = null,
+    val sex: String? = null,
+    val activityLevel: String? = null,
+    val goalType: String? = null,
     val kneeInjuryFlag: Boolean,
     val baselineWeekActive: Boolean,
     val themeMode: String,
     val firstRunDone: Boolean
+)
+
+@Serializable
+data class MacroOverridesBackup(
+    val kcal: Int? = null,
+    val proteinG: Int? = null,
+    val carbsG: Int? = null,
+    val fatG: Int? = null
 )
 
 @Serializable data class ProgramBackup(val id: Long, val name: String, val type: String, val notes: String? = null, val isActive: Boolean, val isTemplate: Boolean, val seedKey: String? = null, val createdAt: Long)

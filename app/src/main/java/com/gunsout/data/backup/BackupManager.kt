@@ -57,14 +57,25 @@ class BackupManager @Inject constructor(
             goalBodyWeightKg = profile.goalBodyWeightKg,
             goalBodyFatPct = profile.goalBodyFatPct,
             heightCm = profile.heightCm,
+            age = profile.age,
+            sex = profile.sex?.name,
+            activityLevel = profile.activityLevel.name,
+            goalType = profile.goalType.name,
             kneeInjuryFlag = profile.kneeInjuryFlag,
             baselineWeekActive = profile.baselineWeekActive,
             themeMode = profile.themeMode.name,
             firstRunDone = profile.firstRunDone
         )
+        val overrides = userPrefs.overrides.first()
+        val overridesBackup = MacroOverridesBackup(
+            kcal = overrides.kcal,
+            proteinG = overrides.proteinG,
+            carbsG = overrides.carbsG,
+            fatG = overrides.fatG
+        )
 
         val backup = GunsoutBackup(
-            schemaVersion = 2,
+            schemaVersion = 3,
             exportedAtIso = LocalDateTime.now().toString(),
             programs = programs,
             programDays = days,
@@ -78,7 +89,8 @@ class BackupManager @Inject constructor(
             supplements = supplements,
             supplementLogs = supplementLogs,
             bodyMetricsLogs = bodyMetrics,
-            userProfile = profileBackup
+            userProfile = profileBackup,
+            macroOverrides = overridesBackup
         )
         json.encodeToString(GunsoutBackup.serializer(), backup)
     }
@@ -89,13 +101,14 @@ class BackupManager @Inject constructor(
      * delete is scoped by userId, and every imported row is stamped with [userId] regardless of
      * the userId carried in the file.
      *
-     * Accepts schemaVersion 1 (no userProfile) and 2.
+     * Accepts schemaVersion 1 (no userProfile), 2 (single-user profile, no macro overrides),
+     * and 3 (per-user profile fields plus macro overrides).
      */
     suspend fun importFromJson(userId: String, jsonText: String): ImportResult = withContext(Dispatchers.IO) {
         val parsed = runCatching { json.decodeFromString(GunsoutBackup.serializer(), jsonText) }
             .getOrElse { return@withContext ImportResult.Error(it.message ?: "Parse failed") }
 
-        if (parsed.schemaVersion !in 1..2) {
+        if (parsed.schemaVersion !in 1..3) {
             return@withContext ImportResult.Error("Unsupported backup schema v${parsed.schemaVersion}")
         }
 
@@ -141,10 +154,28 @@ class BackupManager @Inject constructor(
                     goalBodyWeightKg = p.goalBodyWeightKg,
                     goalBodyFatPct = p.goalBodyFatPct,
                     heightCm = p.heightCm,
+                    age = p.age,
+                    sex = p.sex?.let { runCatching { com.gunsout.data.prefs.Sex.valueOf(it) }.getOrNull() },
+                    activityLevel = p.activityLevel?.let { runCatching { com.gunsout.data.prefs.ActivityLevel.valueOf(it) }.getOrNull() } ?: com.gunsout.data.prefs.ActivityLevel.MODERATE,
+                    goalType = p.goalType?.let { runCatching { com.gunsout.data.prefs.GoalType.valueOf(it) }.getOrNull() } ?: com.gunsout.data.prefs.GoalType.MAINTAIN,
                     kneeInjuryFlag = p.kneeInjuryFlag,
                     baselineWeekActive = p.baselineWeekActive,
                     themeMode = runCatching { ThemeMode.valueOf(p.themeMode) }.getOrDefault(ThemeMode.SYSTEM),
                     firstRunDone = p.firstRunDone
+                )
+            }
+        }
+
+        // Reset overrides first so an old v1/v2 import (with no macroOverrides field) clears any
+        // stale overrides from the current user. Then apply imported overrides if present.
+        userPrefs.resetOverrides()
+        parsed.macroOverrides?.let { o ->
+            userPrefs.updateOverrides {
+                com.gunsout.data.prefs.MacroOverrides(
+                    kcal = o.kcal,
+                    proteinG = o.proteinG,
+                    carbsG = o.carbsG,
+                    fatG = o.fatG
                 )
             }
         }

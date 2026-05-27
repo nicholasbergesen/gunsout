@@ -1,7 +1,7 @@
 package com.gunsout.auth
 
 import com.gunsout.data.seed.Seeder
-import dagger.hilt.android.scopes.ViewModelScoped
+import com.gunsout.feature.supplements.SupplementReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,10 +24,16 @@ import javax.inject.Singleton
  * has reported Done for a userId, subsequent calls become idempotent no-ops.
  * If sign-out brings the user back to null and then a different userId signs
  * in, that new userId triggers a fresh seeding pass.
+ *
+ * After seeding completes successfully, supplement reminders are armed for
+ * the user. This covers both initial sign-in and subsequent app launches
+ * (where the seeder is a no-op because firstRunDone is set, but reminders
+ * still need to be re-armed in case Android dropped pending alarms).
  */
 @Singleton
 class SeederController @Inject constructor(
-    private val seeder: Seeder
+    private val seeder: Seeder,
+    private val reminderScheduler: SupplementReminderScheduler
 ) {
     private val _state = MutableStateFlow<SeederState>(SeederState.Idle)
     val state: StateFlow<SeederState> = _state.asStateFlow()
@@ -50,6 +56,7 @@ class SeederController @Inject constructor(
                 _state.value = SeederState.Seeding(userId)
                 try {
                     seeder.seedIfNeeded(userId)
+                    runCatching { reminderScheduler.armForUser(userId) }
                     seededUserIds += userId
                     _state.value = SeederState.Done(userId)
                 } catch (t: Throwable) {
@@ -71,3 +78,4 @@ sealed interface SeederState {
     data class Done(val userId: String) : SeederState
     data class Failed(val userId: String, val message: String) : SeederState
 }
+
