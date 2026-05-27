@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#1F2937</color>
+    <color name="ic_launcher_background">#23262C</color>
+    <color name="gunmetal_background">#1A1C20</color>
+    <color name="gunmetal_surface">#23262C</color>
+    <color name="crimson_primary">#DC2626</color>
 </resources>
