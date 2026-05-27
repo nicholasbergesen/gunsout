@@ -20,6 +20,7 @@ fun readBuildSecret(name: String): String {
     return ""
 }
 
+val googleWebClientId: String = readBuildSecret("GOOGLE_WEB_CLIENT_ID")
 val calorieNinjasApiKey: String = readBuildSecret("CALORIE_NINJAS_API_KEY")
 
 // Version is driven by env vars in CI so each pushed APK installs cleanly over the previous one.
@@ -48,6 +49,11 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
+        buildConfigField(
+            "String",
+            "GOOGLE_WEB_CLIENT_ID",
+            "\"" + googleWebClientId.replace("\"", "\\\"") + "\""
+        )
         buildConfigField("String", "CALORIE_NINJAS_API_KEY", "\"" + calorieNinjasApiKey.replace("\"", "\\\"") + "\"")
     }
 
@@ -166,6 +172,13 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.security.crypto)
+
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+
+    implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.compose.ui.text.google.fonts)
 
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
