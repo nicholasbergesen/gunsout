@@ -34,7 +34,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class SupplementReminderScheduler @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val supplementDao: SupplementDao
 ) {
     fun reschedule(supplement: Supplement) {
         cancel(supplement.id)
@@ -67,6 +68,16 @@ class SupplementReminderScheduler @Inject constructor(
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         am.cancel(pi)
         pi.cancel()
+    }
+
+    /** Arms reminders for every active supplement owned by [userId]. */
+    suspend fun armForUser(userId: String) {
+        supplementDao.allActiveOnce(userId).forEach { reschedule(it) }
+    }
+
+    /** Cancels reminders for every supplement owned by [userId] (active or not). */
+    suspend fun cancelForUser(userId: String) {
+        supplementDao.allOnce(userId).forEach { cancel(it.id) }
     }
 
     private fun buildIntent(id: Long, name: String, dose: Double, unit: String): Intent =

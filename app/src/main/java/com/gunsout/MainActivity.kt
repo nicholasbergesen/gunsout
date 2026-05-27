@@ -9,7 +9,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.gunsout.core.nav.GunsoutApp
+import com.gunsout.feature.auth.AuthGate
 import com.gunsout.ui.theme.GunsoutTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -21,11 +23,14 @@ class MainActivity : ComponentActivity() {
     ) { /* result ignored — the rest timer service still runs, just without a visible notification */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         maybeRequestNotificationPermission()
         setContent {
-            GunsoutTheme { GunsoutApp() }
+            GunsoutTheme {
+                AuthGate { _ -> GunsoutApp() }
+            }
         }
     }
 

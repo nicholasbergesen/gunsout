@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gunsout.auth.AuthRepository
+import com.gunsout.auth.AuthUser
 import com.gunsout.auth.CurrentUserIdProvider
 import com.gunsout.data.prefs.UserPreferences
 import com.gunsout.data.prefs.UserProfile
@@ -38,6 +40,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -46,11 +49,24 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val userPrefs: UserPreferences,
     private val backupManager: com.gunsout.data.backup.BackupManager,
-    private val currentUserIdProvider: CurrentUserIdProvider
+    private val currentUserIdProvider: CurrentUserIdProvider,
+    private val authRepository: AuthRepository,
+    private val reminderScheduler: com.gunsout.feature.supplements.SupplementReminderScheduler
 ) : ViewModel() {
     val profile: StateFlow<UserProfile> = userPrefs.profile.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5_000), UserProfile()
     )
+
+    val signedInUser: StateFlow<AuthUser?> = authRepository.signedInUser
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun signOut() = viewModelScope.launch {
+        val leavingUserId = currentUserIdProvider.currentUserId.first()
+        if (leavingUserId != null) {
+            reminderScheduler.cancelForUser(leavingUserId)
+        }
+        authRepository.signOut()
+    }
 
     private val _backupMessage = MutableStateFlow<String?>(null)
     val backupMessage: StateFlow<String?> = _backupMessage.asStateFlow()
@@ -92,6 +108,7 @@ fun SettingsScreen(
     vm: SettingsViewModel = hiltViewModel()
 ) {
     val profile by vm.profile.collectAsState()
+    val authUser by vm.signedInUser.collectAsState()
     val scroll = rememberScrollState()
 
     var currentWeight by remember(profile) { mutableStateOf(profile.currentBodyWeightKg.toString()) }
@@ -99,11 +116,31 @@ fun SettingsScreen(
     var kneeInjury by remember(profile) { mutableStateOf(profile.kneeInjuryFlag) }
     var baselineWeek by remember(profile) { mutableStateOf(profile.baselineWeekActive) }
 
+    var confirmSignOut by remember { mutableStateOf(false) }
+
     Column(
         Modifier.fillMaxWidth().padding(16.dp).verticalScroll(scroll),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineMedium)
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Account", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                val displayName = authUser?.displayName?.takeIf { it.isNotBlank() }
+                val email = authUser?.email?.takeIf { it.isNotBlank() }
+                Text(
+                    displayName ?: email ?: "Signed in",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                if (email != null && displayName != null) {
+                    Text(email, style = MaterialTheme.typography.bodySmall)
+                }
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(onClick = { confirmSignOut = true }) { Text("Sign out") }
+            }
+        }
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
@@ -186,6 +223,25 @@ fun SettingsScreen(
             },
             modifier = Modifier.fillMaxWidth()
         ) { Text("Save profile") }
+    }
+
+    if (confirmSignOut) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmSignOut = false },
+            title = { Text("Sign out?") },
+            text = {
+                Text(
+                    "Your on-device data stays. Signing back in with the same Google account brings it back. Signing in with a different account shows that account's separate data."
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    confirmSignOut = false
+                    vm.signOut()
+                }) { Text("Sign out") }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } }
+        )
     }
 }
 

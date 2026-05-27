@@ -22,6 +22,9 @@ interface SupplementDao {
     @Query("SELECT * FROM supplement WHERE userId = :userId ORDER BY name")
     fun observeAll(userId: String): Flow<List<Supplement>>
 
+    @Query("SELECT * FROM supplement WHERE userId = :userId ORDER BY name")
+    suspend fun allOnce(userId: String): List<Supplement>
+
     @Query("SELECT * FROM supplement WHERE userId = :userId AND seedKey = :seedKey LIMIT 1")
     suspend fun getBySeedKey(userId: String, seedKey: String): Supplement?
 
