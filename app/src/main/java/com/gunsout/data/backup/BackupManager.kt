@@ -102,6 +102,13 @@ class BackupManager @Inject constructor(
      * delete is scoped by userId, and every imported row is stamped with [userId] regardless of
      * the userId carried in the file.
      *
+     * Every parent row is inserted with `id = 0` so Room assigns a fresh autogen PK; the old ID
+     * from the backup is captured in an old -> new map and used to rewrite every child FK.
+     * Without this remapping, importing a backup whose row IDs already exist in the DB for
+     * another user would hit a PK collision on insert and abort the whole transaction, leaving
+     * the importing user with no data at all. Per-entity remapping is the only correct approach
+     * once the database stores multiple users' rows side by side.
+     *
      * Accepts schemaVersion 1 (no userProfile), 2 (single-user profile, no macro overrides),
      * and 3 (per-user profile fields plus macro overrides).
      */
@@ -132,18 +139,123 @@ class BackupManager @Inject constructor(
                 "DELETE FROM program WHERE userId = ?"
             )) helper.execSQL(sql, arrayOf(userId))
 
-            parsed.programs.forEach { db.programDao().insert(it.toEntity(userId)) }
-            parsed.programDays.forEach { db.programDayDao().insert(it.toEntity(userId)) }
-            parsed.exercises.forEach { db.exerciseDao().insert(it.toEntity(userId)) }
-            parsed.exerciseAlternates.forEach { db.exerciseAlternateDao().insert(it.toEntity(userId)) }
-            parsed.programExercises.forEach { db.programExerciseDao().insert(it.toEntity(userId)) }
-            parsed.sessions.forEach { db.workoutSessionDao().insert(it.toEntity(userId)) }
-            parsed.setEntries.forEach { db.setEntryDao().insert(it.toEntity(userId)) }
-            parsed.mealTemplates.forEach { db.mealTemplateDao().insert(it.toEntity(userId)) }
-            parsed.foodEntries.forEach { db.foodEntryDao().insert(it.toEntity(userId)) }
-            parsed.supplements.forEach { db.supplementDao().insert(it.toEntity(userId)) }
-            parsed.supplementLogs.forEach { db.supplementLogDao().insert(it.toEntity(userId)) }
-            parsed.bodyMetricsLogs.forEach { db.bodyMetricsLogDao().insert(it.toEntity(userId)) }
+            // Insert order is parents-before-children. Each parent insert clears the backup ID
+            // and captures the freshly autogen'd ID into a map. Children rewrite their FK fields
+            // by lookup.
+            val programIdMap = HashMap<Long, Long>(parsed.programs.size)
+            for (b in parsed.programs) {
+                val newId = db.programDao().insert(b.toEntity(userId).copy(id = 0))
+                programIdMap[b.id] = newId
+            }
+
+            val programDayIdMap = HashMap<Long, Long>(parsed.programDays.size)
+            for (b in parsed.programDays) {
+                val parentId = programIdMap[b.programId]
+                    ?: error("Backup references unknown program id ${b.programId} from program_day ${b.id}")
+                val entity = b.toEntity(userId).copy(id = 0, programId = parentId)
+                programDayIdMap[b.id] = db.programDayDao().insert(entity)
+            }
+
+            val exerciseIdMap = HashMap<Long, Long>(parsed.exercises.size)
+            for (b in parsed.exercises) {
+                val newId = db.exerciseDao().insert(b.toEntity(userId).copy(id = 0))
+                exerciseIdMap[b.id] = newId
+            }
+
+            for (b in parsed.exerciseAlternates) {
+                val exId = exerciseIdMap[b.exerciseId]
+                    ?: error("Backup references unknown exercise id ${b.exerciseId} from exercise_alternate")
+                val altId = exerciseIdMap[b.alternateExerciseId]
+                    ?: error("Backup references unknown alternate exercise id ${b.alternateExerciseId} from exercise_alternate")
+                // ExerciseAlternate has a composite PK (exerciseId, alternateExerciseId), no
+                // autogen — both FK fields must be the remapped values.
+                val entity = b.toEntity(userId).copy(exerciseId = exId, alternateExerciseId = altId)
+                db.exerciseAlternateDao().insert(entity)
+            }
+
+            val programExerciseIdMap = HashMap<Long, Long>(parsed.programExercises.size)
+            for (b in parsed.programExercises) {
+                val dayId = programDayIdMap[b.programDayId]
+                    ?: error("Backup references unknown program_day id ${b.programDayId} from program_exercise ${b.id}")
+                val exId = exerciseIdMap[b.exerciseId]
+                    ?: error("Backup references unknown exercise id ${b.exerciseId} from program_exercise ${b.id}")
+                val entity = b.toEntity(userId).copy(
+                    id = 0,
+                    programDayId = dayId,
+                    exerciseId = exId
+                )
+                programExerciseIdMap[b.id] = db.programExerciseDao().insert(entity)
+            }
+
+            val sessionIdMap = HashMap<Long, Long>(parsed.sessions.size)
+            for (b in parsed.sessions) {
+                // programDayId is nullable on WorkoutSession; null when the session is a rest day
+                // or a freeform session not tied to a program day. Preserve the null in that case.
+                val dayId = b.programDayId?.let { old ->
+                    programDayIdMap[old]
+                        ?: error("Backup references unknown program_day id $old from workout_session ${b.id}")
+                }
+                val entity = b.toEntity(userId).copy(id = 0, programDayId = dayId)
+                sessionIdMap[b.id] = db.workoutSessionDao().insert(entity)
+            }
+
+            for (b in parsed.setEntries) {
+                val sessId = sessionIdMap[b.sessionId]
+                    ?: error("Backup references unknown workout_session id ${b.sessionId} from set_entry ${b.id}")
+                // programExerciseId is nullable — null when the set is freeform (not tied to a
+                // planned program exercise, e.g. an extra accessory set the user logged ad-hoc).
+                val peId = b.programExerciseId?.let { old ->
+                    programExerciseIdMap[old]
+                        ?: error("Backup references unknown program_exercise id $old from set_entry ${b.id}")
+                }
+                // exerciseIdSnapshot is the exercise the user actually performed at the time the
+                // set was recorded. Remap when the snapshot resolves to a known exercise; fall
+                // back to the literal old ID if the snapshot points at an exercise that's no
+                // longer in the backup (e.g. the user archived it before exporting). The literal
+                // ID will just be an inert number in that case — no FK on this column.
+                val exSnap = exerciseIdMap[b.exerciseIdSnapshot] ?: b.exerciseIdSnapshot
+                val entity = b.toEntity(userId).copy(
+                    id = 0,
+                    sessionId = sessId,
+                    programExerciseId = peId,
+                    exerciseIdSnapshot = exSnap
+                )
+                db.setEntryDao().insert(entity)
+            }
+
+            val mealTemplateIdMap = HashMap<Long, Long>(parsed.mealTemplates.size)
+            for (b in parsed.mealTemplates) {
+                val newId = db.mealTemplateDao().insert(b.toEntity(userId).copy(id = 0))
+                mealTemplateIdMap[b.id] = newId
+            }
+
+            for (b in parsed.foodEntries) {
+                // sourceTemplateId is nullable — null when the food entry was logged ad-hoc
+                // without picking a template. Preserve null, otherwise remap.
+                val tmplId = b.sourceTemplateId?.let { old ->
+                    mealTemplateIdMap[old]
+                        ?: error("Backup references unknown meal_template id $old from food_entry ${b.id}")
+                }
+                val entity = b.toEntity(userId).copy(id = 0, sourceTemplateId = tmplId)
+                db.foodEntryDao().insert(entity)
+            }
+
+            val supplementIdMap = HashMap<Long, Long>(parsed.supplements.size)
+            for (b in parsed.supplements) {
+                val newId = db.supplementDao().insert(b.toEntity(userId).copy(id = 0))
+                supplementIdMap[b.id] = newId
+            }
+
+            for (b in parsed.supplementLogs) {
+                val suppId = supplementIdMap[b.supplementId]
+                    ?: error("Backup references unknown supplement id ${b.supplementId} from supplement_log ${b.id}")
+                val entity = b.toEntity(userId).copy(id = 0, supplementId = suppId)
+                db.supplementLogDao().insert(entity)
+            }
+
+            for (b in parsed.bodyMetricsLogs) {
+                db.bodyMetricsLogDao().insert(b.toEntity(userId).copy(id = 0))
+            }
         }
 
         // Restore profile outside the Room transaction. UserPreferences is per-user as of Phase 3,

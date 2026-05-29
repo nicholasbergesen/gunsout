@@ -32,6 +32,15 @@ import javax.inject.Singleton
  * [GoogleIdTokenCredential.id] (which is the user's email) as identity so that
  * a user who changes their account email does not orphan their on-device data.
  *
+ * Note on JWT parsing: the `androidx.credentials:googleid:1.1.1` library
+ * exposes only `id` (email) and `idToken` (JWT) on [GoogleIdTokenCredential];
+ * there is no `uniqueId` property in this release that would surface `sub`
+ * directly. The lightweight [extractSubClaim] helper below decodes the
+ * unsigned payload only - signature verification is not needed on-device for
+ * an account-disambiguation use case (the ID token already came from a
+ * trusted Credential Manager flow on the same device). Unit tests live in
+ * `AuthRepositoryTest`.
+ *
  * The repository is the only component that talks to Credential Manager; the
  * rest of the app reads [signedInUser] and reacts.
  */

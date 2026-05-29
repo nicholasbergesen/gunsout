@@ -50,6 +50,13 @@ class SeederController @Inject constructor(
         scope.launch {
             mutex.withLock {
                 if (userId in seededUserIds) {
+                    // Same user signing back in within the same process. Seeding itself is a no-op
+                    // (the per-user catalog already exists), but reminders must still be re-armed
+                    // because the prior sign-out called reminderScheduler.cancelForUser(...) and
+                    // tore down every PendingIntent for this user. Without this call the user
+                    // would silently lose all supplement reminders on every sign-out / sign-in
+                    // cycle even though the contract is "re-arm after sign-in".
+                    runCatching { reminderScheduler.armForUser(userId) }
                     _state.value = SeederState.Done(userId)
                     return@withLock
                 }

@@ -6,9 +6,11 @@ import org.junit.Test
 
 /**
  * Verifies that [AuthRepository.extractSubClaim] picks the `sub` claim out of
- * a Google ID token JWT. We don't have a real Google JWT in unit tests, so we
- * build a syntactically valid one (header.payload.signature) and confirm only
- * the payload parsing is exercised.
+ * a Google ID token JWT. The androidx.credentials:googleid:1.1.1 library does
+ * not expose `sub` as a credential property, so AuthRepository decodes it
+ * client-side from the ID token. We don't have a real Google JWT in unit
+ * tests, so we build a syntactically valid one (header.payload.signature) and
+ * confirm only the payload parsing is exercised.
  */
 class AuthRepositoryTest {
 
@@ -43,5 +45,3 @@ class AuthRepositoryTest {
     private fun base64UrlNoPad(bytes: ByteArray): String =
         java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
 }
-
-
