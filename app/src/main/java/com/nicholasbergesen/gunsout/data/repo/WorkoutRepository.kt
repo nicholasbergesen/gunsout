@@ -1,0 +1,157 @@
+package com.nicholasbergesen.gunsout.data.repo
+
+import com.nicholasbergesen.gunsout.data.dao.ExerciseAlternateDao
+import com.nicholasbergesen.gunsout.data.dao.ExerciseDao
+import com.nicholasbergesen.gunsout.data.dao.ProgramDao
+import com.nicholasbergesen.gunsout.data.dao.ProgramDayDao
+import com.nicholasbergesen.gunsout.data.dao.ProgramExerciseDao
+import com.nicholasbergesen.gunsout.data.dao.SetEntryDao
+import com.nicholasbergesen.gunsout.data.dao.WorkoutSessionDao
+import com.nicholasbergesen.gunsout.data.entity.Exercise
+import com.nicholasbergesen.gunsout.data.entity.Program
+import com.nicholasbergesen.gunsout.data.entity.ProgramDay
+import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
+import com.nicholasbergesen.gunsout.data.entity.SessionStatus
+import com.nicholasbergesen.gunsout.data.entity.SetEntry
+import com.nicholasbergesen.gunsout.data.entity.WorkoutSession
+import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
+import java.time.LocalDateTime
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class WorkoutRepository @Inject constructor(
+    private val programDao: ProgramDao,
+    private val programDayDao: ProgramDayDao,
+    private val programExerciseDao: ProgramExerciseDao,
+    private val exerciseDao: ExerciseDao,
+    private val alternateDao: ExerciseAlternateDao,
+    private val workoutSessionDao: WorkoutSessionDao,
+    private val setEntryDao: SetEntryDao
+) {
+    fun observeActiveProgram(userId: String): Flow<Program?> = programDao.observeActive(userId)
+    fun observeDaysFor(programId: Long): Flow<List<ProgramDay>> = programDayDao.observeForProgram(programId)
+    fun observeRecentCompletedAndSkipped(userId: String, limit: Int = 50): Flow<List<WorkoutSession>> =
+        workoutSessionDao.observeRecentRotation(userId, limit)
+    fun observeAllSessions(userId: String): Flow<List<WorkoutSession>> = workoutSessionDao.observeAll(userId)
+
+    suspend fun getActiveProgram(userId: String): Program? = programDao.getActive(userId)
+
+    suspend fun getActiveProgramDays(userId: String): List<ProgramDay> {
+        val active = programDao.getActive(userId) ?: return emptyList()
+        return programDayDao.getForProgram(active.id)
+    }
+
+    suspend fun getProgramDay(id: Long): ProgramDay? = programDayDao.getById(id)
+
+    suspend fun getProgramExercises(programDayId: Long): List<ProgramExercise> =
+        programExerciseDao.getForDay(programDayId)
+
+    suspend fun getExercise(id: Long): Exercise? = exerciseDao.getById(id)
+
+    fun observeAllExercises(userId: String): Flow<List<Exercise>> = exerciseDao.observeAll(userId)
+
+    suspend fun getRecentSessions(userId: String): List<WorkoutSession> =
+        workoutSessionDao.getSince(userId, LocalDate.now().minusDays(60))
+
+    suspend fun getLastCompletedSession(userId: String): WorkoutSession? =
+        workoutSessionDao.getLastCompleted(userId)
+
+    fun observeRecentCompleted(userId: String, limit: Int = 10): Flow<List<WorkoutSession>> =
+        workoutSessionDao.observeRecentCompleted(userId, limit)
+
+    suspend fun getInProgressSession(userId: String): WorkoutSession? =
+        workoutSessionDao.getInProgress(userId)
+
+    suspend fun startSession(userId: String, programDay: ProgramDay): Long {
+        val session = WorkoutSession(
+            userId = userId,
+            date = LocalDate.now(),
+            programDayId = programDay.id,
+            programDayLabelSnapshot = programDay.label,
+            status = SessionStatus.IN_PROGRESS
+        )
+        return workoutSessionDao.insert(session)
+    }
+
+    suspend fun getSetsForSession(sessionId: Long): List<SetEntry> =
+        setEntryDao.getForSession(sessionId)
+
+    fun observeSetsForSession(sessionId: Long): Flow<List<SetEntry>> =
+        setEntryDao.observeForSession(sessionId)
+
+    suspend fun getSessionById(id: Long): WorkoutSession? = workoutSessionDao.getById(id)
+
+    suspend fun getPreviousSetsForExercise(userId: String, exerciseId: Long): List<SetEntry> =
+        setEntryDao.getRecentForExercise(userId, exerciseId)
+
+    suspend fun logSet(set: SetEntry): Long {
+        val existing = setEntryDao.findExisting(set.sessionId, set.programExerciseId, set.setIndex, set.isWarmup)
+        return if (existing == null) {
+            setEntryDao.insert(set)
+        } else {
+            setEntryDao.update(set.copy(id = existing.id))
+            existing.id
+        }
+    }
+
+    suspend fun updateSet(set: SetEntry) = setEntryDao.update(set)
+
+    suspend fun getAlternates(exerciseId: Long): List<Exercise> =
+        alternateDao.getAlternates(exerciseId)
+
+    /** Persist a swap on the ProgramExercise row so the change applies to future sessions. */
+    suspend fun persistExerciseSwap(pe: ProgramExercise, newExerciseId: Long) {
+        programExerciseDao.update(pe.copy(exerciseId = newExerciseId))
+    }
+
+    /** Retarget already-logged sets for a slot in the current session. */
+    suspend fun retargetSetsForSlot(sessionId: Long, programExerciseId: Long, newExerciseId: Long) {
+        val existing = setEntryDao.getForSession(sessionId).filter { it.programExerciseId == programExerciseId }
+        val newName = exerciseDao.getById(newExerciseId)?.name ?: return
+        existing.forEach { set ->
+            setEntryDao.update(set.copy(exerciseIdSnapshot = newExerciseId, exerciseNameSnapshot = newName))
+        }
+    }
+
+    suspend fun completeSession(sessionId: Long, kneeFeel: Int?, notes: String?) {
+        val s = workoutSessionDao.getById(sessionId) ?: return
+        workoutSessionDao.update(
+            s.copy(status = SessionStatus.COMPLETED, completedAt = LocalDateTime.now(), kneeFeel = kneeFeel, notes = notes)
+        )
+    }
+
+    suspend fun markRestDay(userId: String) {
+        val active = programDao.getActive(userId) ?: return
+        val days = programDayDao.getForProgram(active.id)
+        val rest = days.firstOrNull { it.isRest } ?: return
+        workoutSessionDao.insert(
+            WorkoutSession(
+                userId = userId,
+                date = LocalDate.now(),
+                // Important: keep programDayId null so the schedule resolver doesn't try to place this
+                // session in the rotation. Snapshot the label so the UI can still show "Rest" history.
+                programDayId = null,
+                programDayLabelSnapshot = rest.label,
+                status = SessionStatus.COMPLETED,
+                startedAt = LocalDateTime.now(),
+                completedAt = LocalDateTime.now()
+            )
+        )
+    }
+
+    suspend fun skipNextDay(userId: String, nextProgramDay: ProgramDay) {
+        workoutSessionDao.insert(
+            WorkoutSession(
+                userId = userId,
+                date = LocalDate.now(),
+                programDayId = nextProgramDay.id,
+                programDayLabelSnapshot = nextProgramDay.label,
+                status = SessionStatus.SKIPPED,
+                startedAt = LocalDateTime.now(),
+                completedAt = LocalDateTime.now()
+            )
+        )
+    }
+}

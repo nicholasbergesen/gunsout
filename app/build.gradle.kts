@@ -20,7 +20,25 @@ fun readBuildSecret(name: String): String {
     return ""
 }
 
-val calorieNinjasApiKey: String = readBuildSecret("CALORIE_NINJAS_API_KEY")
+val googleWebClientId: String = readBuildSecret("GOOGLE_WEB_CLIENT_ID")
+
+// Fail any APK assembly that has no Google Web Client ID configured. Sign-in is mandatory for
+// every screen behind AuthGate, so an APK without a client ID cannot do anything useful: the
+// runtime would still surface SignInResult.ConfigurationError, but a shipped or sideloaded build
+// in that shape is broken on purpose. Hooking into the `assemble*` tasks (rather than the script
+// top level) means IDE syncs, `clean`, and unit-test runs still work while the client ID is
+// being set up, and only the actual APK assembly is blocked.
+gradle.projectsEvaluated {
+    tasks.matching { it.name.startsWith("assemble") }.configureEach {
+        doFirst {
+            require(googleWebClientId.isNotBlank()) {
+                "GOOGLE_WEB_CLIENT_ID is empty. Set it in local.properties or as the " +
+                    "GOOGLE_WEB_CLIENT_ID env var / CI secret. See README \"Google Sign-In setup\" " +
+                    "for details."
+            }
+        }
+    }
+}
 
 // Version is driven by env vars in CI so each pushed APK installs cleanly over the previous one.
 // Locally these fall through to the defaults; the values still produce a valid APK.
@@ -35,11 +53,11 @@ val ciVersionName: String = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlan
 val sharedDebugKeystore = rootProject.file("app/gunsout-debug.keystore")
 
 android {
-    namespace = "com.gunsout"
+    namespace = "com.nicholasbergesen.gunsout"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.gunsout"
+        applicationId = "com.nicholasbergesen.gunsout"
         minSdk = 26
         targetSdk = 36
         versionCode = ciVersionCode
@@ -48,7 +66,11 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
-        buildConfigField("String", "CALORIE_NINJAS_API_KEY", "\"" + calorieNinjasApiKey.replace("\"", "\\\"") + "\"")
+        buildConfigField(
+            "String",
+            "GOOGLE_WEB_CLIENT_ID",
+            "\"" + googleWebClientId.replace("\"", "\\\"") + "\""
+        )
     }
 
     signingConfigs {
@@ -165,7 +187,13 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.androidx.datastore.preferences)
-    implementation(libs.androidx.security.crypto)
+
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+
+    implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.compose.ui.text.google.fonts)
 
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)

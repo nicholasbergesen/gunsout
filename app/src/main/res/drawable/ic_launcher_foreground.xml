@@ -4,7 +4,22 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Crimson "G" within the adaptive icon safe zone (28..80 of 108). -->
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M30,46 h6 v16 h36 v-16 h6 v32 h-6 v-10 H36 v10 h-6 z M20,52 h6 v4 h-6 z M82,52 h6 v4 h-6 z" />
+        android:fillColor="#DC2626"
+        android:pathData="M54,32
+            C 40,32 30,42 30,54
+            C 30,66 40,76 54,76
+            C 63,76 70,73 76,67
+            L 76,52
+            L 60,52
+            L 60,60
+            L 68,60
+            L 68,63
+            C 65,66 60,68 54,68
+            C 45,68 38,62 38,54
+            C 38,46 45,40 54,40
+            C 60,40 64,42 67,46
+            L 73,40
+            C 68,35 62,32 54,32 Z" />
 </vector>

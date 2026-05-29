@@ -43,7 +43,7 @@ jobs:
 
       - name: Build debug APK
         env:
-          CALORIE_NINJAS_API_KEY: ${{ secrets.CALORIE_NINJAS_API_KEY }}
+          GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
           # Drive versionCode and versionName from the CI run number so every published APK is a
           # strictly higher version than the one before it. Combined with the checked-in stable
           # debug keystore, this means sideloaded updates install in place without uninstalling.
