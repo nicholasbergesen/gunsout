@@ -24,9 +24,12 @@ object DatabaseModule {
         // risk for a personal-use app. Scoped to the legacy versions explicitly via
         // fallbackToDestructiveMigrationFrom so a future schema bump (v4 -> v5) that forgets to
         // add a Migration object will throw at startup instead of silently wiping the database.
+        // The destructive version list is sourced from Migrations.destructiveFallbackFromVersions
+        // so the same constant is shared with the regression test that guards the no-overlap
+        // invariant between explicit migrations and the destructive fallback list.
         return Room.databaseBuilder(context, GunsoutDatabase::class.java, "gunsout.db")
             .addMigrations(*Migrations.allMigrations)
-            .fallbackToDestructiveMigrationFrom(1, 2, 3)
+            .fallbackToDestructiveMigrationFrom(*Migrations.destructiveFallbackFromVersions)
             .build()
     }
 
