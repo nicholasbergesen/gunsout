@@ -49,9 +49,10 @@ class BackupManager @Inject constructor(
 
         val bodyMetrics = db.bodyMetricsLogDao().observeAll(userId).first().map { it.toBackup() }
 
-        // User profile lives in DataStore, not Room. Phase 2b-2 keeps UserPreferences single-user;
-        // Phase 3 makes it per-user and this read switches to the per-user DataStore.
-        val profile = userPrefs.profile.first()
+        // User profile lives in DataStore, not Room, and is now per-user (one DataStore file per
+        // signed-in Google account, see UserPreferences). Exporting reads the calling user's
+        // profile only.
+        val profile = userPrefs.profile(userId).first()
         val profileBackup = UserProfileBackup(
             currentBodyWeightKg = profile.currentBodyWeightKg,
             goalBodyWeightKg = profile.goalBodyWeightKg,
@@ -66,7 +67,7 @@ class BackupManager @Inject constructor(
             themeMode = profile.themeMode.name,
             firstRunDone = profile.firstRunDone
         )
-        val overrides = userPrefs.overrides.first()
+        val overrides = userPrefs.overrides(userId).first()
         val overridesBackup = MacroOverridesBackup(
             kcal = overrides.kcal,
             proteinG = overrides.proteinG,
@@ -145,10 +146,11 @@ class BackupManager @Inject constructor(
             parsed.bodyMetricsLogs.forEach { db.bodyMetricsLogDao().insert(it.toEntity(userId)) }
         }
 
-        // Restore profile outside the Room transaction. UserPreferences is still single-user in
-        // Phase 2b-2, so the imported profile fully replaces the current values.
+        // Restore profile outside the Room transaction. UserPreferences is per-user as of Phase 3,
+        // so this write only affects the importing user's DataStore file; other Google accounts
+        // signed in on the same device are unaffected.
         parsed.userProfile?.let { p ->
-            userPrefs.update {
+            userPrefs.update(userId) {
                 UserProfile(
                     currentBodyWeightKg = p.currentBodyWeightKg,
                     goalBodyWeightKg = p.goalBodyWeightKg,
@@ -168,9 +170,9 @@ class BackupManager @Inject constructor(
 
         // Reset overrides first so an old v1/v2 import (with no macroOverrides field) clears any
         // stale overrides from the current user. Then apply imported overrides if present.
-        userPrefs.resetOverrides()
+        userPrefs.resetOverrides(userId)
         parsed.macroOverrides?.let { o ->
-            userPrefs.updateOverrides {
+            userPrefs.updateOverrides(userId) {
                 com.gunsout.data.prefs.MacroOverrides(
                     kcal = o.kcal,
                     proteinG = o.proteinG,

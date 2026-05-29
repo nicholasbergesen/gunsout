@@ -18,13 +18,15 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): GunsoutDatabase {
-        // v2 -> v3 wipes existing on-device data per the multi-user/diet-simplification plan
-        // (the schema dropped the Ingredient, MealTemplateIngredient and MealPlan tables and is
-        // about to add per-user scoping). Destructive fallback is enabled unconditionally for
-        // this transition so release builds wipe in the same way as debug builds.
+        // v2/v3 -> v4 transitions wipe the on-device data because this PR drops the Ingredient,
+        // MealTemplateIngredient and MealPlan tables and adds per-user scoping to every remaining
+        // entity, and writing a real Room migration through that shape change is not worth the
+        // risk for a personal-use app. Scoped to the legacy versions explicitly via
+        // fallbackToDestructiveMigrationFrom so a future schema bump (v4 -> v5) that forgets to
+        // add a Migration object will throw at startup instead of silently wiping the database.
         return Room.databaseBuilder(context, GunsoutDatabase::class.java, "gunsout.db")
             .addMigrations(*Migrations.allMigrations)
-            .fallbackToDestructiveMigration()
+            .fallbackToDestructiveMigrationFrom(1, 2, 3)
             .build()
     }
 

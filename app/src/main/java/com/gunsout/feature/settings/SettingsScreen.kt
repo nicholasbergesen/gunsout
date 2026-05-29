@@ -46,12 +46,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val userPrefs: UserPreferences,
@@ -60,21 +63,31 @@ class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val reminderScheduler: com.gunsout.feature.supplements.SupplementReminderScheduler
 ) : ViewModel() {
-    val profile: StateFlow<UserProfile> = userPrefs.profile.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5_000), UserProfile()
-    )
+    // Per-user prefs (Phase 3): every observed profile/overrides flow is bound to the current
+    // signed-in userId via flatMapLatest, so a sign-in to a different Google account on the same
+    // device immediately switches the visible profile to that account's DataStore file. Settings
+    // would otherwise display stale values from a previous account.
+    private val userIdFlow = currentUserIdProvider.currentUserId.filterNotNull()
 
-    val overrides: StateFlow<MacroOverrides> = userPrefs.overrides.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5_000), MacroOverrides()
-    )
+    val profile: StateFlow<UserProfile> = userIdFlow
+        .flatMapLatest { userPrefs.profile(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UserProfile())
 
-    val target: StateFlow<MacroTarget?> = kotlinx.coroutines.flow.combine(
-        userPrefs.profile,
-        userPrefs.overrides
-    ) { p, o -> MacroTargetCalculator.effectiveTarget(p, o) }
+    val overrides: StateFlow<MacroOverrides> = userIdFlow
+        .flatMapLatest { userPrefs.overrides(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MacroOverrides())
+
+    val target: StateFlow<MacroTarget?> = userIdFlow
+        .flatMapLatest { userId ->
+            kotlinx.coroutines.flow.combine(
+                userPrefs.profile(userId),
+                userPrefs.overrides(userId)
+            ) { p, o -> MacroTargetCalculator.effectiveTarget(p, o) }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val suggestion: StateFlow<com.gunsout.domain.nutrition.MacroSuggestion?> = userPrefs.profile
+    val suggestion: StateFlow<com.gunsout.domain.nutrition.MacroSuggestion?> = userIdFlow
+        .flatMapLatest { userPrefs.profile(it) }
         .map { MacroTargetCalculator.suggest(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -117,7 +130,8 @@ class SettingsViewModel @Inject constructor(
         kneeInjury: Boolean,
         baselineWeek: Boolean
     ) = viewModelScope.launch {
-        userPrefs.update {
+        val userId = currentUserIdProvider.requireUserId()
+        userPrefs.update(userId) {
             it.copy(
                 currentBodyWeightKg = currentWeight,
                 goalBodyWeightKg = goalWeight,
@@ -133,11 +147,13 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun saveOverrides(kcal: Int?, proteinG: Int?, carbsG: Int?, fatG: Int?) = viewModelScope.launch {
-        userPrefs.updateOverrides { MacroOverrides(kcal, proteinG, carbsG, fatG) }
+        val userId = currentUserIdProvider.requireUserId()
+        userPrefs.updateOverrides(userId) { MacroOverrides(kcal, proteinG, carbsG, fatG) }
     }
 
     fun resetOverrides() = viewModelScope.launch {
-        userPrefs.resetOverrides()
+        val userId = currentUserIdProvider.requireUserId()
+        userPrefs.resetOverrides(userId)
     }
 }
 

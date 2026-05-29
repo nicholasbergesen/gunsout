@@ -81,7 +81,7 @@ class DietViewModel @Inject constructor(
                 entriesFlow,
                 supplements.observeActive(userId),
                 supplementLogsFlow,
-                combine(userPreferences.profile, userPreferences.overrides) { profile, overrides ->
+                combine(userPreferences.profile(userId), userPreferences.overrides(userId)) { profile, overrides ->
                     MacroTargetCalculator.effectiveTarget(profile, overrides)
                 }
             ) { templates, entries, supps, supLogs, target ->

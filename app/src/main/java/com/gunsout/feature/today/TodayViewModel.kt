@@ -58,7 +58,7 @@ class TodayViewModel @Inject constructor(
             combine(
                 daysFlow,
                 recentSessionsFlow,
-                userPrefs.profile,
+                userPrefs.profile(userId),
                 activeProgramFlow,
                 refreshTicker
             ) { days, recent, profile, program, _ ->

@@ -39,7 +39,7 @@ class BodyViewModel @Inject constructor(
         .filterNotNull()
         .flatMapLatest { userId ->
             combine(
-                userPrefs.profile,
+                userPrefs.profile(userId),
                 body.observeSince(userId, LocalDate.now().minusYears(2))
             ) { profile, logs ->
                 val sortedLogs = logs.sortedBy { it.date }
@@ -74,12 +74,13 @@ class BodyViewModel @Inject constructor(
             boneMassKg = boneMassKg,
             visceralFatRating = visceralFatRating
         )
-        userPrefs.update { it.copy(currentBodyWeightKg = weightKg) }
+        userPrefs.update(userId) { it.copy(currentBodyWeightKg = weightKg) }
     }
 
     fun suggestKcalAdjustment() = viewModelScope.launch {
+        val userId = currentUserIdProvider.requireUserId()
         val current = state.value
-        val effective = MacroTargetCalculator.effectiveTarget(current.profile, userPrefs.overrides.first())
+        val effective = MacroTargetCalculator.effectiveTarget(current.profile, userPrefs.overrides(userId).first())
         if (effective == null) {
             _kcalSuggestion.value = KcalTrendAnalyzer.Suggestion(
                 text = "Add your age, sex, height, current weight, and goal weight in Settings, or set a manual kcal override there, before asking for a suggestion.",
@@ -99,7 +100,8 @@ class BodyViewModel @Inject constructor(
     fun applyKcalSuggestion() = viewModelScope.launch {
         val suggestion = _kcalSuggestion.value ?: return@launch
         val newTarget = suggestion.newKcalTarget ?: return@launch
-        userPrefs.updateOverrides { it.copy(kcal = newTarget) }
+        val userId = currentUserIdProvider.requireUserId()
+        userPrefs.updateOverrides(userId) { it.copy(kcal = newTarget) }
         _kcalSuggestion.value = null
     }
 

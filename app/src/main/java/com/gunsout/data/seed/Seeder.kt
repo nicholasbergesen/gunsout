@@ -1,5 +1,6 @@
 package com.gunsout.data.seed
 
+import androidx.room.withTransaction
 import com.gunsout.data.dao.ExerciseAlternateDao
 import com.gunsout.data.dao.ExerciseDao
 import com.gunsout.data.dao.ProgramDao
@@ -23,12 +24,18 @@ import javax.inject.Singleton
  * userId. All inserts stamp [userId] and all `getBySeedKey` lookups are scoped to [userId] so that
  * each user receives their own copy of the catalog (rubber-duck issue #3).
  *
- * Phase 2b-2 placeholder: [UserPreferences] is still a single global store, so the `firstRunDone`
- * gate is effectively single-user. Phase 3 will make `UserPreferences` per-user; at that point
- * `firstRunDone` becomes a true per-user flag.
+ * The seeding sequence is wrapped in a single Room transaction so that a partial failure rolls
+ * back atomically. Without this, a retry from [com.gunsout.feature.auth.AuthGate]'s error UI can
+ * hit a half-seeded program where the parent row exists but children are missing, and
+ * [seedProgram] would skip inserting the children because it short-circuits on parent presence.
+ *
+ * Per-user [UserPreferences] (Phase 3) makes the `firstRunDone` gate a real per-user flag —
+ * each Google account that signs in gets a fresh DataStore file, defaults `firstRunDone = false`,
+ * and goes through its own first-run program activation.
  */
 @Singleton
 class Seeder @Inject constructor(
+    private val db: com.gunsout.data.db.GunsoutDatabase,
     private val programDao: ProgramDao,
     private val programDayDao: ProgramDayDao,
     private val programExerciseDao: ProgramExerciseDao,
@@ -40,16 +47,18 @@ class Seeder @Inject constructor(
 ) {
 
     suspend fun seedIfNeeded(userId: String) {
-        seedExercises(userId)
-        seedAlternates(userId)
-        val firstRun = !userPrefs.profile.first().firstRunDone
-        seedProgram(userId, activateOnFirstRun = firstRun)
-        seedSupplements(userId)
+        val firstRun = !userPrefs.profile(userId).first().firstRunDone
+        db.withTransaction {
+            seedExercises(userId)
+            seedAlternates(userId)
+            seedProgram(userId, activateOnFirstRun = firstRun)
+            seedSupplements(userId)
+        }
         // Re-arm any supplement reminders saved in the DB (e.g. after install on a new device or
         // after a backup-import). Boot is handled separately by SupplementBootReceiver.
         rearmReminders(userId)
         if (firstRun) {
-            userPrefs.update { it.copy(firstRunDone = true) }
+            userPrefs.update(userId) { it.copy(firstRunDone = true) }
         }
     }
 

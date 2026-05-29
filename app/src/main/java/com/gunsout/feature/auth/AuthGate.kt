@@ -11,33 +11,59 @@ import com.gunsout.auth.AuthRepository
 import com.gunsout.auth.AuthUser
 import com.gunsout.auth.SeederController
 import com.gunsout.auth.SeederState
+import com.gunsout.feature.supplements.SupplementReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class AuthGateViewModel @Inject constructor(
-    authRepository: AuthRepository,
-    val seederController: SeederController
+    private val authRepository: AuthRepository,
+    val seederController: SeederController,
+    private val reminderScheduler: SupplementReminderScheduler
 ) : ViewModel() {
     val signedInUser: StateFlow<AuthUser?> = authRepository.signedInUser
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /**
+     * Re-runs seeding for [userId] after a [SeederState.Failed]. Safe to call from the
+     * SetupErrorScreen retry button: failed users are not added to SeederController's
+     * `seededUserIds` set, so [SeederController.start] runs the seed sequence again instead of
+     * short-circuiting to Done. Successful seeds are idempotent thanks to the `getBySeedKey`
+     * guards inside Seeder, and the seed body is wrapped in a Room transaction so a partial
+     * failure rolls back cleanly between attempts.
+     */
+    fun retry(userId: String) {
+        seederController.start(userId)
+    }
+
+    /**
+     * Sign-out path from the setup error screen. Reminder cancellation is best-effort: if it
+     * throws (e.g. an AlarmManager exception or DAO failure inside cancelForUser), we must still
+     * proceed with sign-out so the user has a way off the stuck setup screen.
+     */
+    fun signOut(leavingUserId: String?) = viewModelScope.launch {
+        if (leavingUserId != null) {
+            runCatching { reminderScheduler.cancelForUser(leavingUserId) }
+        }
+        authRepository.signOut()
+    }
 }
 
 /**
  * Gates the application content behind successful sign-in and the per-user
  * seeder. While the user is signed out, renders [LoginScreen]; immediately
  * after a successful sign-in renders [SetupScreen] until the seeder reports
- * Done, then renders [content].
+ * Done, then renders [content]. If seeding fails, renders [SetupErrorScreen]
+ * with Retry and Sign-out actions so the user is never trapped on the spinner.
  */
 @Composable
 fun AuthGate(
     content: @Composable (userId: String) -> Unit
 ) {
-    // Use SimpleViewModel to access state without coupling to androidx.lifecycle.viewModelScope
-    // (Hilt-provided LoginViewModel and SeederController are accessed via the gate VM below).
     val vm: AuthGateViewModel = hiltViewModel()
     val user by vm.signedInUser.collectAsState()
     val seederState by vm.seederController.state.collectAsState()
@@ -63,13 +89,11 @@ fun AuthGate(
         } else {
             SetupScreen()
         }
-        is SeederState.Failed -> {
-            // Render setup with a fallback message; future enhancement could
-            // surface retry. For now, sign-out is the user's recovery path
-            // (Settings → Sign out) and the SetupScreen at least communicates
-            // that something is happening.
-            SetupScreen()
-        }
+        is SeederState.Failed -> SetupErrorScreen(
+            message = s.message,
+            onRetry = { vm.retry(currentUser.userId) },
+            onSignOut = { vm.signOut(currentUser.userId) }
+        )
         else -> SetupScreen()
     }
 }

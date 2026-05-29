@@ -82,7 +82,9 @@ Every push to `main` builds a debug-signed APK and publishes it to the [`latest`
 
 ### Upgrading from a pre-multi-user build
 
-The upgrade from any v2 single-user build wipes the on-device Room database and re-seeds defaults under the first Google account that signs in. The pre-multi-user build had no concept of user identity, so it was not possible to assign legacy rows to a meaningful account. Export your data via Settings -> Export JSON before upgrading if you want to keep it; you can re-import the file after signing in. The ingredient catalog and `MealPlan` entity are gone; legacy backup files (schemaVersion 1 or 2) are imported by folding the active meal plan's targets into the new manual-override fields and recomputing template macros from any ingredient joins they reference.
+The upgrade from any v1 or v2 single-user build wipes the on-device Room database and re-seeds defaults under the first Google account that signs in. The pre-multi-user build had no concept of user identity, so it was not possible to assign legacy rows to a meaningful account. Export your data via Settings -> Export JSON before upgrading if you want to keep it; you can re-import the file after signing in. The destructive fallback is gated to versions 1, 2, and 3 only, so any later v4 -> v5 schema bump will fail loudly if a migration is missing instead of silently wiping again.
+
+The ingredient catalog and `MealPlan` entity are gone. Legacy backup files (schemaVersion 1 or 2) import cleanly because the dropped fields (`mealPlans`, `ingredients`, `mealTemplateIngredients`, `macroSource`, `mealPlanId`) are skipped silently. Meal-plan-based daily targets do not carry forward into the new manual-override fields; users who relied on a meal plan need to set kcal and macro overrides manually in Settings after importing. `FROM_INGREDIENTS` template macros are not recomputed from their (now-gone) ingredient joins; they import as whatever kcal/macros were already written to the template row at export time.
 
 ### Sideload-friendly updates
 

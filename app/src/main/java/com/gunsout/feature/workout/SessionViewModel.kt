@@ -67,7 +67,7 @@ class SessionViewModel @Inject constructor(
 
     private fun load() = viewModelScope.launch {
         val userId = currentUserIdProvider.requireUserId()
-        val profile = userPrefs.profile.first()
+        val profile = userPrefs.profile(userId).first()
         val session = workouts.getSessionById(sessionId) ?: return@launch
         val pdId = session.programDayId ?: return@launch
         val activeProgram = workouts.getActiveProgram(userId)
