@@ -50,7 +50,7 @@ Gun-metal base + crimson `#DC2626` accent across both light and dark palettes, I
 ## Tech
 
 - Kotlin 2.x, Jetpack Compose, Material 3, MVVM with Hilt, Room 2.6.x (with versioned migrations and a checked-in schema export), DataStore, OkHttp + kotlinx-serialization, Navigation-Compose. AGP 8.x. minSdk 26, target 36.
-- Pure-Kotlin domain modules under `com.gunsout.domain`: `ScheduleResolver`, `MacroTargetCalculator`, `ProgressionEngine`, `KcalTrendAnalyzer`. Fully unit-tested.
+- Pure-Kotlin domain modules under `com.nicholasbergesen.gunsout.domain`: `ScheduleResolver`, `MacroTargetCalculator`, `ProgressionEngine`, `KcalTrendAnalyzer`. Fully unit-tested.
 - Foreground service `RestTimerService` (SPECIAL_USE foreground service type) for the rest timer between sets so it survives screen sleep.
 - Credential Manager + Google Identity for sign-in.
 
@@ -68,7 +68,7 @@ APK lands at `app/build/outputs/apk/debug/app-debug.apk`.
 You will need:
 
 1. A **Web OAuth 2.0 Client ID** from Google Cloud Console (Credentials -> Create Credentials -> OAuth client ID -> Web application). Paste it as `GOOGLE_WEB_CLIENT_ID` into `local.properties` (gitignored), or set it as an env var. The build will fail if this value is empty.
-2. **Android OAuth Client IDs** for both `com.gunsout` and `com.gunsout.debug`. Each one binds the **SHA-1** of the keystore that signs the APK to the package name. For the debug build, use the SHA-1 of `app/gunsout-debug.keystore`. These Android client IDs are not referenced in code; they let Credential Manager honor the Web Client ID on signed APKs.
+2. **Android OAuth Client IDs** for both `com.nicholasbergesen.gunsout` and `com.nicholasbergesen.gunsout.debug`. Each one binds the **SHA-1** of the keystore that signs the APK to the package name. For the debug build, use the SHA-1 of `app/gunsout-debug.keystore`. These Android client IDs are not referenced in code; they let Credential Manager honor the Web Client ID on signed APKs.
 
 ```
 GOOGLE_WEB_CLIENT_ID=<your-web-client-id>.apps.googleusercontent.com
@@ -92,7 +92,7 @@ For Android to install a new APK in-place over the previous one (preserving the 
 
 1. Share the **same signing certificate**.
 2. Use an **increasing `versionCode`**.
-3. Use the **same `applicationId`** (debug builds install as `com.gunsout.debug`).
+3. Use the **same `applicationId`** (debug builds install as `com.nicholasbergesen.gunsout.debug`).
 
 This repo handles (3) automatically and CI handles (2) by driving `versionCode` and `versionName` from `${{ github.run_number }}`. For (1), the build expects a checked-in debug keystore at `app/gunsout-debug.keystore`.
 

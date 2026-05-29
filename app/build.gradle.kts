@@ -53,11 +53,11 @@ val ciVersionName: String = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlan
 val sharedDebugKeystore = rootProject.file("app/gunsout-debug.keystore")
 
 android {
-    namespace = "com.gunsout"
+    namespace = "com.nicholasbergesen.gunsout"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.gunsout"
+        applicationId = "com.nicholasbergesen.gunsout"
         minSdk = 26
         targetSdk = 36
         versionCode = ciVersionCode

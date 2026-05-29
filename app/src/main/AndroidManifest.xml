@@ -41,7 +41,7 @@
             android:name=".feature.supplements.SupplementReminderReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.gunsout.SUPPLEMENT_REMINDER" />
+                <action android:name="com.nicholasbergesen.gunsout.SUPPLEMENT_REMINDER" />
             </intent-filter>
         </receiver>
 

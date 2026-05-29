@@ -1,0 +1,115 @@
+package com.nicholasbergesen.gunsout.feature.body
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.nicholasbergesen.gunsout.auth.CurrentUserIdProvider
+import com.nicholasbergesen.gunsout.data.entity.BodyMetricsLog
+import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
+import com.nicholasbergesen.gunsout.data.prefs.UserProfile
+import com.nicholasbergesen.gunsout.data.repo.BodyRepository
+import com.nicholasbergesen.gunsout.domain.kcal.KcalTrendAnalyzer
+import com.nicholasbergesen.gunsout.domain.nutrition.MacroTargetCalculator
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import javax.inject.Inject
+
+data class BodyUiState(
+    val profile: UserProfile = UserProfile(),
+    val logs: List<BodyMetricsLog> = emptyList()
+)
+
+@OptIn(ExperimentalCoroutinesApi::class)
+@HiltViewModel
+class BodyViewModel @Inject constructor(
+    private val body: BodyRepository,
+    private val userPrefs: UserPreferences,
+    private val currentUserIdProvider: CurrentUserIdProvider
+) : ViewModel() {
+
+    val state: StateFlow<BodyUiState> = currentUserIdProvider.currentUserId
+        .filterNotNull()
+        .flatMapLatest { userId ->
+            combine(
+                userPrefs.profile(userId),
+                body.observeSince(userId, LocalDate.now().minusYears(2))
+            ) { profile, logs ->
+                val sortedLogs = logs.sortedBy { it.date }
+                // Keep the displayed "current weight" anchored to the latest logged row, falling
+                // back to the persisted profile only when no logs exist yet. This stops the body
+                // screen showing a 100 kg "current" alongside an 80 kg "latest" because they came
+                // from different sources.
+                val effectiveProfile = sortedLogs.lastOrNull()?.let {
+                    profile.copy(currentBodyWeightKg = it.weightKg)
+                } ?: profile
+                BodyUiState(effectiveProfile, sortedLogs)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BodyUiState())
+
+    fun logToday(
+        weightKg: Double,
+        bodyFatPct: Double?,
+        muscleMassKg: Double?,
+        waterPct: Double?,
+        boneMassKg: Double?,
+        visceralFatRating: Int?
+    ) = viewModelScope.launch {
+        val userId = currentUserIdProvider.requireUserId()
+        body.log(
+            userId = userId,
+            date = LocalDate.now(),
+            weightKg = weightKg,
+            bodyFatPct = bodyFatPct,
+            muscleMassKg = muscleMassKg,
+            waterPct = waterPct,
+            boneMassKg = boneMassKg,
+            visceralFatRating = visceralFatRating
+        )
+        userPrefs.update(userId) { it.copy(currentBodyWeightKg = weightKg) }
+    }
+
+    fun suggestKcalAdjustment() = viewModelScope.launch {
+        val userId = currentUserIdProvider.requireUserId()
+        val current = state.value
+        val effective = MacroTargetCalculator.effectiveTarget(current.profile, userPrefs.overrides(userId).first())
+        if (effective == null) {
+            _kcalSuggestion.value = KcalTrendAnalyzer.Suggestion(
+                text = "Add your age, sex, height, current weight, and goal weight in Settings, or set a manual kcal override there, before asking for a suggestion.",
+                newKcalTarget = null,
+                ratePerWeekKg = null
+            )
+            return@launch
+        }
+        _kcalSuggestion.value = KcalTrendAnalyzer.analyze(
+            logs = current.logs,
+            currentTargetKcal = effective.kcal,
+            currentWeightKg = current.profile.currentBodyWeightKg,
+            goalWeightKg = current.profile.goalBodyWeightKg
+        )
+    }
+
+    fun applyKcalSuggestion() = viewModelScope.launch {
+        val suggestion = _kcalSuggestion.value ?: return@launch
+        val newTarget = suggestion.newKcalTarget ?: return@launch
+        val userId = currentUserIdProvider.requireUserId()
+        userPrefs.updateOverrides(userId) { it.copy(kcal = newTarget) }
+        _kcalSuggestion.value = null
+    }
+
+    fun dismissKcalSuggestion() {
+        _kcalSuggestion.value = null
+    }
+
+    private val _kcalSuggestion = kotlinx.coroutines.flow.MutableStateFlow<KcalTrendAnalyzer.Suggestion?>(null)
+    val kcalSuggestion: StateFlow<KcalTrendAnalyzer.Suggestion?> = _kcalSuggestion
+}
+
