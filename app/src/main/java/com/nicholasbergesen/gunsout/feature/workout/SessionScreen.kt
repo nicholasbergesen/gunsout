@@ -86,66 +86,61 @@ fun SessionScreen(
 private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
     var swapOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     ThemedCard {
-        Column(Modifier.padding(16.dp)) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-            ) {
-                Text(item.exercise.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                if (item.alternates.isNotEmpty()) {
-                    androidx.compose.material3.TextButton(onClick = { swapOpen = true }) { Text("Swap") }
-                }
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            Text(item.exercise.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            if (item.alternates.isNotEmpty()) {
+                androidx.compose.material3.TextButton(onClick = { swapOpen = true }) { Text("Swap") }
             }
-            val pe = item.programExercise
-            val protocolLabel = when (pe.protocol) {
-                Protocol.PULL_UP_5X2_3 -> "5 sets x 2-3 reps (with 1 rep in reserve)"
-                Protocol.AMRAP -> "${pe.sets} sets x AMRAP"
-                Protocol.STANDARD -> "${pe.sets} sets x ${pe.repsMin}-${pe.repsMax} reps. Rest ${pe.restSec}s"
-            }
-            Text(protocolLabel, style = MaterialTheme.typography.bodySmall)
+        }
+        val pe = item.programExercise
+        val protocolLabel = when (pe.protocol) {
+            Protocol.PULL_UP_5X2_3 -> "5 sets x 2-3 reps (with 1 rep in reserve)"
+            Protocol.AMRAP -> "${pe.sets} sets x AMRAP"
+            Protocol.STANDARD -> "${pe.sets} sets x ${pe.repsMin}-${pe.repsMax} reps. Rest ${pe.restSec}s"
+        }
+        Text(protocolLabel, style = MaterialTheme.typography.bodySmall)
 
-            item.previousBest?.let { last ->
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Last: ${last.weightKg?.let { "${it} kg" } ?: "bw"} x ${last.reps ?: "-"}",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+        item.previousBest?.let { last ->
+            Text(
+                "Last: ${last.weightKg?.let { "${it} kg" } ?: "bw"} x ${last.reps ?: "-"}",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
 
-            item.suggestion?.let { sug ->
-                val (text, _) = when (sug) {
-                    is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.IncreaseWeight ->
-                        "Suggested: +${sug.deltaKg} kg" to true
-                    is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.DecreaseWeight ->
-                        "Suggested: drop 5 percent" to true
-                    is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.HoldWeight ->
-                        "Suggested: hold weight" to true
-                    is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.GraduatePullUp ->
-                        "Suggested: graduate to ${sug.newScheme}" to true
-                    is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.RegressPullUp ->
-                        "Suggested: try ${sug.variant}" to true
-                    com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.KeepCollectingData ->
-                        "" to false
-                }
-                if (text.isNotEmpty()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                }
+        item.suggestion?.let { sug ->
+            val (text, _) = when (sug) {
+                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.IncreaseWeight ->
+                    "Suggested: +${sug.deltaKg} kg" to true
+                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.DecreaseWeight ->
+                    "Suggested: drop 5 percent" to true
+                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.HoldWeight ->
+                    "Suggested: hold weight" to true
+                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.GraduatePullUp ->
+                    "Suggested: graduate to ${sug.newScheme}" to true
+                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.RegressPullUp ->
+                    "Suggested: try ${sug.variant}" to true
+                com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.KeepCollectingData ->
+                    "" to false
             }
+            if (text.isNotEmpty()) {
+                Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            }
+        }
 
-            Spacer(Modifier.height(8.dp))
-            for (setIndex in 1..item.programExercise.sets) {
-                val existing = item.sets.firstOrNull { it.setIndex == setIndex }
-                SetRow(
-                    setIndex = setIndex,
-                    existing = existing,
-                    suggestedKg = (item.previousBest?.weightKg) ?: 0.0,
-                    onLog = { weight, reps, rpe, isWarmup ->
-                        vm.logSet(item.programExercise, item.exercise, setIndex, weight, reps, rpe, isWarmup)
-                    }
-                )
-            }
+        for (setIndex in 1..item.programExercise.sets) {
+            val existing = item.sets.firstOrNull { it.setIndex == setIndex }
+            SetRow(
+                setIndex = setIndex,
+                existing = existing,
+                suggestedKg = (item.previousBest?.weightKg) ?: 0.0,
+                onLog = { weight, reps, rpe, isWarmup ->
+                    vm.logSet(item.programExercise, item.exercise, setIndex, weight, reps, rpe, isWarmup)
+                }
+            )
         }
     }
 
@@ -268,29 +263,24 @@ private fun SetRow(
 private fun KneeFeelAndFinish(vm: SessionViewModel) {
     val state by vm.state.collectAsState()
     ThemedCard {
-        Column(Modifier.padding(16.dp)) {
-            Text("Knee feel", style = MaterialTheme.typography.titleSmall)
-            Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                (1..5).forEach { v ->
-                    FilterChip(
-                        selected = state.kneeFeel == v,
-                        onClick = { vm.setKneeFeel(if (state.kneeFeel == v) null else v) },
-                        label = { Text(v.toString()) }
-                    )
-                }
+        Text("Knee feel", style = MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            (1..5).forEach { v ->
+                FilterChip(
+                    selected = state.kneeFeel == v,
+                    onClick = { vm.setKneeFeel(if (state.kneeFeel == v) null else v) },
+                    label = { Text(v.toString()) }
+                )
             }
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = state.notes,
-                onValueChange = vm::setNotes,
-                label = { Text("Notes") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(12.dp))
-            Button(onClick = { vm.finish() }, modifier = Modifier.fillMaxWidth()) {
-                Text("Finish session")
-            }
+        }
+        OutlinedTextField(
+            value = state.notes,
+            onValueChange = vm::setNotes,
+            label = { Text("Notes") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Button(onClick = { vm.finish() }, modifier = Modifier.fillMaxWidth()) {
+            Text("Finish session")
         }
     }
 }

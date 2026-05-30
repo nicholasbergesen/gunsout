@@ -94,6 +94,7 @@ fun ExerciseEditScreen(
         OutlinedTextField(
             value = state.name,
             onValueChange = vm::setName,
+            label = { Text("Name") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )

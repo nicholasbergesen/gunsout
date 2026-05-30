@@ -129,54 +129,50 @@ private fun DayCard(
     var label by remember(day.id) { mutableStateOf(day.label) }
 
     ThemedCard(accent = !day.isRest) {
-        Column(Modifier.padding(16.dp)) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-            ) {
-                if (renaming) {
-                    Row(Modifier.weight(1f), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        OutlinedTextField(value = label, onValueChange = { label = it }, singleLine = true, modifier = Modifier.weight(1f))
-                        Spacer(Modifier.width(4.dp))
-                        TextButton(onClick = { onRename(label); renaming = false }) { Text("Save") }
-                    }
-                } else {
-                    Text(day.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    ChipButton("Rename", onClick = { renaming = true })
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            if (renaming) {
+                Row(Modifier.weight(1f), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    OutlinedTextField(value = label, onValueChange = { label = it }, singleLine = true, modifier = Modifier.weight(1f))
+                    Spacer(Modifier.width(4.dp))
+                    TextButton(onClick = { onRename(label); renaming = false }) { Text("Save") }
                 }
+            } else {
+                Text(day.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                ChipButton("Rename", onClick = { renaming = true })
             }
-            Spacer(Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ChipButton(if (day.isRest) "Rest day" else "Training day", onClick = onToggleRest)
-                ChipButton("Delete day", onClick = onDelete)
-            }
-            Spacer(Modifier.height(8.dp))
-            if (!day.isRest) {
-                programExercises.forEach { pe ->
-                    val ex = exercisesById[pe.exerciseId]
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(ex?.name ?: "(unknown)")
-                            val protocolLabel = when (pe.protocol) {
-                                Protocol.PULL_UP_5X2_3 -> "5x2-3"
-                                Protocol.AMRAP -> "${pe.sets}xAMRAP"
-                                Protocol.STANDARD -> "${pe.sets} x ${pe.repsMin}-${pe.repsMax}, rest ${pe.restSec}s"
-                            }
-                            Text(protocolLabel, style = MaterialTheme.typography.bodySmall)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ChipButton(if (day.isRest) "Rest day" else "Training day", onClick = onToggleRest)
+            ChipButton("Delete day", onClick = onDelete)
+        }
+        if (!day.isRest) {
+            programExercises.forEach { pe ->
+                val ex = exercisesById[pe.exerciseId]
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(ex?.name ?: "(unknown)")
+                        val protocolLabel = when (pe.protocol) {
+                            Protocol.PULL_UP_5X2_3 -> "5x2-3"
+                            Protocol.AMRAP -> "${pe.sets}xAMRAP"
+                            Protocol.STANDARD -> "${pe.sets} x ${pe.repsMin}-${pe.repsMax}, rest ${pe.restSec}s"
                         }
-                        Row {
-                            TextButton(onClick = { onEditScheme(pe) }) { Text("Edit") }
-                            TextButton(onClick = { onRemoveExercise(pe) }) { Text("Remove") }
-                        }
+                        Text(protocolLabel, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Row {
+                        TextButton(onClick = { onEditScheme(pe) }) { Text("Edit") }
+                        TextButton(onClick = { onRemoveExercise(pe) }) { Text("Remove") }
                     }
                 }
-                OutlinedButton(onClick = onAddExercise) { Text("+ Add exercise") }
             }
+            OutlinedButton(onClick = onAddExercise) { Text("+ Add exercise") }
         }
     }
 }

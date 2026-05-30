@@ -11,6 +11,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -35,6 +38,7 @@ fun TodayScreen(
     val state by vm.state.collectAsState()
     val scroll = rememberScrollState()
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var dayPickerOpen by remember { mutableStateOf(false) }
 
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -93,8 +97,8 @@ fun TodayScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ChipButton(
                 text = "Pick a day",
-                selected = false,
-                onClick = {}
+                selected = dayPickerOpen,
+                onClick = { dayPickerOpen = !dayPickerOpen }
             )
             ChipButton(text = "Mark rest", onClick = vm::markRestDay)
             ChipButton(text = "Skip next", onClick = vm::skipNextDay)
@@ -129,7 +133,7 @@ fun TodayScreen(
             }
         }
 
-        if (state.allNonRestDays.size > 1) {
+        if (dayPickerOpen && state.allNonRestDays.size > 1) {
             ThemedCard {
                 SectionLabel("Pick a different day")
                 state.allNonRestDays.forEach { day ->
