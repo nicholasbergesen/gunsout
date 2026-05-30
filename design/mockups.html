@@ -216,6 +216,8 @@
   .ring { width: 84px; height: 84px; flex: none; position: relative; display: grid; place-items: center; }
   .ring svg { transform: rotate(-90deg); }
   .glogo { width: 18px; height: 18px; flex: none; }
+  .spinner { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--track-bg, rgba(127,127,127,.3)); border-top-color: var(--accent); animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   .scr * { transition: none; }
   .footer-note { padding: 18px 20px 40px; color: var(--page-muted); font-size: 12px; }
@@ -233,7 +235,7 @@
   </div>
 </div>
 <div class="rows" id="rows"></div>
-<div class="footer-note">Static mockup. Vanilla HTML/CSS/JS, no build step. Screens: Login, Today, Session, Diet, Body, Settings.</div>
+<div class="footer-note">Static mockup. Vanilla HTML/CSS/JS, no build step. 13 screens × 5 styles: Login, Setup, Today, Session, Programs, Program Edit, Diet, Body, History, History Detail, Library, Exercise Edit, Settings.</div>
 
 <script>
 /* ============================================================
@@ -386,17 +388,121 @@ const SCREENS = {
       <div class="row"><span class="muted">Theme</span><span class="chip on">System</span></div>
     </div>
     ${tabbar('Settings')}`,
+
+  Setup: () => `
+    <div class="scr-body" style="justify-content:center;align-items:center;text-align:center;gap:16px;">
+      <div class="avatar" style="width:58px;height:58px;border-radius:var(--logo-radius,18px);font-size:23px;">G</div>
+      <div class="h1" style="font-size:23px;">Gunsout</div>
+      <div class="spinner"></div>
+      <div class="col" style="gap:3px;"><span class="sub">Setting up your account...</span><span class="sub" style="font-size:10px;">Seeding program, exercises &amp; supplements</span></div>
+    </div>`,
+
+  Programs: () => `
+    ${statusbar()}
+    <div class="scr-body">
+      <div class="row"><div class="h1">Programs</div><span class="chip on">+ New</span></div>
+      <div class="card accent">
+        <div class="row"><span style="font-weight:700;">Upper / Lower 4-day</span><span class="chip on">Active</span></div>
+        <div class="sub" style="margin-top:3px;">Upper A · Lower A · Upper B · Lower B</div>
+        <div class="row" style="gap:6px;margin-top:10px;justify-content:flex-start;"><span class="chip">Edit</span><span class="chip">Duplicate</span></div>
+      </div>
+      <div class="card">
+        <div class="row"><span style="font-weight:700;">Push Pull Legs</span></div>
+        <div class="sub" style="margin-top:3px;">6-day hypertrophy block</div>
+        <div class="row" style="gap:6px;margin-top:10px;justify-content:flex-start;"><span class="chip">Edit</span><span class="chip">Activate</span><span class="chip">Duplicate</span></div>
+      </div>
+      <div class="card">
+        <div class="row"><span style="font-weight:700;">Full Body 3-day</span></div>
+        <div class="sub" style="margin-top:3px;">Minimalist template</div>
+        <div class="row" style="gap:6px;margin-top:10px;justify-content:flex-start;"><span class="chip">Edit</span><span class="chip">Activate</span></div>
+      </div>
+    </div>
+    ${tabbar('Programs')}`,
+
+  'Program Edit': () => `
+    ${statusbar()}
+    <div class="scr-body">
+      <div class="row"><div class="col"><span class="label">‹ Programs</span><div class="h1" style="font-size:18px;">Upper / Lower 4-day</div></div><span class="chip on">Active</span></div>
+      <div class="card">
+        <div class="row"><span style="font-weight:700;">Upper A</span><span class="chip">Rename</span></div>
+        <div class="divider"></div>
+        <div class="row" style="font-size:11.5px;"><span>Bench Press</span><span class="muted">3 × 8 · RPE 8</span></div>
+        <div class="row" style="font-size:11.5px;margin-top:6px;"><span>Barbell Row</span><span class="muted">3 × 8</span></div>
+        <div class="row" style="font-size:11.5px;margin-top:6px;"><span>Pull-ups</span><span class="muted">5 × 2-3</span></div>
+        <div class="row" style="font-size:11.5px;margin-top:6px;"><span>Overhead Press</span><span class="muted">3 × 10</span></div>
+        <div style="height:10px"></div>
+        <span class="chip">+ Add exercise</span>
+      </div>
+      <div class="card">
+        <div class="row"><span style="font-weight:700;">Lower A</span><span class="chip">Rename</span></div>
+        <div class="divider"></div>
+        <div class="row" style="font-size:11.5px;"><span>Back Squat</span><span class="muted">4 × 6</span></div>
+        <div class="row" style="font-size:11.5px;margin-top:6px;"><span>Romanian Deadlift</span><span class="muted">3 × 8</span></div>
+      </div>
+      <div class="btn ghost">+ Add day</div>
+    </div>`,
+
+  History: () => `
+    ${statusbar()}
+    <div class="scr-body">
+      <div class="h1">Session history</div>
+      <div class="card"><div class="row"><div class="col"><span style="font-weight:600;">Upper A</span><span class="sub">Today · knee 5/5</span></div><span class="chip">Open</span></div></div>
+      <div class="card"><div class="row"><div class="col"><span style="font-weight:600;">Lower B</span><span class="sub">2 days ago · knee 4/5</span></div><span class="chip">Open</span></div></div>
+      <div class="card"><div class="row"><div class="col"><span style="font-weight:600;">Upper B</span><span class="sub">4 days ago · knee 5/5</span></div><span class="chip">Open</span></div></div>
+      <div class="card"><div class="row"><div class="col"><span style="font-weight:600;">Lower A</span><span class="sub">6 days ago · knee 3/5</span></div><span class="chip">Open</span></div></div>
+      <div class="card"><div class="row"><div class="col"><span style="font-weight:600;">Upper A</span><span class="sub">8 days ago · knee 4/5</span></div><span class="chip">Open</span></div></div>
+    </div>`,
+
+  'History Detail': () => `
+    ${statusbar()}
+    <div class="scr-body">
+      <div class="col"><span class="label">‹ History</span><div class="h1" style="font-size:19px;">Upper A</div><span class="sub">Mar 14 · knee feel 5/5</span></div>
+      <div class="card"><span style="font-weight:700;">Bench Press</span><div class="divider"></div>
+        <div class="sub" style="font-size:11.5px;line-height:1.7;">Set 1: 62.5 kg × 8 @ RPE 7<br/>Set 2: 62.5 kg × 8 @ RPE 8<br/>Set 3: 62.5 kg × 7 @ RPE 9</div>
+      </div>
+      <div class="card"><span style="font-weight:700;">Barbell Row</span><div class="divider"></div>
+        <div class="sub" style="font-size:11.5px;line-height:1.7;">Set 1: 60 kg × 8 @ RPE 7<br/>Set 2: 60 kg × 8 @ RPE 8<br/>Set 3: 60 kg × 8 @ RPE 8</div>
+      </div>
+      <div class="btn ghost">Back</div>
+    </div>`,
+
+  Library: () => `
+    ${statusbar()}
+    <div class="scr-body">
+      <div class="row"><div class="h1">Exercises</div><span class="chip on">+ New</span></div>
+      <span class="label">Chest</span>
+      <div class="card"><div class="row"><div class="col"><span>Bench Press</span><span class="sub">Barbell</span></div><span class="chip">Edit</span></div></div>
+      <div class="card"><div class="row"><div class="col"><span>Incline DB Press</span><span class="sub">Dumbbell</span></div><span class="chip">Edit</span></div></div>
+      <span class="label" style="margin-top:4px;">Back</span>
+      <div class="card"><div class="row"><div class="col"><span>Barbell Row</span><span class="sub">Barbell</span></div><span class="chip">Edit</span></div></div>
+      <div class="card"><div class="row"><div class="col"><span>Pull-ups</span><span class="sub">Bodyweight</span></div><span class="chip">Edit</span></div></div>
+    </div>`,
+
+  'Exercise Edit': () => `
+    ${statusbar()}
+    <div class="scr-body">
+      <div class="col"><span class="label">‹ Library</span><div class="h1" style="font-size:19px;">Edit exercise</div></div>
+      <div class="field">Barbell Row</div>
+      <div class="row" style="gap:8px;"><div class="field" style="flex:1;">Back ▾</div><div class="field" style="flex:1;">Barbell ▾</div></div>
+      <div class="field">Default rest · 120 s</div>
+      <div class="field" style="height:58px;">Brace, pull to lower ribs, control the eccentric.</div>
+      <div class="card"><span class="label">Top working-set weight</span>
+        <svg width="100%" height="60" viewBox="0 0 240 60" preserveAspectRatio="none"><polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="0,46 48,40 96,42 144,30 192,24 240,16"/></svg>
+        <div class="row sub"><span>57.5 kg</span><span class="accenttext">62.5 kg</span></div>
+      </div>
+      <div class="btn">Save</div>
+    </div>`,
 };
 
 function tabbar(active) {
-  const tabs = ['Today', 'Diet', 'Body', 'Settings'];
+  const tabs = ['Today', 'Programs', 'Diet', 'Body', 'Settings'];
   return `<div class="tabbar">${tabs.map(t => `<div class="tab ${t === active ? 'active' : ''}"><span class="dot"></span>${t}</div>`).join('')}</div>`;
 }
 
-const SCREEN_ORDER = ['Login', 'Today', 'Session', 'Diet', 'Body', 'Settings'];
+const SCREEN_ORDER = ['Login', 'Setup', 'Today', 'Session', 'Programs', 'Program Edit', 'Diet', 'Body', 'History', 'History Detail', 'Library', 'Exercise Edit', 'Settings'];
 
 /* ============================================================
-   10 styles: each is a set of CSS custom properties (+ optional
+   5 selected styles: each is a set of CSS custom properties (+ optional
    extra rules) applied to the phone screen. Distinct in color,
    gradient, shading, corner/shadow language and layout feel.
    ============================================================ */
@@ -428,19 +534,6 @@ const STYLES = [
     },
   },
   {
-    name: 'Vibrant Gradient', swatch: '#a21caf',
-    desc: 'Purple→pink energy, glassy cards, rounded',
-    vars: {
-      '--bg': 'linear-gradient(160deg,#2b1055 0%,#7b2ff7 55%,#f72585 120%)',
-      '--text': '#fdf4ff', '--muted': 'rgba(253,244,255,.7)', '--accent': '#ff4d97', '--on-accent': '#fff',
-      '--card': 'rgba(255,255,255,.12)', '--accent-card': 'rgba(255,255,255,.18)',
-      '--line': 'rgba(255,255,255,.2)', '--radius': '22px', '--btn-radius': '18px',
-      '--card-border': '1px solid rgba(255,255,255,.18)', '--card-blur': 'blur(8px)',
-      '--chip-bg': 'rgba(255,255,255,.16)', '--track-bg': 'rgba(255,255,255,.22)',
-      '--btn-shadow': '0 8px 22px rgba(247,37,133,.4)', '--gbtn-bg': '#fff',
-    },
-  },
-  {
     name: 'Neo-Brutalist', swatch: '#facc15',
     desc: 'Hard borders, offset shadows, max contrast',
     vars: {
@@ -469,20 +562,6 @@ const STYLES = [
     },
   },
   {
-    name: 'Athletic Neon Dark', swatch: '#bef264',
-    desc: 'Near-black, neon lime, mono numerals',
-    vars: {
-      '--bg': '#0a0a0b', '--text': '#f4f4f5', '--muted': '#71717a', '--accent': '#bef264', '--on-accent': '#0a0a0b',
-      '--card': '#141417', '--accent-card': 'linear-gradient(135deg,#1a1f10,#141417)',
-      '--line': '#26262b', '--radius': '14px', '--btn-radius': '10px',
-      '--card-border': '1px solid #26262b',
-      '--chip-bg': '#1c1c20', '--track-bg': '#26262b',
-      '--num-font': "'JetBrains Mono', monospace", '--head-font': "'Space Grotesk', sans-serif",
-      '--head-weight': '700', '--head-ls': '-0.02em',
-      '--btn-shadow': '0 0 20px rgba(190,242,100,.35)', '--gbtn-bg': '#fff',
-    },
-  },
-  {
     name: 'Soft Pastel', swatch: '#5eead4',
     desc: 'Friendly, rounded, calm mint & peach',
     vars: {
@@ -493,43 +572,6 @@ const STYLES = [
       '--shadow': '0 6px 18px rgba(148,163,184,.18)',
       '--chip-bg': '#e6fbf6', '--chip-text': '#0f766e', '--track-bg': '#e2e8f0',
       '--head-weight': '700', '--gbtn-bg': '#fff', '--logo-radius': '24px',
-    },
-  },
-  {
-    name: 'Premium Monochrome', swatch: '#c9a227',
-    desc: 'Black & white, serif headings, gold hairline',
-    vars: {
-      '--bg': '#0c0c0c', '--text': '#f5f5f4', '--muted': '#8a8a87', '--accent': '#c9a227', '--on-accent': '#0c0c0c',
-      '--card': '#161615', '--accent-card': '#1b1a16', '--line': '#2a2a28',
-      '--radius': '8px', '--btn-radius': '6px',
-      '--card-border': '1px solid #2a2a28',
-      '--head-font': "'Playfair Display', serif", '--head-weight': '700', '--head-ls': '0',
-      '--chip-bg': '#222220', '--chip-text': '#c9a227', '--track-bg': '#2a2a28',
-      '--gbtn-bg': '#fff',
-    },
-  },
-  {
-    name: 'iOS Grouped', swatch: '#0a84ff',
-    desc: 'System blue, inset grouped lists, light gray',
-    vars: {
-      '--bg': '#f2f2f7', '--text': '#1c1c1e', '--muted': '#8e8e93', '--accent': '#0a84ff', '--on-accent': '#fff',
-      '--card': '#ffffff', '--accent-card': '#ffffff', '--line': '#e5e5ea',
-      '--radius': '14px', '--btn-radius': '12px', '--card-pad': '12px',
-      '--shadow': 'none', '--chip-bg': '#e9eefb', '--chip-text': '#0a84ff',
-      '--track-bg': '#e5e5ea', '--head-weight': '700', '--head-ls': '-0.02em',
-      '--gbtn-bg': '#fff', '--tabbar-bg': 'rgba(249,249,251,.94)',
-    },
-  },
-  {
-    name: 'Material 3 Expressive', swatch: '#7c5cff',
-    desc: 'Tonal purple, big rounding, dynamic color',
-    vars: {
-      '--bg': '#f4f0ff', '--text': '#1d1b2c', '--muted': '#6b6580', '--accent': '#6750a4', '--on-accent': '#fff',
-      '--card': '#fdfbff', '--accent-card': '#e9ddff', '--line': '#e6e0f0',
-      '--radius': '26px', '--btn-radius': '22px', '--card-pad': '15px',
-      '--shadow': '0 2px 8px rgba(103,80,164,.12)',
-      '--chip-bg': '#e9ddff', '--chip-text': '#4f378b', '--track-bg': '#e6e0f0',
-      '--head-weight': '600', '--head-ls': '0', '--gbtn-bg': '#fff', '--avatar-radius': '40%',
     },
   },
 ];
