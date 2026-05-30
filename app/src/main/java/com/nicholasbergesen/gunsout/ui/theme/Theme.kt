@@ -7,7 +7,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -15,6 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+
+val LocalThemeStyle = staticCompositionLocalOf { ThemeStyle.Default }
 
 private val GunMetalCrimson = darkColorScheme(
     primary = GunsoutPalette.CrimsonDark,
@@ -199,22 +203,24 @@ fun GunsoutTheme(
             controller.isAppearanceLightNavigationBars = !style.isDark
         }
     }
-    MaterialTheme(
+    CompositionLocalProvider(LocalThemeStyle provides style) {
+        MaterialTheme(
         colorScheme = colors,
         typography = GunsoutTypography,
         shapes = shapesFor(style)
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .drawWithCache {
-                    val backdrop = backdropBrushFor(style, size)
-                    onDrawBehind { drawRect(backdrop) }
-                },
-            color = Color.Transparent,
-            contentColor = colors.onBackground
         ) {
-            content()
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .drawWithCache {
+                        val backdrop = backdropBrushFor(style, size)
+                        onDrawBehind { drawRect(backdrop) }
+                    },
+                color = Color.Transparent,
+                contentColor = colors.onBackground
+            ) {
+                content()
+            }
         }
     }
 }
@@ -266,5 +272,38 @@ internal fun backdropBrushFor(style: ThemeStyle, size: androidx.compose.ui.geome
         ),
         start = Offset.Zero,
         end = Offset(size.width * 0.35f, size.height)
+    )
+}
+
+internal fun accentCardBrushFor(style: ThemeStyle, size: androidx.compose.ui.geometry.Size): Brush = when (style) {
+    ThemeStyle.GUNMETAL_CRIMSON -> Brush.linearGradient(
+        colors = listOf(GunsoutPalette.GunMetalAccentCard, GunsoutPalette.GunMetalSurface),
+        start = Offset.Zero,
+        end = Offset(size.width, size.height)
+    )
+    ThemeStyle.CLEAN_LIGHT_MINIMAL -> Brush.linearGradient(
+        colors = listOf(GunsoutPalette.CleanCard, GunsoutPalette.CleanCard),
+        start = Offset.Zero,
+        end = Offset(size.width, size.height)
+    )
+    ThemeStyle.NEO_BRUTALIST -> Brush.linearGradient(
+        colors = listOf(GunsoutPalette.NeoAccentCard, GunsoutPalette.NeoAccentCard),
+        start = Offset.Zero,
+        end = Offset(size.width, size.height)
+    )
+    ThemeStyle.GLASSMORPHISM -> Brush.linearGradient(
+        colors = listOf(GunsoutPalette.GlassAccentCard, GunsoutPalette.GlassCard),
+        start = Offset.Zero,
+        end = Offset(size.width, size.height)
+    )
+    ThemeStyle.SOFT_PASTEL -> Brush.linearGradient(
+        colors = listOf(GunsoutPalette.SoftAccentCardStart, GunsoutPalette.SoftAccentCardEnd),
+        start = Offset.Zero,
+        end = Offset(size.width, size.height)
+    )
+    ThemeStyle.VIBRANT_GRADIENT -> Brush.linearGradient(
+        colors = listOf(GunsoutPalette.VibrantAccentCard, GunsoutPalette.VibrantCard),
+        start = Offset.Zero,
+        end = Offset(size.width, size.height)
     )
 }

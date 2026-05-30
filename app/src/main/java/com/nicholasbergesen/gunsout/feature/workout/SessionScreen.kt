@@ -11,8 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -29,6 +27,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nicholasbergesen.gunsout.data.entity.Protocol
+import com.nicholasbergesen.gunsout.ui.components.SectionLabel
+import com.nicholasbergesen.gunsout.ui.components.StatusChip
+import com.nicholasbergesen.gunsout.ui.components.ThemedCard
 
 @Composable
 fun SessionScreen(
@@ -48,19 +49,24 @@ fun SessionScreen(
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp)
     ) {
         item {
             Column {
-                Text(state.dayLabel, style = MaterialTheme.typography.headlineMedium)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column {
+                        SectionLabel("Session")
+                        Text(state.dayLabel, style = MaterialTheme.typography.headlineSmall)
+                    }
+                    StatusChip("Active", selected = true)
+                }
                 if (state.baselineWeekActive) {
                     Spacer(Modifier.height(6.dp))
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                    ThemedCard(accent = true) {
                         Text(
                             "Baseline week. Collect numbers, no progression suggestions yet.",
-                            modifier = Modifier.padding(12.dp),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -79,7 +85,7 @@ fun SessionScreen(
 @Composable
 private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
     var swapOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ThemedCard {
         Column(Modifier.padding(16.dp)) {
             Row(
                 Modifier.fillMaxWidth(),
@@ -261,7 +267,7 @@ private fun SetRow(
 @Composable
 private fun KneeFeelAndFinish(vm: SessionViewModel) {
     val state by vm.state.collectAsState()
-    Card(modifier = Modifier.fillMaxWidth()) {
+    ThemedCard {
         Column(Modifier.padding(16.dp)) {
             Text("Knee feel", style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.height(6.dp))

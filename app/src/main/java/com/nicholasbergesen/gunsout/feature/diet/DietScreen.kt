@@ -12,13 +12,10 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -44,6 +41,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nicholasbergesen.gunsout.data.entity.MealType
 import com.nicholasbergesen.gunsout.domain.nutrition.MacroTarget
+import com.nicholasbergesen.gunsout.ui.components.BigValue
+import com.nicholasbergesen.gunsout.ui.components.ChipButton
+import com.nicholasbergesen.gunsout.ui.components.DividerLine
+import com.nicholasbergesen.gunsout.ui.components.MockupScreenColumn
+import com.nicholasbergesen.gunsout.ui.components.ProgressPill
+import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
+import com.nicholasbergesen.gunsout.ui.components.SectionLabel
+import com.nicholasbergesen.gunsout.ui.components.StatusChip
+import com.nicholasbergesen.gunsout.ui.components.ThemedCard
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,17 +84,10 @@ fun DietScreen(
         containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { inner ->
-        Column(
-            Modifier.fillMaxWidth().padding(inner).padding(16.dp).verticalScroll(scroll),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-            ) {
-                Text("Diet", style = MaterialTheme.typography.headlineMedium)
-                Button(onClick = { addMealOpen = true }) { Text("Add meal") }
+        MockupScreenColumn(modifier = Modifier.padding(inner).verticalScroll(scroll)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                ScreenTitle("Diet")
+                StatusChip("Today")
             }
             DailyTargetCard(
                 target = state.target,
@@ -99,33 +98,60 @@ fun DietScreen(
             )
 
             if (state.supplements.isNotEmpty()) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Today's supplements", style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.height(8.dp))
-                        state.supplements.forEach { sup ->
-                            val taken = sup.id in state.supplementsTakenToday
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                            ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text("${sup.name} (${sup.defaultDose} ${sup.unit.name.lowercase()})")
-                                    sup.takeWith?.let {
-                                        Text(it, style = MaterialTheme.typography.bodySmall)
-                                    }
-                                    sup.reminderTime?.let { rt ->
-                                        Text("Reminder ${rt}", style = MaterialTheme.typography.bodySmall)
-                                    }
+                state.supplements.forEach { sup ->
+                    val taken = sup.id in state.supplementsTakenToday
+                    ThemedCard {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(Modifier.weight(1f)) {
+                                Text("${sup.name} ${sup.defaultDose.g} ${sup.unit.name.lowercase()}")
+                                Text("Daily supplement", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                sup.reminderTime?.let { rt ->
+                                    Text("Reminder $rt", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    TextButton(onClick = { reminderEditing = sup }) {
-                                        Text(if (sup.reminderTime == null) "Set reminder" else "Edit")
-                                    }
-                                    AssistChip(
-                                        onClick = { if (!taken) vm.toggleSupplement(sup) },
-                                        label = { Text(if (taken) "Taken" else "Mark taken") }
+                            }
+                            ChipButton(
+                                text = if (taken) "Taken" else "Mark taken",
+                                selected = taken,
+                                onClick = { if (!taken) vm.toggleSupplement(sup) }
+                            )
+                        }
+                        TextButton(onClick = { reminderEditing = sup }) {
+                            Text(if (sup.reminderTime == null) "Set reminder" else "Edit reminder")
+                        }
+                    }
+                }
+            }
+
+            if (state.templates.isNotEmpty()) {
+                ThemedCard {
+                    SectionLabel("Quick log")
+                    Text("Tap for 1x, use the multiplier for half or double.", style = MaterialTheme.typography.bodySmall)
+                    state.templates.forEach { template ->
+                        var menuOpen by remember(template.id) { mutableStateOf(false) }
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { vm.logTemplate(template, 1.0) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("${template.name} (${template.kcal} kcal)")
+                                }
+                                TextButton(onClick = { menuOpen = true }) { Text("x") }
+                            }
+                            androidx.compose.material3.DropdownMenu(
+                                expanded = menuOpen,
+                                onDismissRequest = { menuOpen = false }
+                            ) {
+                                listOf(0.5, 1.0, 1.5, 2.0).forEach { mul ->
+                                    androidx.compose.material3.DropdownMenuItem(
+                                        text = { Text("${mul}x = ${(template.kcal * mul).toInt()} kcal") },
+                                        onClick = {
+                                            vm.logTemplate(template, mul)
+                                            menuOpen = false
+                                        }
                                     )
                                 }
                             }
@@ -134,67 +160,28 @@ fun DietScreen(
                 }
             }
 
-            if (state.templates.isNotEmpty()) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Quick log", style = MaterialTheme.typography.titleMedium)
-                        Text("Tap for 1x, long-press for half or double.", style = MaterialTheme.typography.bodySmall)
-                        Spacer(Modifier.height(8.dp))
-                        state.templates.forEach { template ->
-                            var menuOpen by remember(template.id) { mutableStateOf(false) }
-                            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    OutlinedButton(
-                                        onClick = { vm.logTemplate(template, 1.0) },
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text("${template.name} (${template.kcal} kcal)")
-                                    }
-                                    TextButton(onClick = { menuOpen = true }) { Text("×") }
-                                }
-                                androidx.compose.material3.DropdownMenu(
-                                    expanded = menuOpen,
-                                    onDismissRequest = { menuOpen = false }
-                                ) {
-                                    listOf(0.5, 1.0, 1.5, 2.0).forEach { mul ->
-                                        androidx.compose.material3.DropdownMenuItem(
-                                            text = { Text("${mul}x = ${(template.kcal * mul).toInt()} kcal") },
-                                            onClick = {
-                                                vm.logTemplate(template, mul)
-                                                menuOpen = false
-                                            }
-                                        )
-                                    }
-                                }
+            if (state.todayEntries.isNotEmpty()) {
+                ThemedCard {
+                    SectionLabel("Meals")
+                    state.todayEntries.forEachIndexed { index, e ->
+                        if (index > 0) DividerLine()
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(Modifier.weight(1f)) {
+                                Text(e.name)
+                                Text(
+                                    "${e.proteinG.toInt()}P | ${e.carbsG.toInt()}C | ${e.fatG.toInt()}F",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
+                            TextButton(onClick = { editing = e }) { Text("${e.kcal}") }
                         }
                     }
                 }
             }
 
-            if (state.todayEntries.isNotEmpty()) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Today", style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.height(8.dp))
-                        state.todayEntries.forEach { e ->
-                            Row(
-                                Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                            ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(e.name)
-                                    Text("${e.kcal} kcal | ${e.proteinG.toInt()}g P", style = MaterialTheme.typography.bodySmall)
-                                }
-                                TextButton(onClick = { editing = e }) { Text("Edit") }
-                            }
-                        }
-                    }
-                }
+            Button(onClick = { addMealOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                Text("+ Add meal")
             }
         }
 
@@ -250,35 +237,21 @@ private fun DailyTargetCard(
     totalCarbs: Double,
     totalFat: Double
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp)) {
-            Text("Daily targets", style = MaterialTheme.typography.titleMedium)
-            if (target == null) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "Add your age, sex, height, current weight, and goal weight in Settings to see suggested daily macros, or set manual overrides there.",
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "${totalKcal} kcal | ${totalProtein.toInt()}g P | ${totalCarbs.toInt()}g C | ${totalFat.toInt()}g F today",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            } else {
-                val caption = when (target.source) {
-                    MacroTarget.Source.SUGGESTED -> "Suggested by your profile"
-                    MacroTarget.Source.OVERRIDDEN -> "Manually overridden"
-                }
-                Text(caption, style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(8.dp))
-                MacroRow("Calories", totalKcal.toDouble(), target.kcal.toDouble(), "kcal")
-                Spacer(Modifier.height(6.dp))
-                MacroRow("Protein", totalProtein, target.proteinG.toDouble(), "g")
-                Spacer(Modifier.height(6.dp))
-                MacroRow("Carbs", totalCarbs, target.carbsG.toDouble(), "g")
-                Spacer(Modifier.height(6.dp))
-                MacroRow("Fat", totalFat, target.fatG.toDouble(), "g")
+    ThemedCard(accent = true) {
+        if (target == null) {
+            SectionLabel("Calories")
+            BigValue(totalKcal.toString())
+            Text("Add your profile in Settings to see suggested daily macros.", style = MaterialTheme.typography.bodySmall)
+        } else {
+            SectionLabel("Calories")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                BigValue(totalKcal.toString())
+                Text("/ ${target.kcal} kcal", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            ProgressPill(totalKcal.toFloat() / target.kcal.coerceAtLeast(1))
+            MacroRow("Protein", totalProtein, target.proteinG.toDouble(), "g")
+            MacroRow("Carbs", totalCarbs, target.carbsG.toDouble(), "g")
+            MacroRow("Fat", totalFat, target.fatG.toDouble(), "g")
         }
     }
 }
@@ -512,6 +485,8 @@ private fun MacroRow(label: String, value: Double, target: Double, unit: String)
             fontWeight = FontWeight.Medium
         )
     }
-    Spacer(Modifier.height(2.dp))
-    LinearProgressIndicator(progress = { pct }, modifier = Modifier.fillMaxWidth())
+    ProgressPill(progress = pct)
 }
+
+private val Double.g: String
+    get() = if (this % 1.0 == 0.0) toInt().toString() else "%.1f".format(this)
