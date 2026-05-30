@@ -1,29 +1,33 @@
 package com.nicholasbergesen.gunsout.feature.today
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nicholasbergesen.gunsout.data.entity.ProgramDay
+import com.nicholasbergesen.gunsout.ui.components.ActionRow
+import com.nicholasbergesen.gunsout.ui.components.AccentText
+import com.nicholasbergesen.gunsout.ui.components.BigValue
+import com.nicholasbergesen.gunsout.ui.components.ChipButton
+import com.nicholasbergesen.gunsout.ui.components.DividerLine
+import com.nicholasbergesen.gunsout.ui.components.MockupScreenColumn
+import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
+import com.nicholasbergesen.gunsout.ui.components.SectionLabel
+import com.nicholasbergesen.gunsout.ui.components.StatusChip
+import com.nicholasbergesen.gunsout.ui.components.ThemedCard
 
 @Composable
 fun TodayScreen(
@@ -34,9 +38,8 @@ fun TodayScreen(
     val state by vm.state.collectAsState()
     val scroll = rememberScrollState()
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var dayPickerOpen by remember { mutableStateOf(false) }
 
-    // Refresh whenever this destination becomes ACTIVE (covers navigation back from a session
-    // and OS resume / midnight rollover).
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) vm.refresh()
@@ -45,105 +48,109 @@ fun TodayScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(scroll),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text("Today", style = MaterialTheme.typography.headlineMedium)
+    MockupScreenColumn(modifier = Modifier.verticalScroll(scroll)) {
+        ScreenTitle("Today")
 
         if (state.loading) {
-            Text("Loading...")
-            return@Column
+            ThemedCard { Text("Loading...") }
+            return@MockupScreenColumn
         }
 
         if (state.baselineWeekActive) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
-            ) {
+            ThemedCard(accent = true) {
+                SectionLabel("Baseline week")
                 Text(
-                    "Baseline week. Collect numbers, no progression suggestions yet. Turn off in Settings after week 1.",
-                    modifier = Modifier.padding(12.dp),
-                    style = MaterialTheme.typography.bodyMedium
+                    "Collect numbers, no progression suggestions yet. Turn off in Settings after week 1.",
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
 
-        // Next session card
         state.nextDay?.let { day ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Next up", style = MaterialTheme.typography.labelLarge)
-                        AssistChip(
-                            onClick = {},
-                            label = { Text(if (state.onSchedule) "On schedule" else "Off-day") }
-                        )
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(day.label, style = MaterialTheme.typography.headlineSmall)
-                    Spacer(Modifier.height(8.dp))
-                    Button(
+            ThemedCard(accent = true) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    SectionLabel("Next up")
+                    StatusChip(if (state.onSchedule) "On schedule" else "Off-day", selected = true)
+                }
+                BigValue(day.label)
+                Text(
+                    day.mockupSubtitle(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                ActionRow(
+                    primaryText = "Start ${day.label}",
+                    onPrimary = { vm.startSession(day) { id -> onStartSession(id) } }
+                )
+                state.alternativeForToday?.let { alt ->
+                    OutlinedButton(
+                        onClick = { vm.startSession(alt) { id -> onStartSession(id) } },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Or do ${alt.label} (today's hint)") }
+                }
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ChipButton(
+                text = "Pick a day",
+                selected = dayPickerOpen,
+                onClick = { dayPickerOpen = !dayPickerOpen }
+            )
+            ChipButton(text = "Mark rest", onClick = vm::markRestDay)
+            ChipButton(text = "Skip next", onClick = vm::skipNextDay)
+        }
+
+        ThemedCard {
+            SectionLabel("Last session")
+            state.lastSessionLabel?.let { last ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(last)
+                    Text(
+                        state.daysSinceLastSession?.let { "${it} days ago" } ?: "Latest",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } ?: Text("No completed sessions yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            DividerLine()
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("This week")
+                Text(
+                    "${state.completedThisWeek} / ${state.sessionsTargetThisWeek} sessions",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        ThemedCard {
+            SectionLabel("Streak")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                AccentText(state.completedThisWeek.toString())
+                Text("sessions this week", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        if (dayPickerOpen && state.allNonRestDays.size > 1) {
+            ThemedCard {
+                SectionLabel("Pick a different day")
+                state.allNonRestDays.forEach { day ->
+                    OutlinedButton(
                         onClick = { vm.startSession(day) { id -> onStartSession(id) } },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Start ${day.label}") }
-
-                    state.alternativeForToday?.let { alt ->
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = { vm.startSession(alt) { id -> onStartSession(id) } },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("Or do ${alt.label} (today's hint)") }
-                    }
+                    ) { Text(day.label) }
                 }
             }
         }
 
-        // Choice card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Today's choice", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { vm.markRestDay() }) { Text("Mark today rest") }
-                    OutlinedButton(onClick = { vm.skipNextDay() }) { Text("Skip next day") }
-                }
-            }
-        }
-
-        // Pick a different day
-        if (state.allNonRestDays.size > 1) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("Pick a different day", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(8.dp))
-                    state.allNonRestDays.forEach { day ->
-                        OutlinedButton(
-                            onClick = { vm.startSession(day) { id -> onStartSession(id) } },
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
-                        ) { Text(day.label) }
-                    }
-                }
-            }
-        }
-
-        // Summary
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("This week", style = MaterialTheme.typography.titleMedium)
-                    androidx.compose.material3.TextButton(onClick = onOpenHistory) { Text("History") }
-                }
-                Spacer(Modifier.height(4.dp))
-                Text("${state.completedThisWeek} of ${state.sessionsTargetThisWeek} sessions completed")
-                state.lastSessionLabel?.let { last ->
-                    Spacer(Modifier.height(4.dp))
-                    Text("Last session: $last (${state.daysSinceLastSession ?: 0}d ago)")
-                }
-            }
+        OutlinedButton(onClick = onOpenHistory, modifier = Modifier.fillMaxWidth()) {
+            Text("Open history")
         }
     }
 }
+
+private fun ProgramDay.mockupSubtitle(): String =
+    preferredDayOfWeek?.name
+        ?.lowercase()
+        ?.replaceFirstChar { it.uppercase() }
+        ?.let { "$it hint" }
+        ?: "Ready for today's rotation"

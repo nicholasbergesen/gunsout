@@ -19,7 +19,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -54,6 +53,12 @@ import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import com.nicholasbergesen.gunsout.domain.nutrition.MacroTarget
 import com.nicholasbergesen.gunsout.domain.nutrition.MacroTargetCalculator
+import com.nicholasbergesen.gunsout.ui.components.ChipButton
+import com.nicholasbergesen.gunsout.ui.components.MockupScreenColumn
+import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
+import com.nicholasbergesen.gunsout.ui.components.SectionLabel
+import com.nicholasbergesen.gunsout.ui.components.StatusChip
+import com.nicholasbergesen.gunsout.ui.components.ThemedCard
 import com.nicholasbergesen.gunsout.ui.theme.ThemeStyle
 import com.nicholasbergesen.gunsout.ui.theme.backdropBrushFor
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -210,28 +215,24 @@ fun SettingsScreen(
 
     var confirmSignOut by remember { mutableStateOf(false) }
 
-    Column(
-        Modifier.fillMaxWidth().padding(16.dp).verticalScroll(scroll),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text("Settings", style = MaterialTheme.typography.headlineMedium)
+    MockupScreenColumn(modifier = Modifier.verticalScroll(scroll)) {
+        ScreenTitle("Settings")
 
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Account", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
+        ThemedCard {
                 val displayName = authUser?.displayName?.takeIf { it.isNotBlank() }
                 val email = authUser?.email?.takeIf { it.isNotBlank() }
-                Text(
-                    displayName ?: email ?: "Signed in",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                if (email != null && displayName != null) {
-                    Text(email, style = MaterialTheme.typography.bodySmall)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StatusChip((displayName ?: email ?: "N").take(1), selected = true)
+                        Column {
+                            Text(displayName ?: email ?: "Signed in")
+                            if (email != null && displayName != null) {
+                                Text(email, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                    ChipButton("Sign out", onClick = { confirmSignOut = true })
                 }
-                Spacer(Modifier.height(12.dp))
-                OutlinedButton(onClick = { confirmSignOut = true }) { Text("Sign out") }
-            }
         }
 
         AppearanceCard(
@@ -239,202 +240,178 @@ fun SettingsScreen(
             onStyleSelected = vm::saveThemeStyle
         )
 
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Body goals", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
+        ThemedCard {
+            SectionLabel("Profile")
+            OutlinedTextField(
+                value = currentWeight,
+                onValueChange = { currentWeight = it.filter { c -> c.isDigit() || c == '.' } },
+                label = { Text("Current weight (kg)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = goalWeight,
+                onValueChange = { goalWeight = it.filter { c -> c.isDigit() || c == '.' } },
+                label = { Text("Goal weight (kg)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
-                    value = currentWeight,
-                    onValueChange = { currentWeight = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("Current weight (kg)") },
+                    value = heightCm,
+                    onValueChange = { heightCm = it.filter(Char::isDigit) },
+                    label = { Text("Height (cm)") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
-                    value = goalWeight,
-                    onValueChange = { goalWeight = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("Goal weight (kg)") },
+                    value = age,
+                    onValueChange = { age = it.filter(Char::isDigit) },
+                    label = { Text("Age") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = heightCm,
-                        onValueChange = { heightCm = it.filter(Char::isDigit) },
-                        label = { Text("Height (cm)") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = age,
-                        onValueChange = { age = it.filter(Char::isDigit) },
-                        label = { Text("Age") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Spacer(Modifier.height(10.dp))
-                LabeledChoiceRow(
-                    label = "Sex",
-                    selected = sex?.name,
-                    options = Sex.values().map { it.name to it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
-                    onSelect = { sex = it?.let { Sex.valueOf(it) } }
-                )
-                Spacer(Modifier.height(10.dp))
-                LabeledChoiceRow(
-                    label = "Activity",
-                    selected = activityLevel.name,
-                    options = ActivityLevel.values().map { it.name to it.name.lowercase().replace('_', ' ').replaceFirstChar { c -> c.uppercase() } },
-                    onSelect = { activityLevel = ActivityLevel.valueOf(it!!) }
-                )
-                Spacer(Modifier.height(10.dp))
-                LabeledChoiceRow(
-                    label = "Goal",
-                    selected = goalType.name,
-                    options = GoalType.values().map { it.name to it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
-                    onSelect = { goalType = GoalType.valueOf(it!!) }
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
                 )
             }
+            LabeledChoiceRow(
+                label = "Sex",
+                selected = sex?.name,
+                options = Sex.values().map { it.name to it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                onSelect = { sex = it?.let { Sex.valueOf(it) } }
+            )
+            LabeledChoiceRow(
+                label = "Activity",
+                selected = activityLevel.name,
+                options = ActivityLevel.values().map { it.name to it.name.lowercase().replace('_', ' ').replaceFirstChar { c -> c.uppercase() } },
+                onSelect = { activityLevel = ActivityLevel.valueOf(it!!) }
+            )
+            LabeledChoiceRow(
+                label = "Goal",
+                selected = goalType.name,
+                options = GoalType.values().map { it.name to it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                onSelect = { goalType = GoalType.valueOf(it!!) }
+            )
         }
 
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Daily targets", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(4.dp))
-                if (suggestion == null) {
-                    Text(
-                        "Fill in age, sex, height, current weight, and goal weight above to compute a suggested target. You can also set manual overrides below.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                } else {
-                    val s = suggestion!!
-                    Text(
-                        "Suggested: ${s.kcal} kcal | ${s.proteinG}g P | ${s.carbsG}g C | ${s.fatG}g F",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = overrideKcal,
-                        onValueChange = { overrideKcal = it.filter(Char::isDigit) },
-                        label = { Text("kcal") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = overrideProtein,
-                        onValueChange = { overrideProtein = it.filter(Char::isDigit) },
-                        label = { Text("P g") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = overrideCarbs,
-                        onValueChange = { overrideCarbs = it.filter(Char::isDigit) },
-                        label = { Text("C g") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = overrideFat,
-                        onValueChange = { overrideFat = it.filter(Char::isDigit) },
-                        label = { Text("F g") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Spacer(Modifier.height(6.dp))
+        ThemedCard(accent = true) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                SectionLabel("Daily targets")
+                StatusChip(if (target?.source == MacroTarget.Source.OVERRIDDEN) "Override" else "Suggested", selected = true)
+            }
+            if (suggestion == null) {
                 Text(
-                    "Leave a field blank to fall back to the suggested value.",
+                    "Fill in age, sex, height, current weight, and goal weight above to compute a suggested target. You can also set manual overrides below.",
                     style = MaterialTheme.typography.bodySmall
                 )
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = {
-                        vm.saveOverrides(
-                            kcal = overrideKcal.toIntOrNull(),
-                            proteinG = overrideProtein.toIntOrNull(),
-                            carbsG = overrideCarbs.toIntOrNull(),
-                            fatG = overrideFat.toIntOrNull()
-                        )
-                    }) { Text("Save overrides") }
-                    OutlinedButton(onClick = {
-                        overrideKcal = ""
-                        overrideProtein = ""
-                        overrideCarbs = ""
-                        overrideFat = ""
-                        vm.resetOverrides()
-                    }) { Text("Reset to suggested") }
-                }
-                target?.let { t ->
-                    Spacer(Modifier.height(8.dp))
-                    val caption = when (t.source) {
-                        MacroTarget.Source.SUGGESTED -> "Active target (suggested)"
-                        MacroTarget.Source.OVERRIDDEN -> "Active target (overridden)"
-                    }
-                    Text(caption, style = MaterialTheme.typography.bodySmall)
-                    Text(
-                        "${t.kcal} kcal | ${t.proteinG}g P | ${t.carbsG}g C | ${t.fatG}g F",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        }
-
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                SettingsToggle(
-                    label = "Knee injury caution",
-                    description = "Prompts knee-feel on leg sessions and shows knee notes on relevant exercises.",
-                    checked = kneeInjury,
-                    onCheckedChange = { kneeInjury = it }
-                )
-                Spacer(Modifier.height(8.dp))
-                SettingsToggle(
-                    label = "Baseline week active",
-                    description = "While on, progression suggestions are suppressed. Turn off after week 1.",
-                    checked = baselineWeek,
-                    onCheckedChange = { baselineWeek = it }
-                )
-            }
-        }
-
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Library", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(4.dp))
-                Text("Manage all exercises (seeded plus user-created).", style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(8.dp))
-                OutlinedButton(onClick = onOpenLibrary) { Text("Open exercise library") }
-            }
-        }
-
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Backup", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(4.dp))
+            } else {
+                val s = suggestion!!
                 Text(
-                    "Export everything to a JSON file or restore from a previous export. Importing replaces all current data.",
+                    "Suggested: ${s.kcal} kcal | ${s.proteinG}g P | ${s.carbsG}g C | ${s.fatG}g F",
                     style = MaterialTheme.typography.bodySmall
                 )
-                Spacer(Modifier.height(8.dp))
-                BackupRow(vm)
-                val msg by vm.backupMessage.collectAsState()
-                msg?.let {
-                    Spacer(Modifier.height(6.dp))
-                    Text(it, style = MaterialTheme.typography.bodySmall)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = overrideKcal,
+                    onValueChange = { overrideKcal = it.filter(Char::isDigit) },
+                    label = { Text("kcal") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = overrideProtein,
+                    onValueChange = { overrideProtein = it.filter(Char::isDigit) },
+                    label = { Text("P g") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = overrideCarbs,
+                    onValueChange = { overrideCarbs = it.filter(Char::isDigit) },
+                    label = { Text("C g") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = overrideFat,
+                    onValueChange = { overrideFat = it.filter(Char::isDigit) },
+                    label = { Text("F g") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Text(
+                "Leave a field blank to fall back to the suggested value.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = {
+                    vm.saveOverrides(
+                        kcal = overrideKcal.toIntOrNull(),
+                        proteinG = overrideProtein.toIntOrNull(),
+                        carbsG = overrideCarbs.toIntOrNull(),
+                        fatG = overrideFat.toIntOrNull()
+                    )
+                }) { Text("Save overrides") }
+                OutlinedButton(onClick = {
+                    overrideKcal = ""
+                    overrideProtein = ""
+                    overrideCarbs = ""
+                    overrideFat = ""
+                    vm.resetOverrides()
+                }) { Text("Reset to suggested") }
+            }
+            target?.let { t ->
+                val caption = when (t.source) {
+                    MacroTarget.Source.SUGGESTED -> "Active target (suggested)"
+                    MacroTarget.Source.OVERRIDDEN -> "Active target (overridden)"
                 }
+                Text(caption, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "${t.kcal} kcal | ${t.proteinG}g P | ${t.carbsG}g C | ${t.fatG}g F",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+
+        ThemedCard {
+            SettingsToggle(
+                label = "Knee injury caution",
+                description = "Prompts knee-feel on leg sessions and shows knee notes on relevant exercises.",
+                checked = kneeInjury,
+                onCheckedChange = { kneeInjury = it }
+            )
+            SettingsToggle(
+                label = "Baseline week active",
+                description = "While on, progression suggestions are suppressed. Turn off after week 1.",
+                checked = baselineWeek,
+                onCheckedChange = { baselineWeek = it }
+            )
+        }
+
+        ThemedCard {
+            Text("Library", style = MaterialTheme.typography.titleMedium)
+            Text("Manage all exercises (seeded plus user-created).", style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick = onOpenLibrary) { Text("Open exercise library") }
+        }
+
+        ThemedCard {
+            Text("Backup", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Export everything to a JSON file or restore from a previous export. Importing replaces all current data.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            BackupRow(vm)
+            val msg by vm.backupMessage.collectAsState()
+            msg?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall)
             }
         }
 
@@ -481,24 +458,19 @@ private fun AppearanceCard(
     selectedStyle: ThemeStyle,
     onStyleSelected: (ThemeStyle) -> Unit
 ) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(
-            Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text("Appearance", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Choose one visual style. Themes use fixed palettes rather than separate light and dark modes.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+    ThemedCard {
+        SectionLabel("Appearance")
+        Text(
+            "Choose one visual style. Themes use fixed palettes rather than separate light and dark modes.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        ThemeStyle.values().forEach { style ->
+            ThemeStyleRow(
+                style = style,
+                selected = style == selectedStyle,
+                onSelect = { onStyleSelected(style) }
             )
-            ThemeStyle.values().forEach { style ->
-                ThemeStyleRow(
-                    style = style,
-                    selected = style == selectedStyle,
-                    onSelect = { onStyleSelected(style) }
-                )
-            }
         }
     }
 }

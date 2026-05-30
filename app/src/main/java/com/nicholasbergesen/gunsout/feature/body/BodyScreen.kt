@@ -7,12 +7,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -31,6 +29,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nicholasbergesen.gunsout.data.entity.BodyMetricsLog
+import com.nicholasbergesen.gunsout.ui.components.BigValue
+import com.nicholasbergesen.gunsout.ui.components.ChipButton
+import com.nicholasbergesen.gunsout.ui.components.MetricGrid
+import com.nicholasbergesen.gunsout.ui.components.MetricItem
+import com.nicholasbergesen.gunsout.ui.components.MockupScreenColumn
+import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
+import com.nicholasbergesen.gunsout.ui.components.SectionLabel
+import com.nicholasbergesen.gunsout.ui.components.StatusChip
+import com.nicholasbergesen.gunsout.ui.components.ThemedCard
 
 @Composable
 fun BodyScreen(vm: BodyViewModel = hiltViewModel()) {
@@ -44,105 +51,135 @@ fun BodyScreen(vm: BodyViewModel = hiltViewModel()) {
     var bone by remember { mutableStateOf("") }
     var visceral by remember { mutableStateOf("") }
     var showMore by remember { mutableStateOf(false) }
+    var selectedTrend by remember { mutableStateOf("Weight") }
 
-    Column(
-        Modifier.fillMaxWidth().padding(16.dp).verticalScroll(scroll),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text("Body", style = MaterialTheme.typography.headlineMedium)
-
+    MockupScreenColumn(modifier = Modifier.verticalScroll(scroll)) {
         val latest = state.logs.lastOrNull()
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Latest", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(6.dp))
-                Text("Current: ${"%.1f".format(state.profile.currentBodyWeightKg)} kg")
-                Text("Goal: ${"%.1f".format(state.profile.goalBodyWeightKg)} kg")
-                latest?.bodyFatPct?.let { Text("Body fat: ${"%.1f".format(it)} %") }
-                latest?.muscleMassKg?.let { Text("Muscle: ${"%.1f".format(it)} kg") }
-            }
+        val latestWeight = latest?.weightKg ?: state.profile.currentBodyWeightKg
+        val trendSeries = listOf(
+            "Weight" to state.logs.map { it.date to it.weightKg },
+            "Body fat" to state.logs.mapNotNull { row -> row.bodyFatPct?.let { row.date to it } },
+            "Muscle" to state.logs.mapNotNull { row -> row.muscleMassKg?.let { row.date to it } },
+            "Water" to state.logs.mapNotNull { row -> row.waterPct?.let { row.date to it } }
+        ).filter { it.second.size >= 2 }
+        val activeTrend = trendSeries.firstOrNull { it.first == selectedTrend } ?: trendSeries.firstOrNull()
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            ScreenTitle("Body")
+            StatusChip(selectedTrend)
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Log today", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = weight,
-                    onValueChange = { weight = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("Weight (kg) - required") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
+        ThemedCard(accent = true) {
+            SectionLabel("Latest weight")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                BigValue("${"%.1f".format(latestWeight)} kg")
+                latest?.let {
+                    StatusChip("Goal ${"%.0f".format(state.profile.goalBodyWeightKg)}", selected = true)
+                }
+            }
+            if (activeTrend != null) {
+                DateAxisLineChart(
+                    points = activeTrend.second,
+                    goalValue = if (activeTrend.first == "Weight") state.profile.goalBodyWeightKg else null
                 )
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = { showMore = !showMore }) {
-                    Text(if (showMore) "Hide more metrics" else "More metrics")
-                }
-                if (showMore) {
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(value = bodyFat, onValueChange = { bodyFat = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Body fat %") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = muscle, onValueChange = { muscle = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Muscle mass (kg)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = water, onValueChange = { water = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Water %") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = bone, onValueChange = { bone = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Bone mass (kg)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = visceral, onValueChange = { visceral = it.filter(Char::isDigit) }, label = { Text("Visceral fat rating") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                }
-                Spacer(Modifier.height(12.dp))
-                Button(
-                    onClick = {
-                        val w = weight.toDoubleOrNull() ?: return@Button
-                        vm.logToday(
-                            weightKg = w,
-                            bodyFatPct = bodyFat.toDoubleOrNull(),
-                            muscleMassKg = muscle.toDoubleOrNull(),
-                            waterPct = water.toDoubleOrNull(),
-                            boneMassKg = bone.toDoubleOrNull(),
-                            visceralFatRating = visceral.toIntOrNull()
-                        )
-                        weight = ""; bodyFat = ""; muscle = ""; water = ""; bone = ""; visceral = ""
-                        showMore = false
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = weight.toDoubleOrNull() != null
-                ) { Text("Log") }
+            } else {
+                Text("Add another weigh-in to show the trend chart.", style = MaterialTheme.typography.bodySmall)
             }
-        }
-
-        if (state.logs.size >= 2) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("Trend", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(8.dp))
-                    BodyTrendChart(
-                        logs = state.logs,
-                        goalKg = state.profile.goalBodyWeightKg
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("14-day trend", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                activeTrend?.let { trend ->
+                    Text(
+                        if (trend.first == "Weight") {
+                            "goal ${"%.0f".format(state.profile.goalBodyWeightKg)} kg"
+                        } else {
+                            trend.first
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Auto-adjust kcal target", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Reads your recent weigh-ins and suggests a kcal change to keep you on track for your goal.",
-                    style = MaterialTheme.typography.bodySmall
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("Weight", "Body fat", "Muscle", "Water").forEach { label ->
+                if (trendSeries.any { it.first == label }) {
+                    ChipButton(
+                        text = label,
+                        selected = activeTrend?.first == label,
+                        onClick = { selectedTrend = label }
+                    )
+                } else {
+                    StatusChip(label)
+                }
+            }
+        }
+
+        MetricGrid(
+            items = listOf(
+                MetricItem("Body fat", latest?.bodyFatPct?.let { "${"%.1f".format(it)}%" } ?: "-"),
+                MetricItem("Muscle", latest?.muscleMassKg?.let { "%.1f".format(it) } ?: "-"),
+                MetricItem("Water", latest?.waterPct?.let { "${"%.0f".format(it)}%" } ?: "-")
+            )
+        )
+
+        ThemedCard {
+            SectionLabel("Log today")
+            OutlinedTextField(
+                value = weight,
+                onValueChange = { weight = it.filter { c -> c.isDigit() || c == '.' } },
+                label = { Text("Weight (kg) - required") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth()
+            )
+            ChipButton(
+                text = if (showMore) "Hide more metrics" else "More metrics",
+                onClick = { showMore = !showMore }
+            )
+            if (showMore) {
+                OutlinedTextField(value = bodyFat, onValueChange = { bodyFat = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Body fat %") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = muscle, onValueChange = { muscle = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Muscle mass (kg)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = water, onValueChange = { water = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Water %") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = bone, onValueChange = { bone = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Bone mass (kg)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = visceral, onValueChange = { visceral = it.filter(Char::isDigit) }, label = { Text("Visceral fat rating") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
+        }
+
+        Button(
+            onClick = {
+                val w = weight.toDoubleOrNull() ?: return@Button
+                vm.logToday(
+                    weightKg = w,
+                    bodyFatPct = bodyFat.toDoubleOrNull(),
+                    muscleMassKg = muscle.toDoubleOrNull(),
+                    waterPct = water.toDoubleOrNull(),
+                    boneMassKg = bone.toDoubleOrNull(),
+                    visceralFatRating = visceral.toIntOrNull()
                 )
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = { vm.suggestKcalAdjustment() }) { Text("Suggest now") }
-                val suggestion by vm.kcalSuggestion.collectAsState()
-                suggestion?.let { s ->
-                    Spacer(Modifier.height(8.dp))
-                    Text(s.text, style = MaterialTheme.typography.bodyMedium)
-                    if (s.newKcalTarget != null) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { vm.applyKcalSuggestion() }) { Text("Apply ${s.newKcalTarget} kcal") }
-                            androidx.compose.material3.TextButton(onClick = { vm.dismissKcalSuggestion() }) { Text("Dismiss") }
-                        }
-                    } else {
-                        androidx.compose.material3.TextButton(onClick = { vm.dismissKcalSuggestion() }) { Text("OK") }
+                weight = ""; bodyFat = ""; muscle = ""; water = ""; bone = ""; visceral = ""
+                showMore = false
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = weight.toDoubleOrNull() != null
+        ) { Text("Log today") }
+
+        ThemedCard {
+            SectionLabel("Auto-adjust kcal target")
+            Text(
+                "Reads your recent weigh-ins and suggests a kcal change to keep you on track for your goal.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Button(onClick = { vm.suggestKcalAdjustment() }) { Text("Suggest now") }
+            val suggestion by vm.kcalSuggestion.collectAsState()
+            suggestion?.let { s ->
+                Text(s.text, style = MaterialTheme.typography.bodyMedium)
+                if (s.newKcalTarget != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { vm.applyKcalSuggestion() }) { Text("Apply ${s.newKcalTarget} kcal") }
+                        androidx.compose.material3.TextButton(onClick = { vm.dismissKcalSuggestion() }) { Text("Dismiss") }
                     }
+                } else {
+                    androidx.compose.material3.TextButton(onClick = { vm.dismissKcalSuggestion() }) { Text("OK") }
                 }
             }
         }

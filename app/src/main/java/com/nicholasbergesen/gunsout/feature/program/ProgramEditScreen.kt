@@ -15,8 +15,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -39,6 +37,12 @@ import com.nicholasbergesen.gunsout.data.entity.Exercise
 import com.nicholasbergesen.gunsout.data.entity.ProgramDay
 import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
 import com.nicholasbergesen.gunsout.data.entity.Protocol
+import com.nicholasbergesen.gunsout.ui.components.ChipButton
+import com.nicholasbergesen.gunsout.ui.components.MockupScreenColumn
+import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
+import com.nicholasbergesen.gunsout.ui.components.SectionLabel
+import com.nicholasbergesen.gunsout.ui.components.StatusChip
+import com.nicholasbergesen.gunsout.ui.components.ThemedCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,18 +57,19 @@ fun ProgramEditScreen(
     var pickerOpenForDay by remember { mutableStateOf<Long?>(null) }
     var schemeEditFor by remember { mutableStateOf<ProgramExercise?>(null) }
 
-    Column(
-        Modifier.padding(16.dp).fillMaxWidth().verticalScroll(scroll),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(state.program?.name ?: "Program", style = MaterialTheme.typography.headlineMedium)
+    MockupScreenColumn(modifier = Modifier.verticalScroll(scroll)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Column {
+                SectionLabel("Programs")
+                ScreenTitle(state.program?.name ?: "Program")
+            }
+            state.program?.takeIf { it.isActive }?.let { StatusChip("Active", selected = true) }
+        }
         if (state.program == null) {
             Text("Program not found.")
             Button(onClick = onBack) { Text("Back") }
-            return@Column
+            return@MockupScreenColumn
         }
-
-        OutlinedButton(onClick = { vm.addDay() }) { Text("+ Add day") }
 
         state.days.forEach { day ->
             DayCard(
@@ -80,7 +85,7 @@ fun ProgramEditScreen(
             )
         }
 
-        Spacer(Modifier.height(48.dp))
+        OutlinedButton(onClick = { vm.addDay() }, modifier = Modifier.fillMaxWidth()) { Text("+ Add day") }
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Back to programs") }
     }
 
@@ -123,63 +128,51 @@ private fun DayCard(
     var renaming by remember(day.id) { mutableStateOf(false) }
     var label by remember(day.id) { mutableStateOf(day.label) }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = if (day.isRest)
-            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-        else CardDefaults.cardColors()
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-            ) {
-                if (renaming) {
-                    Row(Modifier.weight(1f), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        OutlinedTextField(value = label, onValueChange = { label = it }, singleLine = true, modifier = Modifier.weight(1f))
-                        Spacer(Modifier.width(4.dp))
-                        TextButton(onClick = { onRename(label); renaming = false }) { Text("Save") }
-                    }
-                } else {
-                    Text(day.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    AssistChip(onClick = { renaming = true }, label = { Text("Rename") })
+    ThemedCard(accent = !day.isRest) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            if (renaming) {
+                Row(Modifier.weight(1f), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    OutlinedTextField(value = label, onValueChange = { label = it }, singleLine = true, modifier = Modifier.weight(1f))
+                    Spacer(Modifier.width(4.dp))
+                    TextButton(onClick = { onRename(label); renaming = false }) { Text("Save") }
                 }
+            } else {
+                Text(day.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                ChipButton("Rename", onClick = { renaming = true })
             }
-            Spacer(Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AssistChip(
-                    onClick = onToggleRest,
-                    label = { Text(if (day.isRest) "Rest day" else "Training day") }
-                )
-                AssistChip(onClick = onDelete, label = { Text("Delete day") })
-            }
-            Spacer(Modifier.height(8.dp))
-            if (!day.isRest) {
-                programExercises.forEach { pe ->
-                    val ex = exercisesById[pe.exerciseId]
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(ex?.name ?: "(unknown)")
-                            val protocolLabel = when (pe.protocol) {
-                                Protocol.PULL_UP_5X2_3 -> "5x2-3"
-                                Protocol.AMRAP -> "${pe.sets}xAMRAP"
-                                Protocol.STANDARD -> "${pe.sets} x ${pe.repsMin}-${pe.repsMax}, rest ${pe.restSec}s"
-                            }
-                            Text(protocolLabel, style = MaterialTheme.typography.bodySmall)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ChipButton(if (day.isRest) "Rest day" else "Training day", onClick = onToggleRest)
+            ChipButton("Delete day", onClick = onDelete)
+        }
+        if (!day.isRest) {
+            programExercises.forEach { pe ->
+                val ex = exercisesById[pe.exerciseId]
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(ex?.name ?: "(unknown)")
+                        val protocolLabel = when (pe.protocol) {
+                            Protocol.PULL_UP_5X2_3 -> "5x2-3"
+                            Protocol.AMRAP -> "${pe.sets}xAMRAP"
+                            Protocol.STANDARD -> "${pe.sets} x ${pe.repsMin}-${pe.repsMax}, rest ${pe.restSec}s"
                         }
-                        Row {
-                            TextButton(onClick = { onEditScheme(pe) }) { Text("Edit") }
-                            TextButton(onClick = { onRemoveExercise(pe) }) { Text("Remove") }
-                        }
+                        Text(protocolLabel, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Row {
+                        TextButton(onClick = { onEditScheme(pe) }) { Text("Edit") }
+                        TextButton(onClick = { onRemoveExercise(pe) }) { Text("Remove") }
                     }
                 }
-                OutlinedButton(onClick = onAddExercise) { Text("+ Add exercise") }
             }
+            OutlinedButton(onClick = onAddExercise) { Text("+ Add exercise") }
         }
     }
 }
