@@ -84,7 +84,7 @@
   }
 
   .statusbar { height: 26px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 10.5px; font-weight: 600; opacity: .8; }
-  .scr-body { flex: 1; overflow: hidden; padding: 6px 14px 14px; display: flex; flex-direction: column; gap: var(--gap, 11px); }
+  .scr-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 14px 14px; display: flex; flex-direction: column; gap: var(--gap, 11px); scrollbar-width: thin; }
 
   /* density per usability theme */
   .t-cards  { --gap: 11px; }
@@ -467,13 +467,13 @@ const PAGES = {
 
   Exercise: { name: 'Exercise', kind: 'plain', blocks: [
     { t: 'hero', label: '‹ Library', value: 'Barbell Row', sub: 'Back · Barbell · rest 120s' },
-    { t: 'input', label: 'Your 1 rep max', value: '95.0', unit: 'kg', action: 'Save', sub: 'Previous 92.5 kg · updated Mar 14' },
     { t: 'chart', caption: '1 rep max · last 12 months' },
     { t: 'chart', caption: 'Top working-set weight · last 12 months' },
     { t: 'metrics', items: [{ label: 'Top set', value: '62.5×8', sub: '@8 · Mar 14' }, { label: 'Sessions', value: '18', sub: 'logged' }] },
     { t: 'fields', items: [{ label: 'Muscle', value: 'Back' }, { label: 'Equipment', value: 'Barbell' }, { label: 'Default rest', value: '120 s' }] },
     { t: 'textarea', text: 'Brace, pull to lower ribs, control the eccentric.' },
     { t: 'actions', items: [{ text: 'Edit details' }, { text: 'Log a set', primary: true }] },
+    { t: 'input', label: 'Your 1 rep max', value: '95.0', unit: 'kg', action: 'Save', sub: 'Previous 92.5 kg · updated Mar 14' },
   ] },
 
   Settings: { name: 'Settings', kind: 'tab', tab: 'Settings', focus: { label: 'Signed in', value: 'Nicholas B.', sub: 'nick@gmail.com', action: 'Manage account' }, blocks: [
