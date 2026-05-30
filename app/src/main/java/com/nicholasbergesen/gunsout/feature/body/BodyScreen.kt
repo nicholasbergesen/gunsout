@@ -86,7 +86,17 @@ fun BodyScreen(vm: BodyViewModel = hiltViewModel()) {
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("14-day trend", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("goal ${"%.0f".format(state.profile.goalBodyWeightKg)} kg", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                activeTrend?.let { trend ->
+                    Text(
+                        if (trend.first == "Weight") {
+                            "goal ${"%.0f".format(state.profile.goalBodyWeightKg)} kg"
+                        } else {
+                            trend.first
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
 

@@ -104,7 +104,11 @@ fun DietScreen(
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Column(Modifier.weight(1f)) {
                                 Text("${sup.name} ${sup.defaultDose.g} ${sup.unit.name.lowercase()}")
-                                Text("Daily supplement", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    sup.takeWith?.takeIf { it.isNotBlank() } ?: "Daily supplement",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                                 sup.reminderTime?.let { rt ->
                                     Text("Reminder $rt", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }

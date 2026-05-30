@@ -49,10 +49,7 @@ fun TodayScreen(
     }
 
     MockupScreenColumn(modifier = Modifier.verticalScroll(scroll)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            ScreenTitle("Today")
-            StatusChip("N", selected = true)
-        }
+        ScreenTitle("Today")
 
         if (state.loading) {
             ThemedCard { Text("Loading...") }

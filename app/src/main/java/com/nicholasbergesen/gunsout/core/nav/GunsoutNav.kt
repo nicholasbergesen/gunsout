@@ -1,8 +1,6 @@
 package com.nicholasbergesen.gunsout.core.nav
 
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MonitorWeight
@@ -21,7 +19,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -62,7 +59,6 @@ fun GunsoutApp() {
             val isTopLevel = currentRoute in tabs.map { it.route }
             if (isTopLevel) {
                 NavigationBar(
-                    modifier = Modifier.height(46.dp),
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 0.dp
                 ) {
@@ -79,11 +75,15 @@ fun GunsoutApp() {
                             icon = {
                                 Icon(
                                     tab.icon,
-                                    contentDescription = tab.label,
-                                    modifier = Modifier.size(18.dp)
+                                    contentDescription = tab.label
                                 )
                             },
-                            label = { Text(tab.label, fontSize = 9.sp) }
+                            label = {
+                                Text(
+                                    tab.label,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
                         )
                     }
                 }
