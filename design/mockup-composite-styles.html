@@ -202,6 +202,7 @@ function GB(b) {
     case 'table': return `<div class="card">${tableInner(b)}</div>`;
     case 'chart': return `<div class="card"><span class="label">${b.caption||''}</span>${lineChart(72)}</div>`;
     case 'fields': return `<div class="card">` + b.items.map((f,i) => `${i>0?'<div class="divider"></div>':''}<div class="row"><span class="muted">${f.label}</span><span>${f.value}</span></div>`).join('') + `</div>`;
+    case 'input': return `<div class="card"><span class="label">${b.label||''}</span><div class="row" style="gap:8px;margin-top:6px;"><div class="field" style="flex:1;font-size:16px;font-weight:700;display:flex;align-items:center;gap:4px;"><span>${b.value}</span>${b.unit?`<span class="muted" style="font-size:12px;">${b.unit}</span>`:''}</div><div class="btn" style="width:auto;padding:10px 16px;">${b.action||'Save'}</div></div>${b.sub?`<div class="sub" style="margin-top:6px;">${b.sub}</div>`:''}</div>`;
     case 'textarea': return `<div class="field" style="min-height:54px;align-items:flex-start;">${b.text}</div>`;
     case 'note': return `<div class="card accent" style="padding:11px;"><div style="font-size:12px;">${b.text}</div></div>`;
     case 'actions': return `<div class="row" style="gap:8px;">` + b.items.map(a => `<div class="btn ${a.primary?'':'ghost'}" style="${b.items.length>1?'width:50%;':''}">${a.text}</div>`).join('') + `</div>`;
@@ -268,6 +269,7 @@ function renderBento(p) {
     if (b.t === 'chips') { tiles.push(`<div class="card span2 tile-b"><div class="row" style="gap:6px;flex-wrap:wrap;justify-content:flex-start;">` + b.items.map((c,i) => `<span class="chip ${i===(b.active??-1)?'on':''}">${c}</span>`).join('') + `</div></div>`); continue; }
     if (b.t === 'list') { tiles.push(`<div class="card span2 tile-b">${b.title?`<span class="label">${b.title}</span>`:''}` + b.rows.map((r,i) => `${(i>0||b.title)?`<div class="divider"></div>`:''}<div class="row"><div class="col" style="min-width:0;"><span style="font-weight:600;">${r.title}</span>${r.sub?`<span class="sub">${r.sub}</span>`:''}</div>${r.trail?`<span class="${isPositiveTrail(r.trail)?'chip on':'muted'}" style="white-space:nowrap;">${r.trail}</span>`:''}</div>`).join('') + (b.action?`<div style="height:8px"></div><span class="chip">${b.action}</span>`:'') + `</div>`); continue; }
     if (b.t === 'chart') { tiles.push(`<div class="card span2 tile-b"><span class="label">${b.caption||''}</span>${lineChart(80)}</div>`); continue; }
+    if (b.t === 'input') { tiles.push(`<div class="card accent span2 tile-b"><span class="label">${b.label||''}</span><div class="row" style="gap:8px;margin-top:6px;"><div class="field" style="flex:1;font-size:18px;font-weight:800;display:flex;align-items:center;gap:5px;"><span>${b.value}</span>${b.unit?`<span class="muted" style="font-size:13px;">${b.unit}</span>`:''}</div><div class="btn" style="width:auto;padding:11px 18px;">${b.action||'Save'}</div></div>${b.sub?`<div class="sub" style="margin-top:6px;">${b.sub}</div>`:''}</div>`); continue; }
     if (b.t === 'table') { tiles.push(`<div class="card span2 tile-b">${tableInner(b)}</div>`); continue; }
     if (b.t === 'fields') { b.items.forEach(f => tiles.push(`<div class="card tile-b"><span class="label">${f.label}</span><span style="font-size:13px;">${f.value}</span></div>`)); continue; }
     if (b.t === 'textarea') { tiles.push(`<div class="card span2 tile-b"><span class="label">Form notes</span><span class="sub">${b.text}</span></div>`); continue; }
@@ -464,10 +466,10 @@ const PAGES = {
   ] },
 
   Exercise: { name: 'Exercise', kind: 'plain', blocks: [
-    { t: 'hero', label: '‹ Library', value: 'Barbell Row', sub: 'Back · Barbell · rest 120s', chip: 'PR 92.5kg' },
-    { t: 'metrics', items: [{ label: 'Est. 1RM', value: '92.5 kg', sub: '▲ 5 in 8 wk' }, { label: 'Top set', value: '62.5×8', sub: '@8 · Mar 14' }, { label: 'Sessions', value: '18', sub: 'logged' }] },
-    { t: 'chart', caption: 'Estimated 1 rep max · 8 weeks' },
-    { t: 'chart', caption: 'Top working-set weight · 8 weeks' },
+    { t: 'hero', label: '‹ Library', value: 'Barbell Row', sub: 'Back · Barbell · rest 120s' },
+    { t: 'input', label: 'Your 1 rep max', value: '95.0', unit: 'kg', action: 'Save', sub: 'Previous 92.5 kg · updated Mar 14' },
+    { t: 'chart', caption: '1 rep max · last 12 months' },
+    { t: 'metrics', items: [{ label: 'Best 1RM', value: '95 kg', sub: 'all-time' }, { label: 'Top set', value: '62.5×8', sub: '@8 · Mar 14' }, { label: 'Sessions', value: '18', sub: 'logged' }] },
     { t: 'fields', items: [{ label: 'Muscle', value: 'Back' }, { label: 'Equipment', value: 'Barbell' }, { label: 'Default rest', value: '120 s' }] },
     { t: 'textarea', text: 'Brace, pull to lower ribs, control the eccentric.' },
     { t: 'actions', items: [{ text: 'Edit details' }, { text: 'Log a set', primary: true }] },
