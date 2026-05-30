@@ -315,7 +315,7 @@ const THEMES = [
 ];
 
 /* Per-screen theme overrides for the Composite row. Anything not listed falls back to Bento. */
-const COMPOSITE = { Today: 'cards', Diet: 'glance', Settings: 'cards' };
+const COMPOSITE = { Today: 'cards', Diet: 'glance', Body: 'cards', Settings: 'cards' };
 function effectiveTheme(themeId, pageName) {
   if (themeId !== 'composite') return themeId;
   return COMPOSITE[pageName] || 'bento';
