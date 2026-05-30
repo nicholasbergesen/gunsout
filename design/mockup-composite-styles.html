@@ -458,17 +458,19 @@ const PAGES = {
 
   Library: { name: 'Library', kind: 'plain', focus: { label: 'Exercise library', value: '14 exercises', sub: 'across 6 muscle groups', action: 'Browse' }, blocks: [
     { t: 'title', text: 'Exercises' },
-    { t: 'list', title: 'Chest', rows: [{ title: 'Bench Press', sub: 'Barbell', trail: 'Edit' }, { title: 'Incline DB Press', sub: 'Dumbbell', trail: 'Edit' }] },
-    { t: 'list', title: 'Back', rows: [{ title: 'Barbell Row', sub: 'Barbell', trail: 'Edit' }, { title: 'Pull-ups', sub: 'Bodyweight', trail: 'Edit' }] },
+    { t: 'list', title: 'Chest', rows: [{ title: 'Bench Press', sub: 'Barbell', trail: 'View' }, { title: 'Incline DB Press', sub: 'Dumbbell', trail: 'View' }] },
+    { t: 'list', title: 'Back', rows: [{ title: 'Barbell Row', sub: 'Barbell', trail: 'View' }, { title: 'Pull-ups', sub: 'Bodyweight', trail: 'View' }] },
     { t: 'actions', items: [{ text: '+ New exercise', primary: true }] },
   ] },
 
-  'Exercise Edit': { name: 'Exercise Edit', kind: 'plain', blocks: [
-    { t: 'hero', label: '‹ Library', value: 'Edit exercise' },
-    { t: 'fields', items: [{ label: 'Name', value: 'Barbell Row' }, { label: 'Muscle', value: 'Back' }, { label: 'Equipment', value: 'Barbell' }, { label: 'Default rest', value: '120 s' }] },
+  Exercise: { name: 'Exercise', kind: 'plain', blocks: [
+    { t: 'hero', label: '‹ Library', value: 'Barbell Row', sub: 'Back · Barbell · rest 120s', chip: 'PR 92.5kg' },
+    { t: 'metrics', items: [{ label: 'Est. 1RM', value: '92.5 kg', sub: '▲ 5 in 8 wk' }, { label: 'Top set', value: '62.5×8', sub: '@8 · Mar 14' }, { label: 'Sessions', value: '18', sub: 'logged' }] },
+    { t: 'chart', caption: 'Estimated 1 rep max · 8 weeks' },
+    { t: 'chart', caption: 'Top working-set weight · 8 weeks' },
+    { t: 'fields', items: [{ label: 'Muscle', value: 'Back' }, { label: 'Equipment', value: 'Barbell' }, { label: 'Default rest', value: '120 s' }] },
     { t: 'textarea', text: 'Brace, pull to lower ribs, control the eccentric.' },
-    { t: 'chart', caption: 'Top working-set weight' },
-    { t: 'actions', items: [{ text: 'Save', primary: true }] },
+    { t: 'actions', items: [{ text: 'Edit details' }, { text: 'Log a set', primary: true }] },
   ] },
 
   Settings: { name: 'Settings', kind: 'tab', tab: 'Settings', focus: { label: 'Signed in', value: 'Nicholas B.', sub: 'nick@gmail.com', action: 'Manage account' }, blocks: [
@@ -480,7 +482,7 @@ const PAGES = {
   ] },
 };
 
-const PAGE_ORDER = ['Login', 'Setup', 'Today', 'Session', 'Programs', 'Program Edit', 'Diet', 'Body', 'History', 'History Detail', 'Library', 'Exercise Edit', 'Settings'];
+const PAGE_ORDER = ['Login', 'Setup', 'Today', 'Session', 'Programs', 'Program Edit', 'Diet', 'Body', 'History', 'History Detail', 'Library', 'Exercise', 'Settings'];
 
 /* ===== build DOM ===== */
 const rowsEl = document.getElementById('rows');
