@@ -35,8 +35,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -549,11 +551,13 @@ private fun ThemeStyleRow(
 
 @Composable
 private fun ThemeSwatch(style: ThemeStyle) {
+    val swatchSize = 52.dp
+    val swatchSizePx = with(LocalDensity.current) { swatchSize.toPx() }
     Box(
         modifier = Modifier
-            .size(52.dp)
+            .size(swatchSize)
             .clip(MaterialTheme.shapes.small)
-            .background(backdropBrushFor(style, androidx.compose.ui.geometry.Size(52f, 52f)))
+            .background(backdropBrushFor(style, Size(swatchSizePx, swatchSizePx)))
             .padding(6.dp)
     ) {
         Row(

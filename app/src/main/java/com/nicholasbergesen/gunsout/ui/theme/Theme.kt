@@ -1,7 +1,6 @@
 package com.nicholasbergesen.gunsout.ui.theme
 
 import android.app.Activity
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -13,8 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
@@ -209,7 +207,10 @@ fun GunsoutTheme(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .drawBehind { drawThemeBackdrop(style) },
+                .drawWithCache {
+                    val backdrop = backdropBrushFor(style, size)
+                    onDrawBehind { drawRect(backdrop) }
+                },
             color = Color.Transparent,
             contentColor = colors.onBackground
         ) {
@@ -266,8 +267,4 @@ internal fun backdropBrushFor(style: ThemeStyle, size: androidx.compose.ui.geome
         start = Offset.Zero,
         end = Offset(size.width * 0.35f, size.height)
     )
-}
-
-private fun DrawScope.drawThemeBackdrop(style: ThemeStyle) {
-    drawRect(backdropBrushFor(style, size))
 }
