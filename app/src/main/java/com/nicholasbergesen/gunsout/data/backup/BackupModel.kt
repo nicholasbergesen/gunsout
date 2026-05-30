@@ -19,7 +19,7 @@ import java.time.LocalTime
 
 @Serializable
 data class GunsoutBackup(
-    val schemaVersion: Int = 4,
+    val schemaVersion: Int,
     val exportedAtIso: String,
     val programs: List<ProgramBackup>,
     val programDays: List<ProgramDayBackup>,

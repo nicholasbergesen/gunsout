@@ -36,7 +36,7 @@ enum class ThemeStyle(
         swatchBackground = GunsoutPalette.NeoBackground,
         swatchBackgroundEnd = GunsoutPalette.NeoBackground,
         swatchSurface = GunsoutPalette.NeoCard,
-        swatchAccent = GunsoutPalette.NeoAccentCard
+        swatchAccent = GunsoutPalette.NeoAccent
     ),
     GLASSMORPHISM(
         displayName = "Glassmorphism",

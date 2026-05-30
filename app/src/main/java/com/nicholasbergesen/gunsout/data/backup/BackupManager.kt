@@ -24,7 +24,7 @@ class BackupManager @Inject constructor(
     // ignoreUnknownKeys lets legacy v1/v2 files import cleanly: their dropped fields
     // (mealPlans, ingredients, mealTemplateIngredients, macroSource, mealPlanId) are skipped
     // silently. Phase 4 will reintroduce dedicated legacy-only fields with id remapping.
-    private val json = Json { ignoreUnknownKeys = true; prettyPrint = true; encodeDefaults = true }
+    private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
     /**
      * Export everything for [userId] to a JSON envelope. Every query is user-scoped so other
@@ -67,7 +67,6 @@ class BackupManager @Inject constructor(
             goalType = profile.goalType.name,
             kneeInjuryFlag = profile.kneeInjuryFlag,
             baselineWeekActive = profile.baselineWeekActive,
-            themeMode = "SYSTEM",
             themeStyle = profile.themeStyle.name,
             firstRunDone = profile.firstRunDone
         )

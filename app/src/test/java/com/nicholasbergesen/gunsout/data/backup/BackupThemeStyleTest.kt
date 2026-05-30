@@ -5,13 +5,14 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BackupThemeStyleTest {
 
-    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val json = Json { ignoreUnknownKeys = true }
 
     @Test fun userProfileBackup_defaultsMissingThemeStyleToGunmetal() {
         val profile = profileBackup(themeStyle = null).toUserProfile()
@@ -36,6 +37,7 @@ class BackupThemeStyleTest {
 
         assertTrue(encoded.contains("\"schemaVersion\":4"))
         assertTrue(encoded.contains("\"themeStyle\":\"SOFT_PASTEL\""))
+        assertFalse(encoded.contains("\"themeMode\""))
     }
 
     @Test fun legacyV3BackupWithoutThemeStyleStillDecodes() {
@@ -74,6 +76,7 @@ class BackupThemeStyleTest {
     }
 
     private fun emptyBackup(themeStyle: ThemeStyle) = GunsoutBackup(
+        schemaVersion = 4,
         exportedAtIso = "2026-05-30T00:00:00Z",
         programs = emptyList(),
         programDays = emptyList(),
@@ -95,7 +98,6 @@ class BackupThemeStyleTest {
         goalBodyWeightKg = 80.0,
         kneeInjuryFlag = true,
         baselineWeekActive = true,
-        themeMode = "SYSTEM",
         themeStyle = themeStyle,
         firstRunDone = true
     )
