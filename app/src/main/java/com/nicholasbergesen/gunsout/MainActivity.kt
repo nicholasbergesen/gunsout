@@ -8,19 +8,25 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.nicholasbergesen.gunsout.core.nav.GunsoutApp
 import com.nicholasbergesen.gunsout.feature.auth.AuthGate
+import com.nicholasbergesen.gunsout.ui.theme.AppThemeViewModel
 import com.nicholasbergesen.gunsout.ui.theme.GunsoutTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    private val appThemeViewModel: AppThemeViewModel by viewModels()
+
     private val requestNotificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* result ignored — the rest timer service still runs, just without a visible notification */ }
+    ) { /* result ignored, the rest timer service still runs without a visible notification */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -28,7 +34,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         maybeRequestNotificationPermission()
         setContent {
-            GunsoutTheme {
+            val themeStyle by appThemeViewModel.themeStyle.collectAsState()
+            GunsoutTheme(style = themeStyle) {
                 AuthGate { _ -> GunsoutApp() }
             }
         }

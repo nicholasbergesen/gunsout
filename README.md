@@ -39,13 +39,14 @@ Identity uses the Google account `sub` (`GoogleIdTokenCredential.uniqueId`). The
 
 **Settings**
 - Account card (email + display name + Sign out) at the top.
+- Appearance card with six per-account visual themes: Gunmetal Crimson, Clean Light Minimal, Neo-Brutalist, Glassmorphism, Soft Pastel, and Vibrant Gradient.
 - Body weight, goal weight, height, age, sex, activity level, goal type, knee-injury caution, baseline-week override.
 - Daily Targets card with the four suggestion fields, override editing, and Reset to suggested.
-- JSON backup: export and import all of the signed-in user's data (including the DataStore profile and any macro overrides) via the system file picker (SAF). Import is destructive for the current user only, wrapped in a transaction, and gated by a confirmation dialog. Schema version is 3; the importer also accepts schemaVersion 1 and 2 (those legacy files are folded into the current user's data).
+- JSON backup: export and import all of the signed-in user's data (including the DataStore profile, selected theme, and any macro overrides) via the system file picker (SAF). Import is destructive for the current user only, wrapped in a transaction, and gated by a confirmation dialog. Schema version is 4; the importer also accepts schemaVersion 1, 2, and 3 (those legacy files are folded into the current user's data).
 
 ## Visual design
 
-Gun-metal base + crimson `#DC2626` accent across both light and dark palettes, Inter typography (Compose Google Fonts), tighter corner shapes, and an Android 12+ branded splash. Light/dark/system toggle is preserved; both palettes have been redesigned to the new tokens. Theme tokens live in `app/src/main/java/com/gunsout/ui/theme/`.
+Theme selection replaces the old light/dark/system toggle. Each signed-in account stores one fixed visual style: Gunmetal Crimson, Clean Light Minimal, Neo-Brutalist, Glassmorphism, Soft Pastel, or Vibrant Gradient. The style controls Material 3 colors, backdrop treatment, system bar contrast, and corner shapes. Theme tokens live in `app/src/main/java/com/nicholasbergesen/gunsout/ui/theme/`.
 
 ## Tech
 
@@ -115,7 +116,7 @@ The keystore is a debug keystore (not a release signing key), uses the conventio
 ./gradlew :app:testDebugUnitTest
 ```
 
-Unit tests cover the progression engine, schedule resolver (including the marked-rest-day rotation edge case), the new `MacroTargetCalculator` (canonical profiles, null and out-of-range inputs, activity and goal deltas, kcal floor at 1200, override-merge semantics), kcal-trend analyzer (linear regression robust to a single noisy weigh-in), and baseline-week resolver (first 7 days from program activation).
+Unit tests cover the progression engine, schedule resolver (including the marked-rest-day rotation edge case), the new `MacroTargetCalculator` (canonical profiles, null and out-of-range inputs, activity and goal deltas, kcal floor at 1200, override-merge semantics), kcal-trend analyzer (linear regression robust to a single noisy weigh-in), baseline-week resolver (first 7 days from program activation), theme token mapping, and backup theme-style compatibility.
 
 ## Notes
 

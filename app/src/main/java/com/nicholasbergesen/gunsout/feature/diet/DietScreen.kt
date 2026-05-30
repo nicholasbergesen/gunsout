@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -73,7 +74,10 @@ fun DietScreen(
     val totalCarbs = state.todayEntries.sumOf { it.carbsG }
     val totalFat = state.todayEntries.sumOf { it.fatG }
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { inner ->
+    Scaffold(
+        containerColor = Color.Transparent,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { inner ->
         Column(
             Modifier.fillMaxWidth().padding(inner).padding(16.dp).verticalScroll(scroll),
             verticalArrangement = Arrangement.spacedBy(12.dp)

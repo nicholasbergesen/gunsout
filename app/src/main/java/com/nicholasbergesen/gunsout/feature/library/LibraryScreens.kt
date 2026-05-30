@@ -34,6 +34,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -48,6 +49,7 @@ fun LibraryListScreen(
 ) {
     val exercises by vm.exercises.collectAsState()
     Scaffold(
+        containerColor = Color.Transparent,
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onCreate,

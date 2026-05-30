@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
+import com.nicholasbergesen.gunsout.ui.theme.ThemeStyle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.security.MessageDigest
@@ -17,7 +18,6 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
-enum class ThemeMode { LIGHT, DARK, SYSTEM }
 enum class Sex { MALE, FEMALE }
 enum class ActivityLevel { SEDENTARY, LIGHT, MODERATE, ACTIVE, VERY_ACTIVE }
 enum class GoalType { CUT, MAINTAIN, BULK }
@@ -33,7 +33,7 @@ data class UserProfile(
     val goalType: GoalType = GoalType.MAINTAIN,
     val kneeInjuryFlag: Boolean = true,
     val baselineWeekActive: Boolean = true,
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val themeStyle: ThemeStyle = ThemeStyle.Default,
     val firstRunDone: Boolean = false
 )
 
@@ -76,7 +76,7 @@ class UserPreferences @Inject constructor(
         val goalType = stringPreferencesKey("goal_type")
         val kneeInjuryFlag = booleanPreferencesKey("knee_injury_flag")
         val baselineWeekActive = booleanPreferencesKey("baseline_week_active")
-        val themeMode = stringPreferencesKey("theme_mode")
+        val themeStyle = stringPreferencesKey("theme_style")
         val firstRunDone = booleanPreferencesKey("first_run_done")
         val overrideKcal = intPreferencesKey("override_kcal")
         val overrideProteinG = intPreferencesKey("override_protein_g")
@@ -119,7 +119,7 @@ class UserPreferences @Inject constructor(
             p[Keys.goalType] = next.goalType.name
             p[Keys.kneeInjuryFlag] = next.kneeInjuryFlag
             p[Keys.baselineWeekActive] = next.baselineWeekActive
-            p[Keys.themeMode] = next.themeMode.name
+            p[Keys.themeStyle] = next.themeStyle.name
             p[Keys.firstRunDone] = next.firstRunDone
         }
     }
@@ -150,7 +150,7 @@ class UserPreferences @Inject constructor(
         goalType = this[Keys.goalType]?.let { runCatching { GoalType.valueOf(it) }.getOrNull() } ?: GoalType.MAINTAIN,
         kneeInjuryFlag = this[Keys.kneeInjuryFlag] ?: true,
         baselineWeekActive = this[Keys.baselineWeekActive] ?: true,
-        themeMode = this[Keys.themeMode]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
+        themeStyle = ThemeStyle.fromStoredName(this[Keys.themeStyle]),
         firstRunDone = this[Keys.firstRunDone] ?: false
     )
 
@@ -176,4 +176,3 @@ class UserPreferences @Inject constructor(
         private val HEX = "0123456789abcdef".toCharArray()
     }
 }
-

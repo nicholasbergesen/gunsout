@@ -14,13 +14,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun SetupScreen() {
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Surface(Modifier.fillMaxSize(), color = Color.Transparent) {
         Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Text("Gunsout", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
