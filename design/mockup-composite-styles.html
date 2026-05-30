@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gunsout: Composite Design across Color Styles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --page-bg: #0e0f12;
+    --page-panel: #16181d;
+    --page-text: #e7e9ee;
+    --page-muted: #9aa0ad;
+    --page-border: #2a2d34;
+    --phone-w: 300px;
+    --phone-h: 640px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--page-bg); color: var(--page-text);
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- Page chrome ---------- */
+  .page-head {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(14,15,18,.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--page-border); padding: 14px 20px 12px;
+  }
+  .page-head h1 { margin: 0 0 2px; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+  .page-head p { margin: 0 0 12px; font-size: 12.5px; color: var(--page-muted); }
+  .toggle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 14px; }
+  .toggle { display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; user-select: none; padding: 3px 0; }
+  .toggle input { width: 15px; height: 15px; accent-color: #14b8a6; cursor: pointer; }
+  .toggle .num { font-size: 11px; font-weight: 700; color: #0b3b34; background: #5eead4; border-radius: 5px; padding: 1px 7px; flex: none; }
+  .toggle .desc { color: var(--page-muted); font-size: 11.5px; }
+  .head-actions { margin-top: 10px; display: flex; gap: 8px; }
+  .head-actions button {
+    font: inherit; font-size: 12px; color: var(--page-text);
+    background: var(--page-panel); border: 1px solid var(--page-border);
+    border-radius: 7px; padding: 5px 11px; cursor: pointer;
+  }
+  .head-actions button:hover { border-color: #4a4f59; }
+
+  /* ---------- Theme rows ---------- */
+  .rows { padding: 8px 0 80px; }
+  .style-row { border-bottom: 1px solid var(--page-border); }
+  .style-row.hidden { display: none; }
+  .row-label { display: flex; align-items: baseline; gap: 10px; padding: 16px 20px 10px; width: max-content; max-width: 100vw; }
+  .row-label .idx { font-size: 12px; font-weight: 700; color: #0b3b34; background: #5eead4; border-radius: 6px; padding: 2px 8px; }
+  .row-label .name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .row-label .rdesc { font-size: 12px; color: var(--page-muted); }
+
+  .track { display: flex; gap: 20px; overflow-x: auto; overflow-y: hidden; padding: 4px 20px 24px; scrollbar-width: thin; }
+  .track::-webkit-scrollbar { height: 9px; }
+  .track::-webkit-scrollbar-thumb { background: #3a3e47; border-radius: 5px; }
+  .track::-webkit-scrollbar-track { background: transparent; }
+
+  .screen-wrap { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .screen-name { font-size: 11px; color: var(--page-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+
+  /* ---------- Phone frame ---------- */
+  .phone {
+    width: var(--phone-w); height: var(--phone-h);
+    border-radius: 30px; padding: 8px; background: #050608;
+    box-shadow: 0 10px 30px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04) inset;
+    position: relative; flex: none;
+  }
+  .phone::after {
+    content: ""; position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    width: 78px; height: 6px; border-radius: 4px; background: rgba(255,255,255,.18); z-index: 6;
+  }
+
+  /* ---------- Per-style theme vars applied per row via inline style on .scr ---------- */
+  .scr {
+    width: 100%; height: 100%; border-radius: 23px; overflow: hidden;
+    position: relative; display: flex; flex-direction: column; font-size: 13px;
+    font-family: "Inter", sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+
+  .statusbar { height: 26px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 10.5px; font-weight: 600; opacity: .8; }
+  .scr-body { flex: 1; overflow: hidden; padding: 6px 14px 14px; display: flex; flex-direction: column; gap: var(--gap, 11px); }
+
+  /* density per usability theme */
+  .t-cards  { --gap: 11px; }
+  .t-dense  { --gap: 7px; font-size: 12px; }
+  .t-dense .card { padding: 10px; }
+  .t-dense .big { font-size: 16px; }
+  .t-focus  { --gap: 16px; }
+  .t-list   { --gap: 9px; }
+  .t-bento  { --gap: 10px; }
+  .t-glance { --gap: 13px; }
+
+  /* ---------- Primitives ---------- */
+  .h1 { font-size: 20px; font-weight: var(--head-weight, 800); letter-spacing: var(--head-ls, -0.02em); margin: 2px 0; color: var(--text); }
+  .sub { font-size: 11.5px; color: var(--muted); }
+  .card { background: var(--card); border: var(--card-border, none); border-radius: var(--radius); padding: 13px; box-shadow: var(--shadow, none); backdrop-filter: var(--card-blur, none); }
+  .card.accent { background: var(--accent-card, var(--card)); }
+  .label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .big { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+  .accenttext { color: var(--accent); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .col { display: flex; flex-direction: column; }
+  .muted { color: var(--muted); }
+  .btn { border: none; border-radius: var(--btn-radius); background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 700; font-size: 13px; padding: 11px 14px; text-align: center; width: 100%; box-shadow: var(--btn-shadow, none); }
+  .btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); box-shadow: none; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; padding: 4px 9px; border-radius: var(--chip-radius, 999px); background: var(--chip-bg); color: var(--chip-text, var(--text)); border: var(--chip-border, none); }
+  .chip.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  .divider { height: 1px; background: var(--line); margin: 8px 0; }
+  .pill { height: 7px; border-radius: 4px; background: var(--track-bg); overflow: hidden; margin-top: 4px; }
+  .pill > i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+  .tabbar { flex: none; height: 46px; display: flex; align-items: center; justify-content: space-around; background: var(--card); border-top: 1px solid var(--line); padding: 0 4px; }
+  .tab { font-size: 8.5px; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--muted); flex: 1; }
+  .tab .dot { width: 17px; height: 17px; border-radius: 6px; background: currentColor; opacity: .5; }
+  .tab.active { color: var(--accent); }
+  .tab.active .dot { opacity: 1; }
+  .avatar { width: 34px; height: 34px; border-radius: var(--avatar-radius, 50%); background: var(--accent); flex: none; display: grid; place-items: center; color: var(--on-accent); font-weight: 700; font-size: 13px; }
+  .field { background: var(--field-bg, rgba(127,127,127,.12)); border: var(--field-border, 1px solid var(--line)); border-radius: 10px; padding: 8px 10px; font-size: 11.5px; color: var(--text); }
+  .setrow { display: grid; grid-template-columns: 20px 1fr 1fr 1fr; gap: 6px; align-items: center; font-size: 11px; }
+  .setrow .k { color: var(--muted); }
+  .ring { position: relative; display: grid; place-items: center; flex: none; }
+  .ring svg { transform: rotate(-90deg); }
+  .glogo { width: 18px; height: 18px; flex: none; }
+  .spinner { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--track-bg); border-top-color: var(--accent); animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- Structural helpers (usability variants) ---------- */
+  .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .kpi3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .tile { display: flex; flex-direction: column; gap: 2px; }
+  .bento { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--gap, 10px); }
+  .bento .span2 { grid-column: 1 / -1; }
+  .tile-b { display: flex; flex-direction: column; gap: 3px; justify-content: center; }
+  .listgroup { background: var(--card); border: var(--card-border, none); border-radius: var(--radius); box-shadow: var(--shadow, none); backdrop-filter: var(--card-blur, none); overflow: hidden; }
+  .li { display: flex; align-items: center; gap: 11px; padding: 11px 13px; }
+  .li + .li { border-top: 1px solid var(--line); }
+  .li .lead { width: 9px; height: 9px; border-radius: 3px; background: var(--accent); flex: none; }
+  .li .ltext { display: flex; flex-direction: column; min-width: 0; }
+  .li .trail { margin-left: auto; color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .li .chev { color: var(--muted); font-size: 14px; }
+  .lg-title { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 4px 2px 4px; }
+  .seg { display: flex; background: var(--track-bg); border-radius: 999px; padding: 3px; gap: 2px; }
+  .seg > span { flex: 1; text-align: center; font-size: 10px; font-weight: 600; padding: 6px 4px; border-radius: 999px; color: var(--muted); }
+  .seg > span.on { background: var(--card); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .gaugewrap { display: flex; gap: 10px; justify-content: space-around; align-items: center; }
+  .hero-focus { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; }
+  .giant { font-size: 46px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: var(--text); }
+
+  .footer-note { padding: 18px 20px 50px; color: var(--page-muted); font-size: 12px; max-width: 900px; }
+</style>
+</head>
+<body>
+<div class="page-head">
+  <h1>Gunsout: Composite Design across Color Styles</h1>
+  <p>The same composite usability design (Bento base, Diet as gauges, Today / Body / Settings as cards) rendered in each of the 6 color styles. Toggle rows to compare; horizontal scroll is synced so every style lines up screen-for-screen.</p>
+  <div class="toggle-grid" id="toggleGrid"></div>
+  <div class="head-actions">
+    <button id="showAll">Show all</button>
+    <button id="hideAll">Hide all</button>
+  </div>
+</div>
+<div class="rows" id="rows"></div>
+<div class="footer-note">Static mockup. Vanilla HTML/CSS/JS, no build step. The composite usability layout is defined once; each row paints it in a different color style (palette, gradient, shading, corner and shadow language) applied via CSS custom properties.</div>
+
+<script>
+const GOOGLE_G = `<svg class="glogo" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.2 13.6 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.2 5.4-4.7 7l7.2 5.6c4.2-3.9 6.6-9.6 6.6-17.1z"/><path fill="#FBBC05" d="M10.4 19.3l-7.8-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.8l7.8-6.1C9.9 27 9.5 25.6 9.5 24s.4-3 1-4.7z"/><path fill="#34A853" d="M24 48c6.2 0 11.5-2 15.3-5.5l-7.2-5.6c-2 1.4-4.7 2.3-8.1 2.3-6.4 0-11.8-4.1-13.6-9.8l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>`;
+
+/* ===== small builders ===== */
+function statusbar() { return `<div class="statusbar"><span>9:41</span><span>Gunsout</span><span>100%</span></div>`; }
+function tabbar(active) {
+  const tabs = ['Today', 'Programs', 'Diet', 'Body', 'Settings'];
+  return `<div class="tabbar">${tabs.map(t => `<div class="tab ${t === active ? 'active' : ''}"><span class="dot"></span>${t}</div>`).join('')}</div>`;
+}
+function prog(pct) { return `<div class="pill"><i style="width:${pct}%"></i></div>`; }
+function lineChart(h) {
+  return `<svg width="100%" height="${h}" viewBox="0 0 240 ${h}" preserveAspectRatio="none"><polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="0,${h*0.3} 40,${h*0.4} 80,${h*0.36} 120,${h*0.55} 160,${h*0.62} 200,${h*0.78} 240,${h*0.86}"/><line x1="0" y1="${h*0.9}" x2="240" y2="${h*0.85}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 4" opacity=".5"/></svg>`;
+}
+function ring(pct, size, center, sub) {
+  const r = size/2 - 9, c = 2*Math.PI*r, off = c*(1-pct/100);
+  return `<div class="ring" style="width:${size}px;height:${size}px;"><svg width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--track-bg)" stroke-width="9"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--accent)" stroke-width="9" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/></svg><div style="position:absolute;text-align:center;"><div class="big" style="font-size:${Math.round(size*0.2)}px;">${center}</div>${sub?`<div class="sub" style="font-size:9px;">${sub}</div>`:''}</div></div>`;
+}
+function tableInner(b) {
+  return `<div class="setrow k"><span></span>` + b.cols.slice(1).map(c => `<span>${c}</span>`).join('') + `</div>` +
+    b.rows.map(r => `<div style="height:6px"></div><div class="setrow"><span class="k">${r[0]}</span>` + r.slice(1).map(v => `<span class="field" style="text-align:center;">${v}</span>`).join('') + `</div>`).join('');
+}
+const isPositiveTrail = (t) => /✓|Active|Taken/.test(t);
+function firstAction(p) { const a = p.blocks.find(b => b.t === 'actions'); if (!a) return null; const pr = a.items.find(i => i.primary); return (pr || a.items[0]).text; }
+
+/* ===== Generic "card" block renderer (used by Comfortable Cards, and as fallback) ===== */
+function GB(b) {
+  switch (b.t) {
+    case 'title': return `<div class="h1">${b.text}</div>`;
+    case 'hero': return `<div class="card accent"><div class="row"><span class="label">${b.label||''}</span>${b.chip?`<span class="chip on">${b.chip}</span>`:''}</div><div class="row" style="align-items:baseline;justify-content:flex-start;gap:8px;margin:6px 0 2px;"><span class="big">${b.value}</span>${b.unit?`<span class="muted" style="font-size:13px;">${b.unit}</span>`:''}</div>${b.sub?`<div class="sub">${b.sub}</div>`:''}${b.pct!=null?prog(b.pct):''}${b.action?`<div style="height:10px"></div><div class="btn">${b.action}</div>`:''}</div>`;
+    case 'metrics': return `<div class="card"><div class="${b.items.length>=3?'kpi3':'kpis'}">` + b.items.map(m => `<div class="col" style="gap:2px;"><span class="label">${m.label}</span><span class="big" style="font-size:17px;">${m.value}</span>${m.sub?`<span class="sub">${m.sub}</span>`:''}${m.pct!=null?prog(m.pct):''}</div>`).join('') + `</div></div>`;
+    case 'chips': return `<div class="row" style="gap:6px;flex-wrap:wrap;justify-content:flex-start;">` + b.items.map((c,i) => `<span class="chip ${i===(b.active??-1)?'on':''}">${c}</span>`).join('') + `</div>`;
+    case 'list': return `<div class="card">${b.title?`<span class="label">${b.title}</span>`:''}` + b.rows.map((r,i) => `${(i>0||b.title)?`<div class="divider"></div>`:''}<div class="row"><div class="col" style="min-width:0;"><span style="font-weight:600;">${r.title}</span>${r.sub?`<span class="sub">${r.sub}</span>`:''}</div>${r.trail?`<span class="${isPositiveTrail(r.trail)?'chip on':'muted'}" style="white-space:nowrap;">${r.trail}</span>`:''}</div>`).join('') + (b.action?`<div style="height:9px"></div><span class="chip">${b.action}</span>`:'') + `</div>`;
+    case 'table': return `<div class="card">${tableInner(b)}</div>`;
+    case 'chart': return `<div class="card"><span class="label">${b.caption||''}</span>${lineChart(72)}</div>`;
+    case 'fields': return `<div class="card">` + b.items.map((f,i) => `${i>0?'<div class="divider"></div>':''}<div class="row"><span class="muted">${f.label}</span><span>${f.value}</span></div>`).join('') + `</div>`;
+    case 'textarea': return `<div class="field" style="min-height:54px;align-items:flex-start;">${b.text}</div>`;
+    case 'note': return `<div class="card accent" style="padding:11px;"><div style="font-size:12px;">${b.text}</div></div>`;
+    case 'actions': return `<div class="row" style="gap:8px;">` + b.items.map(a => `<div class="btn ${a.primary?'':'ghost'}" style="${b.items.length>1?'width:50%;':''}">${a.text}</div>`).join('') + `</div>`;
+    default: return '';
+  }
+}
+const renderCards = (p) => p.blocks.map(GB).join('');
+
+/* ===== Dense Dashboard ===== */
+function denseHero(b) {
+  return `<div class="card" style="padding:11px;"><div class="row"><div class="col" style="min-width:0;"><span class="label">${b.label||''}</span><div class="row" style="align-items:baseline;justify-content:flex-start;gap:6px;"><span class="big" style="font-size:19px;">${b.value}</span>${b.unit?`<span class="muted" style="font-size:11px;">${b.unit}</span>`:''}</div>${b.sub?`<span class="sub">${b.sub}</span>`:''}</div>${b.action?`<div class="btn" style="width:auto;padding:8px 12px;font-size:12px;">${b.action}</div>`:b.chip?`<span class="chip on">${b.chip}</span>`:''}</div>${b.pct!=null?prog(b.pct):''}</div>`;
+}
+function renderDense(p) {
+  return p.blocks.map(b => {
+    if (b.t === 'hero') return denseHero(b);
+    if (b.t === 'metrics') return `<div class="kpis">` + b.items.map(m => `<div class="card tile"><span class="label">${m.label}</span><span class="big" style="font-size:16px;">${m.value}</span>${m.sub?`<span class="sub">${m.sub}</span>`:''}${m.pct!=null?prog(m.pct):''}</div>`).join('') + `</div>`;
+    return GB(b);
+  }).join('');
+}
+
+/* ===== Focus Mode ===== */
+function renderFocus(p) {
+  const heroBlock = p.blocks.find(b => b.t === 'hero');
+  const hero = heroBlock || p.focus || { label: p.name, value: p.name };
+  const act = hero.action || firstAction(p) || 'Continue';
+  const hidden = p.blocks.filter(b => b.t !== 'title' && b !== heroBlock).length;
+  return `<div class="hero-focus">
+    <span class="label">${hero.label||''}</span>
+    <div class="giant">${hero.value}${hero.unit?`<span class="muted" style="font-size:18px;"> ${hero.unit}</span>`:''}</div>
+    ${hero.sub?`<div class="sub">${hero.sub}</div>`:''}
+    ${hero.pct!=null?`<div style="width:78%;">${prog(hero.pct)}</div>`:''}
+    <div class="btn" style="font-size:15px;padding:15px 18px;width:auto;min-width:72%;">${act}</div>
+    ${hidden>0?`<span class="sub" style="opacity:.75;">+ ${hidden} more ${hidden===1?'section':'sections'} below</span>`:''}
+  </div>`;
+}
+
+/* ===== Compact List ===== */
+function renderList(p) {
+  return p.blocks.map(b => {
+    if (b.t === 'title') return `<div class="h1">${b.text}</div>`;
+    if (b.t === 'hero') return `<div class="col" style="gap:3px;"><span class="label">${b.label||''}</span><div class="row" style="align-items:baseline;justify-content:flex-start;gap:8px;"><span class="big">${b.value}</span>${b.unit?`<span class="muted" style="font-size:12px;">${b.unit}</span>`:''}${b.chip?`<span class="chip on">${b.chip}</span>`:''}</div>${b.sub?`<span class="sub">${b.sub}</span>`:''}${b.pct!=null?`<div style="margin-top:4px;">${prog(b.pct)}</div>`:''}${b.action?`<div style="height:6px"></div><div class="btn">${b.action}</div>`:''}</div>`;
+    if (b.t === 'metrics') return `<div class="listgroup">` + b.items.map(m => `<div class="li"><div class="ltext"><span>${m.label}</span>${m.sub?`<span class="sub">${m.sub}</span>`:''}</div><span class="trail">${m.value}</span></div>`).join('') + `</div>`;
+    if (b.t === 'chips') return `<div class="seg">` + b.items.map((c,i) => `<span class="${i===(b.active??-1)?'on':''}">${c}</span>`).join('') + `</div>`;
+    if (b.t === 'list') return `${b.title?`<div class="lg-title">${b.title}</div>`:''}<div class="listgroup">` + b.rows.map(r => `<div class="li"><span class="lead"></span><div class="ltext"><span>${r.title}</span>${r.sub?`<span class="sub">${r.sub}</span>`:''}</div><span class="trail">${r.trail||''}<span class="chev">›</span></span></div>`).join('') + `</div>` + (b.action?`<div style="margin-top:6px;"><span class="chip">${b.action}</span></div>`:'');
+    if (b.t === 'table') return `<div class="listgroup">` + b.rows.map(r => `<div class="li"><span class="lead"></span><div class="ltext"><span>Set ${r[0]}</span></div><span class="trail">${r[1]} kg × ${r[2]} @ ${r[3]}</span></div>`).join('') + `</div>`;
+    if (b.t === 'fields') return `<div class="listgroup">` + b.items.map(f => `<div class="li"><div class="ltext"><span class="sub">${f.label}</span><span>${f.value}</span></div><span class="trail"><span class="chev">›</span></span></div>`).join('') + `</div>`;
+    if (b.t === 'textarea') return `<div class="listgroup"><div class="li"><div class="ltext"><span class="sub">Form notes</span><span>${b.text}</span></div></div></div>`;
+    if (b.t === 'chart') return `<div class="card"><span class="label">${b.caption||''}</span>${lineChart(72)}</div>`;
+    if (b.t === 'note') return `<div class="card accent" style="padding:11px;"><div style="font-size:12px;">${b.text}</div></div>`;
+    if (b.t === 'actions') return `<div class="row" style="gap:8px;">` + b.items.map(a => `<div class="btn ${a.primary?'':'ghost'}" style="${b.items.length>1?'width:50%;':''}">${a.text}</div>`).join('') + `</div>`;
+    return '';
+  }).join('');
+}
+
+/* ===== Bento Grid ===== */
+function renderBento(p) {
+  let out = '', tiles = [];
+  const flush = () => { if (tiles.length) { out += `<div class="bento">${tiles.join('')}</div>`; tiles = []; } };
+  for (const b of p.blocks) {
+    if (b.t === 'title') { flush(); out += `<div class="h1">${b.text}</div>`; continue; }
+    if (b.t === 'actions') { flush(); out += `<div class="row" style="gap:8px;">` + b.items.map(a => `<div class="btn ${a.primary?'':'ghost'}" style="${b.items.length>1?'width:50%;':''}">${a.text}</div>`).join('') + `</div>`; continue; }
+    if (b.t === 'hero') { tiles.push(`<div class="card accent span2 tile-b"><span class="label">${b.label||''}</span><div class="row" style="align-items:baseline;justify-content:flex-start;gap:8px;"><span class="big">${b.value}</span>${b.unit?`<span class="muted" style="font-size:12px;">${b.unit}</span>`:''}${b.chip?`<span class="chip on" style="margin-left:auto;">${b.chip}</span>`:''}</div>${b.sub?`<span class="sub">${b.sub}</span>`:''}${b.pct!=null?prog(b.pct):''}${b.action?`<div class="btn" style="margin-top:8px;">${b.action}</div>`:''}</div>`); continue; }
+    if (b.t === 'metrics') { b.items.forEach((m,i) => tiles.push(`<div class="card tile-b ${(b.items.length%2!==0 && i===0)?'span2':''}"><span class="label">${m.label}</span><span class="big" style="font-size:19px;">${m.value}</span>${m.sub?`<span class="sub">${m.sub}</span>`:''}${m.pct!=null?prog(m.pct):''}</div>`)); continue; }
+    if (b.t === 'chips') { tiles.push(`<div class="card span2 tile-b"><div class="row" style="gap:6px;flex-wrap:wrap;justify-content:flex-start;">` + b.items.map((c,i) => `<span class="chip ${i===(b.active??-1)?'on':''}">${c}</span>`).join('') + `</div></div>`); continue; }
+    if (b.t === 'list') { tiles.push(`<div class="card span2 tile-b">${b.title?`<span class="label">${b.title}</span>`:''}` + b.rows.map((r,i) => `${(i>0||b.title)?`<div class="divider"></div>`:''}<div class="row"><div class="col" style="min-width:0;"><span style="font-weight:600;">${r.title}</span>${r.sub?`<span class="sub">${r.sub}</span>`:''}</div>${r.trail?`<span class="${isPositiveTrail(r.trail)?'chip on':'muted'}" style="white-space:nowrap;">${r.trail}</span>`:''}</div>`).join('') + (b.action?`<div style="height:8px"></div><span class="chip">${b.action}</span>`:'') + `</div>`); continue; }
+    if (b.t === 'chart') { tiles.push(`<div class="card span2 tile-b"><span class="label">${b.caption||''}</span>${lineChart(80)}</div>`); continue; }
+    if (b.t === 'table') { tiles.push(`<div class="card span2 tile-b">${tableInner(b)}</div>`); continue; }
+    if (b.t === 'fields') { b.items.forEach(f => tiles.push(`<div class="card tile-b"><span class="label">${f.label}</span><span style="font-size:13px;">${f.value}</span></div>`)); continue; }
+    if (b.t === 'textarea') { tiles.push(`<div class="card span2 tile-b"><span class="label">Form notes</span><span class="sub">${b.text}</span></div>`); continue; }
+    if (b.t === 'note') { tiles.push(`<div class="card accent span2 tile-b" style="font-size:12px;">${b.text}</div>`); continue; }
+  }
+  flush();
+  return out;
+}
+
+/* ===== Glance Gauges ===== */
+function renderGlance(p) {
+  return p.blocks.map(b => {
+    if (b.t === 'title') return `<div class="h1">${b.text}</div>`;
+    if (b.t === 'hero') {
+      if (b.pct != null) return `<div class="card accent" style="display:flex;flex-direction:column;align-items:center;gap:8px;"><span class="label">${b.label||''}</span>${ring(b.pct,128,b.value,b.unit||'')}${b.action?`<div class="btn">${b.action}</div>`:''}</div>`;
+      return `<div class="card accent" style="text-align:center;"><span class="label">${b.label||''}</span><div class="giant" style="font-size:40px;margin:6px 0;">${b.value}${b.unit?`<span class="muted" style="font-size:16px;"> ${b.unit}</span>`:''}</div>${b.sub?`<div class="sub">${b.sub}</div>`:''}${b.chip?`<div style="margin-top:6px;"><span class="chip on">${b.chip}</span></div>`:''}${b.action?`<div style="height:8px"></div><div class="btn">${b.action}</div>`:''}</div>`;
+    }
+    if (b.t === 'metrics') {
+      const hasPct = b.items.some(m => m.pct != null);
+      if (hasPct) return `<div class="card"><div class="gaugewrap">` + b.items.map(m => `<div class="col" style="align-items:center;gap:5px;">${ring(m.pct,66,m.value,'')}<span class="label">${m.label}</span></div>`).join('') + `</div></div>`;
+      return `<div class="card"><div class="gaugewrap">` + b.items.map(m => `<div class="col" style="align-items:center;"><span class="big" style="font-size:24px;">${m.value}</span><span class="label">${m.label}</span></div>`).join('') + `</div></div>`;
+    }
+    if (b.t === 'chips') return `<div class="seg">` + b.items.map((c,i) => `<span class="${i===(b.active??-1)?'on':''}">${c}</span>`).join('') + `</div>`;
+    if (b.t === 'chart') return `<div class="card"><span class="label">${b.caption||''}</span>${lineChart(110)}</div>`;
+    return GB(b);
+  }).join('');
+}
+
+/* ===== themes ===== */
+const RENDER = { cards: renderCards, dense: renderDense, focus: renderFocus, list: renderList, bento: renderBento, glance: renderGlance };
+
+/* Per-screen usability layout for the composite design (constant across every color style). */
+const COMPOSITE = { Today: 'cards', Diet: 'glance', Body: 'cards', Settings: 'cards' };
+function effectiveTheme(themeId, pageName) {
+  if (themeId !== 'composite') return themeId;
+  return COMPOSITE[pageName] || 'bento';
+}
+
+/* The 6 color styles. Every row renders the same composite usability design in this palette. */
+const STYLES = [
+  { name: 'Gunmetal Crimson', desc: 'Polished dark steel, sharp corners, crimson edge', vars: {
+    '--bg': 'linear-gradient(180deg,#1a1c20,#141519)',
+    '--text': '#e5e7eb', '--muted': '#9ca3af', '--accent': '#dc2626', '--on-accent': '#fff',
+    '--card': '#23262c', '--accent-card': 'linear-gradient(135deg,#2a1416,#23262c)',
+    '--line': '#34373f', '--radius': '12px', '--btn-radius': '10px',
+    '--card-border': '1px solid #2e323a', '--head-weight': '800', '--head-ls': '-0.03em',
+    '--chip-bg': '#2d3138', '--chip-text': '#e5e7eb', '--track-bg': '#34373f',
+    '--btn-shadow': '0 4px 14px rgba(220,38,38,.35)',
+  } },
+  { name: 'Clean Light Minimal', desc: 'Airy white, indigo accent, soft hairlines', vars: {
+    '--bg': '#f6f7f9', '--text': '#111827', '--muted': '#6b7280', '--accent': '#4f46e5', '--on-accent': '#fff',
+    '--card': '#ffffff', '--accent-card': '#ffffff', '--line': '#eceef1',
+    '--radius': '18px', '--btn-radius': '14px',
+    '--card-border': '1px solid #eceef1', '--shadow': '0 1px 3px rgba(16,24,40,.06)',
+    '--chip-bg': '#eef0fb', '--chip-text': '#4f46e5', '--track-bg': '#eceef1', '--gbtn-bg': '#fff',
+  } },
+  { name: 'Neo-Brutalist', desc: 'Hard borders, offset shadows, max contrast', vars: {
+    '--bg': '#fef9e7', '--text': '#0a0a0a', '--muted': '#52525b', '--accent': '#ef4444', '--on-accent': '#fff',
+    '--card': '#ffffff', '--accent-card': '#fde047', '--line': '#0a0a0a',
+    '--radius': '4px', '--btn-radius': '4px',
+    '--card-border': '2.5px solid #0a0a0a', '--shadow': '4px 4px 0 #0a0a0a',
+    '--chip-bg': '#fff', '--chip-border': '2px solid #0a0a0a', '--chip-radius': '4px',
+    '--chip-text': '#0a0a0a', '--track-bg': '#e4e4e7', '--btn-shadow': '4px 4px 0 #0a0a0a',
+    '--field-border': '2px solid #0a0a0a', '--field-bg': '#fff',
+    '--head-weight': '800', '--head-ls': '-0.04em', '--avatar-radius': '4px', '--logo-radius': '6px',
+  } },
+  { name: 'Glassmorphism', desc: 'Frosted translucent cards on aurora blur', vars: {
+    '--bg': 'radial-gradient(120% 80% at 10% 0%,#0ea5e9 0%,#0b1437 45%,#020617 100%)',
+    '--text': '#f0f9ff', '--muted': 'rgba(224,242,254,.65)', '--accent': '#22d3ee', '--on-accent': '#04222b',
+    '--card': 'rgba(255,255,255,.08)', '--accent-card': 'rgba(34,211,238,.14)',
+    '--line': 'rgba(255,255,255,.14)', '--radius': '20px', '--btn-radius': '16px',
+    '--card-border': '1px solid rgba(255,255,255,.16)', '--card-blur': 'blur(14px)',
+    '--shadow': '0 8px 30px rgba(0,0,0,.35)',
+    '--chip-bg': 'rgba(255,255,255,.12)', '--chip-text': '#f0f9ff', '--track-bg': 'rgba(255,255,255,.18)',
+    '--btn-shadow': '0 8px 24px rgba(34,211,238,.35)', '--gbtn-bg': 'rgba(255,255,255,.92)',
+  } },
+  { name: 'Soft Pastel', desc: 'Friendly, rounded, calm mint & peach', vars: {
+    '--bg': 'linear-gradient(180deg,#fff7f3,#f0fdfa)',
+    '--text': '#334155', '--muted': '#94a3b8', '--accent': '#14b8a6', '--on-accent': '#fff',
+    '--card': '#ffffff', '--accent-card': 'linear-gradient(135deg,#ccfbf1,#fde4d8)',
+    '--line': '#eef2f5', '--radius': '24px', '--btn-radius': '20px',
+    '--shadow': '0 6px 18px rgba(148,163,184,.18)',
+    '--chip-bg': '#e6fbf6', '--chip-text': '#0f766e', '--track-bg': '#e2e8f0',
+    '--head-weight': '700', '--gbtn-bg': '#fff', '--logo-radius': '24px',
+  } },
+  { name: 'Vibrant Gradient', desc: 'Purple to pink energy, glassy cards, rounded', vars: {
+    '--bg': 'linear-gradient(160deg,#2b1055 0%,#7b2ff7 55%,#f72585 120%)',
+    '--text': '#fdf4ff', '--muted': 'rgba(253,244,255,.7)', '--accent': '#ff4d97', '--on-accent': '#fff',
+    '--card': 'rgba(255,255,255,.12)', '--accent-card': 'rgba(255,255,255,.18)',
+    '--line': 'rgba(255,255,255,.2)', '--radius': '22px', '--btn-radius': '18px',
+    '--card-border': '1px solid rgba(255,255,255,.18)', '--card-blur': 'blur(8px)',
+    '--chip-bg': 'rgba(255,255,255,.16)', '--chip-text': '#fdf4ff', '--track-bg': 'rgba(255,255,255,.22)',
+    '--btn-shadow': '0 8px 22px rgba(247,37,133,.4)', '--gbtn-bg': '#fff',
+  } },
+];
+function varString(vars) { return Object.entries(vars).map(([k, v]) => `${k}:${v}`).join(';'); }
+
+/* ===== centered (Login / Setup) ===== */
+function centeredInner(themeId, c) {
+  const big = themeId === 'focus';
+  let html = `<div class="avatar" style="width:${big?72:58}px;height:${big?72:58}px;border-radius:var(--logo-radius,24px);font-size:${big?30:23}px;">${c.logo}</div><div class="h1" style="font-size:${big?28:23}px;">${c.title}</div>`;
+  if (c.spinner) html += `<div class="spinner"></div>`;
+  if (c.sub) html += `<div class="sub">${c.sub}</div>`;
+  if (c.google) html += `<div style="width:100%;display:flex;flex-direction:column;gap:10px;margin-top:6px;"><div class="card" style="display:flex;align-items:center;justify-content:center;gap:10px;background:var(--gbtn-bg);color:#202124;font-weight:600;font-size:13px;border-radius:var(--btn-radius);">${GOOGLE_G}<span>Sign in with Google</span></div><div class="sub" style="font-size:10px;">Private, offline, per Google account.</div></div>`;
+  return html;
+}
+
+function renderScreen(themeId, p) {
+  const eff = effectiveTheme(themeId, p.name);
+  if (p.kind === 'centered') {
+    return `<div class="scr-body t-${eff}" style="justify-content:center;align-items:center;text-align:center;gap:16px;">${centeredInner(eff, p.centered)}</div>`;
+  }
+  const inner = RENDER[eff](p);
+  const bottom = p.tab ? tabbar(p.tab) : '';
+  return `${statusbar()}<div class="scr-body t-${eff}">${inner}</div>${bottom}`;
+}
+
+/* ===== page content (defined once) ===== */
+const PAGES = {
+  Login: { name: 'Login', kind: 'centered', centered: { logo: 'G', title: 'Gunsout', sub: 'Train. Eat. Track. Yours alone.', google: true } },
+  Setup: { name: 'Setup', kind: 'centered', centered: { logo: 'G', title: 'Gunsout', spinner: true, sub: 'Setting up your account...' } },
+
+  Today: { name: 'Today', kind: 'tab', tab: 'Today', blocks: [
+    { t: 'title', text: 'Today' },
+    { t: 'hero', label: 'Next up', value: 'Upper A', sub: 'Bench · Row · Pull-ups · OHP · 6 exercises', chip: 'On schedule', action: 'Start Upper A' },
+    { t: 'chips', items: ['Pick a day', 'Mark rest', 'Skip next'], active: -1 },
+    { t: 'metrics', items: [{ label: 'Streak', value: '12', sub: 'this month' }, { label: 'This week', value: '3', sub: 'sessions' }, { label: 'Volume', value: '18.2t', sub: 'last' }] },
+    { t: 'list', title: 'Recent', rows: [{ title: 'Lower B', sub: '2 days ago', trail: 'Open' }, { title: 'Upper B', sub: '4 days ago', trail: 'Open' }] },
+  ] },
+
+  Session: { name: 'Session', kind: 'plain', blocks: [
+    { t: 'hero', label: 'Upper A · Exercise 2/6', value: 'Barbell Row', sub: 'prev 60 kg × 8', chip: 'REST 1:24' },
+    { t: 'table', cols: ['', 'KG', 'REPS', 'RPE'], rows: [['1', '62.5', '8', '7'], ['2', '62.5', '8', '8'], ['3', '·', '·', '·']] },
+    { t: 'note', text: 'Hit target last week, try +2.5 kg on set 3.' },
+    { t: 'actions', items: [{ text: 'Swap' }, { text: 'Log set', primary: true }] },
+  ] },
+
+  Programs: { name: 'Programs', kind: 'tab', tab: 'Programs', focus: { label: 'Active program', value: 'Upper / Lower', sub: '4-day split', action: 'Open builder' }, blocks: [
+    { t: 'title', text: 'Programs' },
+    { t: 'list', rows: [
+      { title: 'Upper / Lower 4-day', sub: 'Upper A · Lower A · Upper B · Lower B', trail: 'Active' },
+      { title: 'Push Pull Legs', sub: '6-day hypertrophy', trail: 'Activate' },
+      { title: 'Full Body 3-day', sub: 'Minimalist', trail: 'Activate' },
+    ] },
+    { t: 'actions', items: [{ text: '+ New program', primary: true }] },
+  ] },
+
+  'Program Edit': { name: 'Program Edit', kind: 'plain', blocks: [
+    { t: 'hero', label: '‹ Programs', value: 'Upper / Lower 4-day', chip: 'Active' },
+    { t: 'list', title: 'Upper A', rows: [{ title: 'Bench Press', trail: '3 × 8' }, { title: 'Barbell Row', trail: '3 × 8' }, { title: 'Pull-ups', trail: '5 × 2-3' }, { title: 'Overhead Press', trail: '3 × 10' }], action: '+ Add exercise' },
+    { t: 'list', title: 'Lower A', rows: [{ title: 'Back Squat', trail: '4 × 6' }, { title: 'Romanian Deadlift', trail: '3 × 8' }] },
+    { t: 'actions', items: [{ text: '+ Add day' }] },
+  ] },
+
+  Diet: { name: 'Diet', kind: 'tab', tab: 'Diet', blocks: [
+    { t: 'title', text: 'Diet' },
+    { t: 'hero', label: 'Calories', value: '1680', unit: '/ 2400 kcal', pct: 70 },
+    { t: 'metrics', items: [{ label: 'Protein', value: '112', sub: '/160 g', pct: 70 }, { label: 'Carbs', value: '150', sub: '/240 g', pct: 62 }, { label: 'Fat', value: '48', sub: '/70 g', pct: 68 }] },
+    { t: 'list', title: 'Today', rows: [{ title: 'Creatine 5g', sub: 'supplement', trail: 'Taken ✓' }, { title: 'Burger', sub: '30P · 40C · 25F', trail: '500' }, { title: 'Protein shake', sub: '40P · 8C · 3F', trail: '230' }] },
+    { t: 'actions', items: [{ text: '+ Add meal', primary: true }] },
+  ] },
+
+  Body: { name: 'Body', kind: 'tab', tab: 'Body', blocks: [
+    { t: 'title', text: 'Body' },
+    { t: 'hero', label: 'Latest weight', value: '94.2', unit: 'kg', sub: '▼ 0.6 this week' },
+    { t: 'chart', caption: '14-day trend · goal 80 kg' },
+    { t: 'chips', items: ['Weight', 'Body fat', 'Muscle', 'Water'], active: 0 },
+    { t: 'metrics', items: [{ label: 'Body fat', value: '22.4%' }, { label: 'Muscle', value: '38.1' }, { label: 'Water', value: '54%' }] },
+    { t: 'actions', items: [{ text: 'Log today', primary: true }] },
+  ] },
+
+  History: { name: 'History', kind: 'plain', focus: { label: 'Latest session', value: 'Upper A', sub: 'Today · knee 5/5', action: 'Open' }, blocks: [
+    { t: 'title', text: 'Session history' },
+    { t: 'list', rows: [
+      { title: 'Upper A', sub: 'Today', trail: '5/5' },
+      { title: 'Lower B', sub: '2 days ago', trail: '4/5' },
+      { title: 'Upper B', sub: '4 days ago', trail: '5/5' },
+      { title: 'Lower A', sub: '6 days ago', trail: '3/5' },
+      { title: 'Upper A', sub: '8 days ago', trail: '4/5' },
+    ] },
+  ] },
+
+  'History Detail': { name: 'History Detail', kind: 'plain', blocks: [
+    { t: 'hero', label: '‹ History', value: 'Upper A', sub: 'Mar 14 · knee feel 5/5' },
+    { t: 'list', title: 'Bench Press', rows: [{ title: 'Set 1', trail: '62.5 × 8 @7' }, { title: 'Set 2', trail: '62.5 × 8 @8' }, { title: 'Set 3', trail: '62.5 × 7 @9' }] },
+    { t: 'list', title: 'Barbell Row', rows: [{ title: 'Set 1', trail: '60 × 8 @7' }, { title: 'Set 2', trail: '60 × 8 @8' }, { title: 'Set 3', trail: '60 × 8 @8' }] },
+  ] },
+
+  Library: { name: 'Library', kind: 'plain', focus: { label: 'Exercise library', value: '14 exercises', sub: 'across 6 muscle groups', action: 'Browse' }, blocks: [
+    { t: 'title', text: 'Exercises' },
+    { t: 'list', title: 'Chest', rows: [{ title: 'Bench Press', sub: 'Barbell', trail: 'Edit' }, { title: 'Incline DB Press', sub: 'Dumbbell', trail: 'Edit' }] },
+    { t: 'list', title: 'Back', rows: [{ title: 'Barbell Row', sub: 'Barbell', trail: 'Edit' }, { title: 'Pull-ups', sub: 'Bodyweight', trail: 'Edit' }] },
+    { t: 'actions', items: [{ text: '+ New exercise', primary: true }] },
+  ] },
+
+  'Exercise Edit': { name: 'Exercise Edit', kind: 'plain', blocks: [
+    { t: 'hero', label: '‹ Library', value: 'Edit exercise' },
+    { t: 'fields', items: [{ label: 'Name', value: 'Barbell Row' }, { label: 'Muscle', value: 'Back' }, { label: 'Equipment', value: 'Barbell' }, { label: 'Default rest', value: '120 s' }] },
+    { t: 'textarea', text: 'Brace, pull to lower ribs, control the eccentric.' },
+    { t: 'chart', caption: 'Top working-set weight' },
+    { t: 'actions', items: [{ text: 'Save', primary: true }] },
+  ] },
+
+  Settings: { name: 'Settings', kind: 'tab', tab: 'Settings', focus: { label: 'Signed in', value: 'Nicholas B.', sub: 'nick@gmail.com', action: 'Manage account' }, blocks: [
+    { t: 'title', text: 'Settings' },
+    { t: 'list', title: 'Account', rows: [{ title: 'Nicholas B.', sub: 'nick@gmail.com', trail: 'Sign out' }] },
+    { t: 'list', title: 'Profile', rows: [{ title: 'Goal', trail: 'Cut' }, { title: 'Weight → goal', trail: '94 → 80 kg' }, { title: 'Activity', trail: 'Moderate' }] },
+    { t: 'metrics', items: [{ label: 'kcal', value: '2400' }, { label: 'protein', value: '160' }, { label: 'fat', value: '70' }] },
+    { t: 'actions', items: [{ text: 'Export JSON' }, { text: 'Import' }] },
+  ] },
+};
+
+const PAGE_ORDER = ['Login', 'Setup', 'Today', 'Session', 'Programs', 'Program Edit', 'Diet', 'Body', 'History', 'History Detail', 'Library', 'Exercise Edit', 'Settings'];
+
+/* ===== build DOM ===== */
+const rowsEl = document.getElementById('rows');
+const toggleGrid = document.getElementById('toggleGrid');
+const tracks = [];
+
+STYLES.forEach((theme, i) => {
+  const lbl = document.createElement('label');
+  lbl.className = 'toggle';
+  lbl.innerHTML = `<input type="checkbox" checked data-row="${i}"><span class="num">${i + 1}</span><span>${theme.name}</span><span class="desc">${theme.desc}</span>`;
+  toggleGrid.appendChild(lbl);
+
+  const row = document.createElement('section');
+  row.className = 'style-row';
+  row.dataset.row = i;
+
+  const label = document.createElement('div');
+  label.className = 'row-label';
+  label.innerHTML = `<span class="idx">${i + 1}</span><span class="name">${theme.name}</span><span class="rdesc">${theme.desc}</span>`;
+  row.appendChild(label);
+
+  const track = document.createElement('div');
+  track.className = 'track';
+
+  PAGE_ORDER.forEach(pageName => {
+    const page = PAGES[pageName];
+    const wrap = document.createElement('div');
+    wrap.className = 'screen-wrap';
+    const phone = document.createElement('div');
+    phone.className = 'phone';
+    const scr = document.createElement('div');
+    scr.className = 'scr';
+    scr.style.cssText = varString(theme.vars);
+    scr.innerHTML = renderScreen('composite', page);
+    phone.appendChild(scr);
+    wrap.appendChild(phone);
+    const cap = document.createElement('div');
+    cap.className = 'screen-name';
+    cap.textContent = pageName;
+    wrap.appendChild(cap);
+    track.appendChild(wrap);
+  });
+
+  row.appendChild(track);
+  rowsEl.appendChild(row);
+  tracks.push(track);
+});
+
+/* synced horizontal scrolling */
+let syncing = false, lastScrollLeft = 0;
+tracks.forEach(track => {
+  track.addEventListener('scroll', () => {
+    if (syncing) return;
+    syncing = true;
+    lastScrollLeft = track.scrollLeft;
+    for (const other of tracks) if (other !== track) other.scrollLeft = lastScrollLeft;
+    requestAnimationFrame(() => { syncing = false; });
+  });
+});
+
+/* row visibility */
+function setRowVisible(i, visible) {
+  const row = rowsEl.querySelector(`.style-row[data-row="${i}"]`);
+  if (!row) return;
+  row.classList.toggle('hidden', !visible);
+  if (visible) requestAnimationFrame(() => { tracks[i].scrollLeft = lastScrollLeft; });
+}
+toggleGrid.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+  cb.addEventListener('change', () => setRowVisible(Number(cb.dataset.row), cb.checked));
+});
+document.getElementById('showAll').addEventListener('click', () => {
+  toggleGrid.querySelectorAll('input').forEach(cb => { cb.checked = true; setRowVisible(Number(cb.dataset.row), true); });
+});
+document.getElementById('hideAll').addEventListener('click', () => {
+  toggleGrid.querySelectorAll('input').forEach(cb => { cb.checked = false; setRowVisible(Number(cb.dataset.row), false); });
+});
+</script>
+</body>
+</html>
