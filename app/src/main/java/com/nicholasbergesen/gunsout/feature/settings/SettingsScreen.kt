@@ -1,20 +1,29 @@
 package com.nicholasbergesen.gunsout.feature.settings
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,6 +34,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -41,6 +51,8 @@ import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import com.nicholasbergesen.gunsout.domain.nutrition.MacroTarget
 import com.nicholasbergesen.gunsout.domain.nutrition.MacroTargetCalculator
+import com.nicholasbergesen.gunsout.ui.theme.ThemeStyle
+import com.nicholasbergesen.gunsout.ui.theme.backdropBrushFor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -155,6 +167,11 @@ class SettingsViewModel @Inject constructor(
         val userId = currentUserIdProvider.requireUserId()
         userPrefs.resetOverrides(userId)
     }
+
+    fun saveThemeStyle(style: ThemeStyle) = viewModelScope.launch {
+        val userId = currentUserIdProvider.requireUserId()
+        userPrefs.update(userId) { it.copy(themeStyle = style) }
+    }
 }
 
 @Composable
@@ -169,15 +186,19 @@ fun SettingsScreen(
     val authUser by vm.signedInUser.collectAsState()
     val scroll = rememberScrollState()
 
-    var currentWeight by remember(profile) { mutableStateOf(profile.currentBodyWeightKg.toString()) }
-    var goalWeight by remember(profile) { mutableStateOf(profile.goalBodyWeightKg.toString()) }
-    var heightCm by remember(profile) { mutableStateOf(profile.heightCm?.toString() ?: "") }
-    var age by remember(profile) { mutableStateOf(profile.age?.toString() ?: "") }
-    var sex by remember(profile) { mutableStateOf(profile.sex) }
-    var activityLevel by remember(profile) { mutableStateOf(profile.activityLevel) }
-    var goalType by remember(profile) { mutableStateOf(profile.goalType) }
-    var kneeInjury by remember(profile) { mutableStateOf(profile.kneeInjuryFlag) }
-    var baselineWeek by remember(profile) { mutableStateOf(profile.baselineWeekActive) }
+    var currentWeight by remember(profile.currentBodyWeightKg) {
+        mutableStateOf(profile.currentBodyWeightKg.toString())
+    }
+    var goalWeight by remember(profile.goalBodyWeightKg) {
+        mutableStateOf(profile.goalBodyWeightKg.toString())
+    }
+    var heightCm by remember(profile.heightCm) { mutableStateOf(profile.heightCm?.toString() ?: "") }
+    var age by remember(profile.age) { mutableStateOf(profile.age?.toString() ?: "") }
+    var sex by remember(profile.sex) { mutableStateOf(profile.sex) }
+    var activityLevel by remember(profile.activityLevel) { mutableStateOf(profile.activityLevel) }
+    var goalType by remember(profile.goalType) { mutableStateOf(profile.goalType) }
+    var kneeInjury by remember(profile.kneeInjuryFlag) { mutableStateOf(profile.kneeInjuryFlag) }
+    var baselineWeek by remember(profile.baselineWeekActive) { mutableStateOf(profile.baselineWeekActive) }
 
     var overrideKcal by remember(overrides) { mutableStateOf(overrides.kcal?.toString() ?: "") }
     var overrideProtein by remember(overrides) { mutableStateOf(overrides.proteinG?.toString() ?: "") }
@@ -209,6 +230,11 @@ fun SettingsScreen(
                 OutlinedButton(onClick = { confirmSignOut = true }) { Text("Sign out") }
             }
         }
+
+        AppearanceCard(
+            selectedStyle = profile.themeStyle,
+            onStyleSelected = vm::saveThemeStyle
+        )
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
@@ -444,6 +470,118 @@ fun SettingsScreen(
             },
             dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } }
         )
+    }
+}
+
+@Composable
+private fun AppearanceCard(
+    selectedStyle: ThemeStyle,
+    onStyleSelected: (ThemeStyle) -> Unit
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(
+            Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("Appearance", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Choose one visual style. Themes use fixed palettes rather than separate light and dark modes.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            ThemeStyle.values().forEach { style ->
+                ThemeStyleRow(
+                    style = style,
+                    selected = style == selectedStyle,
+                    onSelect = { onStyleSelected(style) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeStyleRow(
+    style: ThemeStyle,
+    selected: Boolean,
+    onSelect: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(onClick = onSelect),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(
+            width = if (selected) 2.dp else 1.dp,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ThemeSwatch(style = style)
+            Column(Modifier.weight(1f)) {
+                Text(style.displayName, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    style.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+            RadioButton(selected = selected, onClick = onSelect)
+        }
+    }
+}
+
+@Composable
+private fun ThemeSwatch(style: ThemeStyle) {
+    Box(
+        modifier = Modifier
+            .size(52.dp)
+            .clip(MaterialTheme.shapes.small)
+            .background(backdropBrushFor(style, androidx.compose.ui.geometry.Size(52f, 52f)))
+            .padding(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(style.swatchSurface)
+            )
+            Column(
+                modifier = Modifier.width(14.dp).fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.extraSmall)
+                        .background(style.swatchAccent)
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.extraSmall)
+                        .background(style.swatchBackgroundEnd)
+                )
+            }
+        }
     }
 }
 

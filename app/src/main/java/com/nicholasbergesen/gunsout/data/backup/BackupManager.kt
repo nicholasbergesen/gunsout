@@ -2,9 +2,12 @@ package com.nicholasbergesen.gunsout.data.backup
 
 import androidx.room.withTransaction
 import com.nicholasbergesen.gunsout.data.db.GunsoutDatabase
-import com.nicholasbergesen.gunsout.data.prefs.ThemeMode
+import com.nicholasbergesen.gunsout.data.prefs.ActivityLevel
+import com.nicholasbergesen.gunsout.data.prefs.GoalType
+import com.nicholasbergesen.gunsout.data.prefs.Sex
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
+import com.nicholasbergesen.gunsout.ui.theme.ThemeStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -21,7 +24,7 @@ class BackupManager @Inject constructor(
     // ignoreUnknownKeys lets legacy v1/v2 files import cleanly: their dropped fields
     // (mealPlans, ingredients, mealTemplateIngredients, macroSource, mealPlanId) are skipped
     // silently. Phase 4 will reintroduce dedicated legacy-only fields with id remapping.
-    private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
+    private val json = Json { ignoreUnknownKeys = true; prettyPrint = true; encodeDefaults = true }
 
     /**
      * Export everything for [userId] to a JSON envelope. Every query is user-scoped so other
@@ -32,7 +35,7 @@ class BackupManager @Inject constructor(
         val days = programs.flatMap { db.programDayDao().getForProgram(it.id) }.map { it.toBackup() }
         val exercises = db.exerciseDao().observeAll(userId).first().map { it.toBackup() }
 
-        // Full list of alternate links for this user, including the reason — lossless round-trip.
+        // Full list of alternate links for this user, including the reason, for lossless round-trip.
         val alternates = db.exerciseAlternateDao().getAll(userId).map { it.toBackup() }
 
         val programExercises = days.flatMap { day -> db.programExerciseDao().getForDay(day.id).map { it.toBackup() } }
@@ -64,7 +67,8 @@ class BackupManager @Inject constructor(
             goalType = profile.goalType.name,
             kneeInjuryFlag = profile.kneeInjuryFlag,
             baselineWeekActive = profile.baselineWeekActive,
-            themeMode = profile.themeMode.name,
+            themeMode = "SYSTEM",
+            themeStyle = profile.themeStyle.name,
             firstRunDone = profile.firstRunDone
         )
         val overrides = userPrefs.overrides(userId).first()
@@ -76,7 +80,7 @@ class BackupManager @Inject constructor(
         )
 
         val backup = GunsoutBackup(
-            schemaVersion = 3,
+            schemaVersion = 4,
             exportedAtIso = LocalDateTime.now().toString(),
             programs = programs,
             programDays = days,
@@ -110,13 +114,13 @@ class BackupManager @Inject constructor(
      * once the database stores multiple users' rows side by side.
      *
      * Accepts schemaVersion 1 (no userProfile), 2 (single-user profile, no macro overrides),
-     * and 3 (per-user profile fields plus macro overrides).
+     * 3 (per-user profile fields plus macro overrides), and 4 (themeStyle).
      */
     suspend fun importFromJson(userId: String, jsonText: String): ImportResult = withContext(Dispatchers.IO) {
         val parsed = runCatching { json.decodeFromString(GunsoutBackup.serializer(), jsonText) }
             .getOrElse { return@withContext ImportResult.Error(it.message ?: "Parse failed") }
 
-        if (parsed.schemaVersion !in 1..3) {
+        if (parsed.schemaVersion !in 1..4) {
             return@withContext ImportResult.Error("Unsupported backup schema v${parsed.schemaVersion}")
         }
 
@@ -168,7 +172,7 @@ class BackupManager @Inject constructor(
                 val altId = exerciseIdMap[b.alternateExerciseId]
                     ?: error("Backup references unknown alternate exercise id ${b.alternateExerciseId} from exercise_alternate")
                 // ExerciseAlternate has a composite PK (exerciseId, alternateExerciseId), no
-                // autogen — both FK fields must be the remapped values.
+                // autogen, so both FK fields must be the remapped values.
                 val entity = b.toEntity(userId).copy(exerciseId = exId, alternateExerciseId = altId)
                 db.exerciseAlternateDao().insert(entity)
             }
@@ -202,7 +206,7 @@ class BackupManager @Inject constructor(
             for (b in parsed.setEntries) {
                 val sessId = sessionIdMap[b.sessionId]
                     ?: error("Backup references unknown workout_session id ${b.sessionId} from set_entry ${b.id}")
-                // programExerciseId is nullable — null when the set is freeform (not tied to a
+                // programExerciseId is nullable, null when the set is freeform (not tied to a
                 // planned program exercise, e.g. an extra accessory set the user logged ad-hoc).
                 val peId = b.programExerciseId?.let { old ->
                     programExerciseIdMap[old]
@@ -212,7 +216,7 @@ class BackupManager @Inject constructor(
                 // set was recorded. Remap when the snapshot resolves to a known exercise; fall
                 // back to the literal old ID if the snapshot points at an exercise that's no
                 // longer in the backup (e.g. the user archived it before exporting). The literal
-                // ID will just be an inert number in that case — no FK on this column.
+                // ID will just be an inert number in that case because there is no FK on this column.
                 val exSnap = exerciseIdMap[b.exerciseIdSnapshot] ?: b.exerciseIdSnapshot
                 val entity = b.toEntity(userId).copy(
                     id = 0,
@@ -230,7 +234,7 @@ class BackupManager @Inject constructor(
             }
 
             for (b in parsed.foodEntries) {
-                // sourceTemplateId is nullable — null when the food entry was logged ad-hoc
+                // sourceTemplateId is nullable, null when the food entry was logged ad-hoc
                 // without picking a template. Preserve null, otherwise remap.
                 val tmplId = b.sourceTemplateId?.let { old ->
                     mealTemplateIdMap[old]
@@ -263,20 +267,7 @@ class BackupManager @Inject constructor(
         // signed in on the same device are unaffected.
         parsed.userProfile?.let { p ->
             userPrefs.update(userId) {
-                UserProfile(
-                    currentBodyWeightKg = p.currentBodyWeightKg,
-                    goalBodyWeightKg = p.goalBodyWeightKg,
-                    goalBodyFatPct = p.goalBodyFatPct,
-                    heightCm = p.heightCm,
-                    age = p.age,
-                    sex = p.sex?.let { runCatching { com.nicholasbergesen.gunsout.data.prefs.Sex.valueOf(it) }.getOrNull() },
-                    activityLevel = p.activityLevel?.let { runCatching { com.nicholasbergesen.gunsout.data.prefs.ActivityLevel.valueOf(it) }.getOrNull() } ?: com.nicholasbergesen.gunsout.data.prefs.ActivityLevel.MODERATE,
-                    goalType = p.goalType?.let { runCatching { com.nicholasbergesen.gunsout.data.prefs.GoalType.valueOf(it) }.getOrNull() } ?: com.nicholasbergesen.gunsout.data.prefs.GoalType.MAINTAIN,
-                    kneeInjuryFlag = p.kneeInjuryFlag,
-                    baselineWeekActive = p.baselineWeekActive,
-                    themeMode = runCatching { ThemeMode.valueOf(p.themeMode) }.getOrDefault(ThemeMode.SYSTEM),
-                    firstRunDone = p.firstRunDone
-                )
+                p.toUserProfile()
             }
         }
 
@@ -308,3 +299,19 @@ sealed class ImportResult {
     data class Success(val totalRows: Int) : ImportResult()
     data class Error(val message: String) : ImportResult()
 }
+
+internal fun UserProfileBackup.toUserProfile(): UserProfile = UserProfile(
+    currentBodyWeightKg = currentBodyWeightKg,
+    goalBodyWeightKg = goalBodyWeightKg,
+    goalBodyFatPct = goalBodyFatPct,
+    heightCm = heightCm,
+    age = age,
+    sex = sex?.let { runCatching { Sex.valueOf(it) }.getOrNull() },
+    activityLevel = activityLevel?.let { runCatching { ActivityLevel.valueOf(it) }.getOrNull() }
+        ?: ActivityLevel.MODERATE,
+    goalType = goalType?.let { runCatching { GoalType.valueOf(it) }.getOrNull() } ?: GoalType.MAINTAIN,
+    kneeInjuryFlag = kneeInjuryFlag,
+    baselineWeekActive = baselineWeekActive,
+    themeStyle = ThemeStyle.fromStoredName(themeStyle),
+    firstRunDone = firstRunDone
+)
