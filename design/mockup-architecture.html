@@ -311,7 +311,15 @@ const THEMES = [
   { id: 'list',   name: 'Compact List',      desc: 'Grouped rows, leading icon + trailing value' },
   { id: 'bento',  name: 'Bento Grid',        desc: 'Asymmetric mixed-size tiles' },
   { id: 'glance', name: 'Glance Gauges',     desc: 'Oversized rings & numbers, chart-forward' },
+  { id: 'composite', name: 'Composite (best per screen)', desc: 'Bento base · Diet as gauges · Today & Settings as cards' },
 ];
+
+/* Per-screen theme overrides for the Composite row. Anything not listed falls back to Bento. */
+const COMPOSITE = { Today: 'cards', Diet: 'glance', Settings: 'cards' };
+function effectiveTheme(themeId, pageName) {
+  if (themeId !== 'composite') return themeId;
+  return COMPOSITE[pageName] || 'bento';
+}
 
 /* ===== centered (Login / Setup) ===== */
 function centeredInner(themeId, c) {
@@ -324,12 +332,13 @@ function centeredInner(themeId, c) {
 }
 
 function renderScreen(themeId, p) {
+  const eff = effectiveTheme(themeId, p.name);
   if (p.kind === 'centered') {
-    return `<div class="scr-body t-${themeId}" style="justify-content:center;align-items:center;text-align:center;gap:16px;">${centeredInner(themeId, p.centered)}</div>`;
+    return `<div class="scr-body t-${eff}" style="justify-content:center;align-items:center;text-align:center;gap:16px;">${centeredInner(eff, p.centered)}</div>`;
   }
-  const inner = RENDER[themeId](p);
+  const inner = RENDER[eff](p);
   const bottom = p.tab ? tabbar(p.tab) : '';
-  return `${statusbar()}<div class="scr-body t-${themeId}">${inner}</div>${bottom}`;
+  return `${statusbar()}<div class="scr-body t-${eff}">${inner}</div>${bottom}`;
 }
 
 /* ===== page content (defined once) ===== */
