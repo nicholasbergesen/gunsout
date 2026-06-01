@@ -11,6 +11,7 @@ import com.nicholasbergesen.gunsout.domain.kcal.KcalTrendAnalyzer
 import com.nicholasbergesen.gunsout.domain.nutrition.MacroTargetCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -48,7 +49,10 @@ class BodyViewModel @Inject constructor(
     private val inBodyQrImportUseCase: InBodyQrImportUseCase
 ) : ViewModel() {
 
-    private val _events = MutableSharedFlow<BodyUiEvent>()
+    private val _events = MutableSharedFlow<BodyUiEvent>(
+        extraBufferCapacity = 4,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
     val events: SharedFlow<BodyUiEvent> = _events.asSharedFlow()
     private var inBodyImportInFlight = false
 
@@ -101,8 +105,8 @@ class BodyViewModel @Inject constructor(
             try {
                 val userId = currentUserIdProvider.requireUserId()
                 when (val result = inBodyQrImportUseCase.import(userId, rawQrValue)) {
-                    is InBodyQrImportResult.Failed -> _events.emit(BodyUiEvent.Message(result.message))
-                    is InBodyQrImportResult.Imported -> _events.emit(
+                    is InBodyQrImportResult.Failed -> _events.tryEmit(BodyUiEvent.Message(result.message))
+                    is InBodyQrImportResult.Imported -> _events.tryEmit(
                         BodyUiEvent.InBodyImported(
                             message = result.message,
                             undo = result.undo
@@ -117,7 +121,7 @@ class BodyViewModel @Inject constructor(
 
     fun undoInBodyImport(undo: InBodyQrImportUndo) = viewModelScope.launch {
         inBodyQrImportUseCase.undo(undo)
-        _events.emit(BodyUiEvent.Message("InBody import undone"))
+        _events.tryEmit(BodyUiEvent.Message("InBody import undone"))
     }
 
     fun suggestKcalAdjustment() = viewModelScope.launch {
