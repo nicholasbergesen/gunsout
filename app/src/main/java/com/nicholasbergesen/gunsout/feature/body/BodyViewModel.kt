@@ -12,6 +12,9 @@ import com.nicholasbergesen.gunsout.domain.nutrition.MacroTargetCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
@@ -27,13 +30,27 @@ data class BodyUiState(
     val logs: List<BodyMetricsLog> = emptyList()
 )
 
+sealed interface BodyUiEvent {
+    data class InBodyImported(
+        val message: String,
+        val undo: InBodyQrImportUndo
+    ) : BodyUiEvent
+
+    data class Message(val message: String) : BodyUiEvent
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class BodyViewModel @Inject constructor(
     private val body: BodyRepository,
     private val userPrefs: UserPreferences,
-    private val currentUserIdProvider: CurrentUserIdProvider
+    private val currentUserIdProvider: CurrentUserIdProvider,
+    private val inBodyQrImportUseCase: InBodyQrImportUseCase
 ) : ViewModel() {
+
+    private val _events = MutableSharedFlow<BodyUiEvent>()
+    val events: SharedFlow<BodyUiEvent> = _events.asSharedFlow()
+    private var inBodyImportInFlight = false
 
     val state: StateFlow<BodyUiState> = currentUserIdProvider.currentUserId
         .filterNotNull()
@@ -77,6 +94,32 @@ class BodyViewModel @Inject constructor(
         userPrefs.update(userId) { it.copy(currentBodyWeightKg = weightKg) }
     }
 
+    fun importInBodyQr(rawQrValue: String) {
+        if (inBodyImportInFlight) return
+        inBodyImportInFlight = true
+        viewModelScope.launch {
+            try {
+                val userId = currentUserIdProvider.requireUserId()
+                when (val result = inBodyQrImportUseCase.import(userId, rawQrValue)) {
+                    is InBodyQrImportResult.Failed -> _events.emit(BodyUiEvent.Message(result.message))
+                    is InBodyQrImportResult.Imported -> _events.emit(
+                        BodyUiEvent.InBodyImported(
+                            message = result.message,
+                            undo = result.undo
+                        )
+                    )
+                }
+            } finally {
+                inBodyImportInFlight = false
+            }
+        }
+    }
+
+    fun undoInBodyImport(undo: InBodyQrImportUndo) = viewModelScope.launch {
+        inBodyQrImportUseCase.undo(undo)
+        _events.emit(BodyUiEvent.Message("InBody import undone"))
+    }
+
     fun suggestKcalAdjustment() = viewModelScope.launch {
         val userId = currentUserIdProvider.requireUserId()
         val current = state.value
@@ -112,4 +155,3 @@ class BodyViewModel @Inject constructor(
     private val _kcalSuggestion = kotlinx.coroutines.flow.MutableStateFlow<KcalTrendAnalyzer.Suggestion?>(null)
     val kcalSuggestion: StateFlow<KcalTrendAnalyzer.Suggestion?> = _kcalSuggestion
 }
-

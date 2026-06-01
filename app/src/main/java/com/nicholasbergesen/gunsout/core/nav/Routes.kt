@@ -5,6 +5,8 @@ object Routes {
     const val SESSION = "session/{sessionId}"
     const val DIET = "diet"
     const val BODY = "body"
+    const val BODY_SCAN = "body/scan"
+    const val BODY_SCAN_RESULT_KEY = "inbody_scan_qr"
     const val SETTINGS = "settings"
 
     const val PROGRAMS = "programs"

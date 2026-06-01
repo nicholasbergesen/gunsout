@@ -32,6 +32,7 @@ Identity uses the Google account `sub` (`GoogleIdTokenCredential.uniqueId`). The
 
 **Body**
 - Composition log with weight required; body fat %, muscle mass kg, water %, bone mass kg, visceral fat rating all optional. Upsert by date so a same-day update merges rather than duplicating.
+- InBody QR import scans result-sheet QR codes, parses the payload locally on device, and imports supported InBody 270 measurements without a network request.
 - Multi-series trend chart with toggles for weight / body fat % / muscle / water %. Date-axis with min and max labels. Weight series shows a goal line.
 - Latest card sources directly from the most recent log row.
 - Auto-adjust kcal target: reads recent weight trend (linear regression over the last 14 days, requires 4+ logs spanning 7+ days) and suggests a 150 kcal nudge that is applied as a manual kcal override on the daily target.
