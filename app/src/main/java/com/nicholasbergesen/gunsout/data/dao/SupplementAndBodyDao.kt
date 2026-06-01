@@ -76,6 +76,9 @@ interface BodyMetricsLogDao {
     @Insert
     suspend fun insert(log: BodyMetricsLog): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrReplace(log: BodyMetricsLog): Long
+
     @Update
     suspend fun update(log: BodyMetricsLog)
 

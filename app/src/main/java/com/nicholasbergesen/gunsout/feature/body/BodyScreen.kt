@@ -7,14 +7,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,9 +48,15 @@ import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
 
 @Composable
-fun BodyScreen(vm: BodyViewModel = hiltViewModel()) {
+fun BodyScreen(
+    vm: BodyViewModel = hiltViewModel(),
+    onScanInBody: () -> Unit = {},
+    scannedInBodyQrText: String? = null,
+    onScannedInBodyQrConsumed: () -> Unit = {}
+) {
     val state by vm.state.collectAsState()
     val scroll = rememberScrollState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var weight by remember { mutableStateOf("") }
     var bodyFat by remember { mutableStateOf("") }
@@ -53,7 +67,39 @@ fun BodyScreen(vm: BodyViewModel = hiltViewModel()) {
     var showMore by remember { mutableStateOf(false) }
     var selectedTrend by remember { mutableStateOf("Weight") }
 
-    MockupScreenColumn(modifier = Modifier.verticalScroll(scroll)) {
+    LaunchedEffect(scannedInBodyQrText) {
+        val rawValue = scannedInBodyQrText
+        if (rawValue != null) {
+            onScannedInBodyQrConsumed()
+            if (rawValue.isNotBlank()) {
+                vm.importInBodyQr(rawValue)
+            }
+        }
+    }
+
+    LaunchedEffect(vm) {
+        vm.events.collect { event ->
+            when (event) {
+                is BodyUiEvent.InBodyImported -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = event.message,
+                        actionLabel = "Undo",
+                        duration = SnackbarDuration.Short
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        vm.undoInBodyImport(event.undo)
+                    }
+                }
+                is BodyUiEvent.Message -> snackbarHostState.showSnackbar(event.message)
+            }
+        }
+    }
+
+    Scaffold(
+        containerColor = Color.Transparent,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { inner ->
+        MockupScreenColumn(modifier = Modifier.padding(inner).verticalScroll(scroll)) {
         val latest = state.logs.lastOrNull()
         val latestWeight = latest?.weightKg ?: state.profile.currentBodyWeightKg
         val trendSeries = listOf(
@@ -136,6 +182,12 @@ fun BodyScreen(vm: BodyViewModel = hiltViewModel()) {
                 text = if (showMore) "Hide more metrics" else "More metrics",
                 onClick = { showMore = !showMore }
             )
+            OutlinedButton(
+                onClick = onScanInBody,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Import from InBody QR")
+            }
             if (showMore) {
                 OutlinedTextField(value = bodyFat, onValueChange = { bodyFat = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Body fat %") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = muscle, onValueChange = { muscle = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Muscle mass (kg)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -182,6 +234,7 @@ fun BodyScreen(vm: BodyViewModel = hiltViewModel()) {
                     androidx.compose.material3.TextButton(onClick = { vm.dismissKcalSuggestion() }) { Text("OK") }
                 }
             }
+        }
         }
     }
 }

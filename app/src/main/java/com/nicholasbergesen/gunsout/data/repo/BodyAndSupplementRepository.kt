@@ -61,6 +61,10 @@ class BodyRepository @Inject constructor(
         }
     }
 
+    suspend fun restore(log: BodyMetricsLog) {
+        bodyMetricsLogDao.insertOrReplace(log)
+    }
+
     suspend fun delete(id: Long) = bodyMetricsLogDao.delete(id)
 }
 

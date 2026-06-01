@@ -15,6 +15,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -27,6 +28,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nicholasbergesen.gunsout.feature.body.BodyScreen
+import com.nicholasbergesen.gunsout.feature.body.InBodyScanScreen
 import com.nicholasbergesen.gunsout.feature.diet.DietScreen
 import com.nicholasbergesen.gunsout.feature.history.HistoryDetailScreen
 import com.nicholasbergesen.gunsout.feature.history.HistoryListScreen
@@ -149,7 +151,29 @@ fun GunsoutApp() {
                 ExerciseEditScreen(exerciseId = id, onBack = { navController.popBackStack() })
             }
 
-            composable(Routes.BODY) { BodyScreen() }
+            composable(Routes.BODY) { entry ->
+                val scannedInBodyQrText by entry.savedStateHandle
+                    .getStateFlow<String?>(Routes.BODY_SCAN_RESULT_KEY, null)
+                    .collectAsState()
+                BodyScreen(
+                    onScanInBody = { navController.navigate(Routes.BODY_SCAN) },
+                    scannedInBodyQrText = scannedInBodyQrText,
+                    onScannedInBodyQrConsumed = {
+                        entry.savedStateHandle.remove<String>(Routes.BODY_SCAN_RESULT_KEY)
+                    }
+                )
+            }
+            composable(Routes.BODY_SCAN) {
+                InBodyScanScreen(
+                    onBack = { navController.popBackStack() },
+                    onSupportedQrScanned = { rawValue ->
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set(Routes.BODY_SCAN_RESULT_KEY, rawValue)
+                        navController.popBackStack()
+                    }
+                )
+            }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
                     onOpenLibrary = { navController.navigate(Routes.LIBRARY) }
