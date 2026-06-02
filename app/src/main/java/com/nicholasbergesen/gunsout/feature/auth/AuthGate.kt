@@ -13,8 +13,10 @@ import com.nicholasbergesen.gunsout.auth.AuthUser
 import com.nicholasbergesen.gunsout.auth.SeederController
 import com.nicholasbergesen.gunsout.auth.SeederState
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
+import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import com.nicholasbergesen.gunsout.feature.supplements.SupplementReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -43,7 +45,8 @@ class AuthGateViewModel @Inject constructor(
         seederController.start(userId)
     }
 
-    fun profile(userId: String) = userPreferences.profile(userId)
+    fun profile(userId: String): Flow<UserProfile> =
+        userPreferences.profile(userId)
 
     /**
      * Sign-out path from the setup error screen. Reminder cancellation is best-effort: if it
@@ -88,13 +91,11 @@ fun AuthGate(
         return
     }
     val profileFlow = remember(currentUser.userId) { vm.profile(currentUser.userId) }
-    val profile by profileFlow.collectAsState(initial = null)
+    val profile by profileFlow.collectAsState(initial = UserProfile())
     val s = seederState
     when (s) {
         is SeederState.Done -> if (s.userId == currentUser.userId) {
-            if (profile == null) {
-                SetupScreen()
-            } else if (profile!!.profileSetupDone) {
+            if (profile.profileSetupDone) {
                 content(currentUser.userId)
             } else {
                 ProfileSetupScreen()

@@ -59,7 +59,7 @@ interface SetEntryDao {
           AND se.exerciseIdSnapshot = :exerciseId
           AND ws.userId = :userId
           AND ws.status = 'COMPLETED'
-        ORDER BY ws.date DESC, ws.id DESC, se.id ASC
+        ORDER BY ws.date DESC, ws.id DESC, se.setIndex ASC, se.isWarmup ASC, se.id ASC
         LIMIT 50
     """)
     suspend fun getRecentForExercise(userId: String, exerciseId: Long): List<SetEntry>
