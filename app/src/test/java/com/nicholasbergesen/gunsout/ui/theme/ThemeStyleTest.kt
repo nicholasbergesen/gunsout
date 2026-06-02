@@ -68,12 +68,12 @@ class ThemeStyleTest {
     }
 
     @Test fun shapes_matchMockupRadii() {
-        assertThemeShapes(ThemeStyle.GUNMETAL_CRIMSON, cardRadius = 12, buttonRadius = 10)
-        assertThemeShapes(ThemeStyle.CLEAN_LIGHT_MINIMAL, cardRadius = 18, buttonRadius = 14)
+        assertThemeShapes(ThemeStyle.GUNMETAL_CRIMSON, cardRadius = 12, buttonRadius = 8)
+        assertThemeShapes(ThemeStyle.CLEAN_LIGHT_MINIMAL, cardRadius = 18, buttonRadius = 8)
         assertThemeShapes(ThemeStyle.NEO_BRUTALIST, cardRadius = 4, buttonRadius = 4)
-        assertThemeShapes(ThemeStyle.GLASSMORPHISM, cardRadius = 20, buttonRadius = 16)
-        assertThemeShapes(ThemeStyle.SOFT_PASTEL, cardRadius = 24, buttonRadius = 20)
-        assertThemeShapes(ThemeStyle.VIBRANT_GRADIENT, cardRadius = 22, buttonRadius = 18)
+        assertThemeShapes(ThemeStyle.GLASSMORPHISM, cardRadius = 20, buttonRadius = 10)
+        assertThemeShapes(ThemeStyle.SOFT_PASTEL, cardRadius = 24, buttonRadius = 12)
+        assertThemeShapes(ThemeStyle.VIBRANT_GRADIENT, cardRadius = 22, buttonRadius = 12)
     }
 
     @Test fun everyThemeProvidesABackdropBrush() {

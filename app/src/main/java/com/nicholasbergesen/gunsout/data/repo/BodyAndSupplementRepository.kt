@@ -33,7 +33,7 @@ class BodyRepository @Inject constructor(
         weightKg: Double,
         bodyFatPct: Double? = null,
         muscleMassKg: Double? = null,
-        waterPct: Double? = null,
+        waterLiters: Double? = null,
         boneMassKg: Double? = null,
         visceralFatRating: Int? = null,
         notes: String? = null
@@ -43,7 +43,7 @@ class BodyRepository @Inject constructor(
             bodyMetricsLogDao.insert(BodyMetricsLog(
                 userId = userId,
                 date = date, weightKg = weightKg,
-                bodyFatPct = bodyFatPct, muscleMassKg = muscleMassKg, waterPct = waterPct,
+                bodyFatPct = bodyFatPct, muscleMassKg = muscleMassKg, waterLiters = waterLiters,
                 boneMassKg = boneMassKg, visceralFatRating = visceralFatRating, notes = notes
             ))
         } else {
@@ -51,7 +51,7 @@ class BodyRepository @Inject constructor(
                 weightKg = weightKg,
                 bodyFatPct = bodyFatPct ?: existing.bodyFatPct,
                 muscleMassKg = muscleMassKg ?: existing.muscleMassKg,
-                waterPct = waterPct ?: existing.waterPct,
+                waterLiters = waterLiters ?: existing.waterLiters,
                 boneMassKg = boneMassKg ?: existing.boneMassKg,
                 visceralFatRating = visceralFatRating ?: existing.visceralFatRating,
                 notes = notes ?: existing.notes

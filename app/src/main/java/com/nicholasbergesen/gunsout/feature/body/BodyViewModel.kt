@@ -80,8 +80,7 @@ class BodyViewModel @Inject constructor(
         weightKg: Double,
         bodyFatPct: Double?,
         muscleMassKg: Double?,
-        waterPct: Double?,
-        boneMassKg: Double?,
+        waterLiters: Double?,
         visceralFatRating: Int?
     ) = viewModelScope.launch {
         val userId = currentUserIdProvider.requireUserId()
@@ -91,8 +90,7 @@ class BodyViewModel @Inject constructor(
             weightKg = weightKg,
             bodyFatPct = bodyFatPct,
             muscleMassKg = muscleMassKg,
-            waterPct = waterPct,
-            boneMassKg = boneMassKg,
+            waterLiters = waterLiters,
             visceralFatRating = visceralFatRating
         )
         userPrefs.update(userId) { it.copy(currentBodyWeightKg = weightKg) }

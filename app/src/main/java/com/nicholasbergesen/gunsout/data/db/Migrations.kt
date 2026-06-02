@@ -1,6 +1,7 @@
 package com.nicholasbergesen.gunsout.data.db
 
 import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * Place future Room migrations here as the schema evolves once data preservation matters.
@@ -23,7 +24,20 @@ import androidx.room.migration.Migration
  */
 object Migrations {
 
-    val allMigrations: Array<Migration> = emptyArray()
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("ALTER TABLE body_metrics_log ADD COLUMN waterLiters REAL")
+            database.execSQL(
+                """
+                UPDATE body_metrics_log
+                SET waterLiters = weightKg * waterPct / 100.0
+                WHERE waterPct IS NOT NULL
+                """.trimIndent()
+            )
+        }
+    }
+
+    val allMigrations: Array<Migration> = arrayOf(MIGRATION_4_5)
 
     val destructiveFallbackFromVersions: IntArray = intArrayOf(1, 2, 3)
 }

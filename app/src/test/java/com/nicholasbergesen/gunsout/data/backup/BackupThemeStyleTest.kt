@@ -35,7 +35,7 @@ class BackupThemeStyleTest {
     @Test fun backupJson_encodesSchemaVersionAndThemeStyle() {
         val encoded = json.encodeToString(emptyBackup(ThemeStyle.SOFT_PASTEL))
 
-        assertTrue(encoded.contains("\"schemaVersion\":4"))
+        assertTrue(encoded.contains("\"schemaVersion\":5"))
         assertTrue(encoded.contains("\"themeStyle\":\"SOFT_PASTEL\""))
         assertFalse(encoded.contains("\"themeMode\""))
     }
@@ -75,8 +75,19 @@ class BackupThemeStyleTest {
         assertEquals(ThemeStyle.GUNMETAL_CRIMSON, decoded.userProfile!!.toUserProfile().themeStyle)
     }
 
+    @Test fun legacyBodyMetricsWaterPercentRestoresAsLiters() {
+        val restored = BodyMetricsLogBackup(
+            id = 1,
+            date = "2026-06-01",
+            weightKg = 80.0,
+            waterPct = 55.0
+        ).toEntity("user")
+
+        assertEquals(44.0, restored.waterLiters!!, 0.001)
+    }
+
     private fun emptyBackup(themeStyle: ThemeStyle) = GunsoutBackup(
-        schemaVersion = 4,
+        schemaVersion = 5,
         exportedAtIso = "2026-05-30T00:00:00Z",
         programs = emptyList(),
         programDays = emptyList(),

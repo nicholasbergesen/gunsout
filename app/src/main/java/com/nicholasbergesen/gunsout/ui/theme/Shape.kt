@@ -8,12 +8,12 @@ import androidx.compose.ui.unit.dp
 val GunsoutShapes: Shapes = shapesFor(ThemeStyle.Default)
 
 internal fun shapesFor(style: ThemeStyle): Shapes = when (style) {
-    ThemeStyle.GUNMETAL_CRIMSON -> themeShapes(cardRadius = 12.dp, buttonRadius = 10.dp)
-    ThemeStyle.CLEAN_LIGHT_MINIMAL -> themeShapes(cardRadius = 18.dp, buttonRadius = 14.dp)
+    ThemeStyle.GUNMETAL_CRIMSON -> themeShapes(cardRadius = 12.dp, buttonRadius = 8.dp)
+    ThemeStyle.CLEAN_LIGHT_MINIMAL -> themeShapes(cardRadius = 18.dp, buttonRadius = 8.dp)
     ThemeStyle.NEO_BRUTALIST -> themeShapes(cardRadius = 4.dp, buttonRadius = 4.dp, extraLargeRadius = 6.dp)
-    ThemeStyle.GLASSMORPHISM -> themeShapes(cardRadius = 20.dp, buttonRadius = 16.dp, extraLargeRadius = 28.dp)
-    ThemeStyle.SOFT_PASTEL -> themeShapes(cardRadius = 24.dp, buttonRadius = 20.dp, extraLargeRadius = 32.dp)
-    ThemeStyle.VIBRANT_GRADIENT -> themeShapes(cardRadius = 22.dp, buttonRadius = 18.dp, extraLargeRadius = 30.dp)
+    ThemeStyle.GLASSMORPHISM -> themeShapes(cardRadius = 20.dp, buttonRadius = 10.dp, extraLargeRadius = 28.dp)
+    ThemeStyle.SOFT_PASTEL -> themeShapes(cardRadius = 24.dp, buttonRadius = 12.dp, extraLargeRadius = 32.dp)
+    ThemeStyle.VIBRANT_GRADIENT -> themeShapes(cardRadius = 22.dp, buttonRadius = 12.dp, extraLargeRadius = 30.dp)
 }
 
 private fun themeShapes(
