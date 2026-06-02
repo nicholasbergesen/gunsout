@@ -215,8 +215,8 @@ private fun SetRow(
     var repsText by remember(rowKey) {
         mutableStateOf(existing?.reps?.toString() ?: prefillReps?.toString().orEmpty())
     }
-    var rpeText by remember(existing?.id) { mutableStateOf(existing?.rpe?.toString() ?: "") }
-    var isWarmup by remember(existing?.id) { mutableStateOf(existing?.isWarmup ?: false) }
+    var rpeText by remember(rowKey) { mutableStateOf(existing?.rpe?.toString() ?: "") }
+    var isWarmup by remember(rowKey) { mutableStateOf(existing?.isWarmup ?: false) }
 
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(

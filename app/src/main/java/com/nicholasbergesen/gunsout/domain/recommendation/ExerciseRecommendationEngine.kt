@@ -137,7 +137,7 @@ object ExerciseFormulaCatalog {
         bodyWeightRatio: Double,
         minWeightKg: Double,
         roundingKg: Double,
-        progressionStepKg: Double = if (roundingKg >= 5.0) 5.0 else 2.5,
+        progressionStepKg: Double = roundingKg,
         assistanceSetting: Boolean = false
     ) = ExerciseFormula(
         seedKey = seedKey,

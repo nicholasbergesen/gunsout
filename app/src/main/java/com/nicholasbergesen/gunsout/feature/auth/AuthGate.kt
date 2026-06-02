@@ -13,7 +13,6 @@ import com.nicholasbergesen.gunsout.auth.AuthUser
 import com.nicholasbergesen.gunsout.auth.SeederController
 import com.nicholasbergesen.gunsout.auth.SeederState
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
-import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import com.nicholasbergesen.gunsout.feature.supplements.SupplementReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -89,11 +88,13 @@ fun AuthGate(
         return
     }
     val profileFlow = remember(currentUser.userId) { vm.profile(currentUser.userId) }
-    val profile by profileFlow.collectAsState(initial = UserProfile())
+    val profile by profileFlow.collectAsState(initial = null)
     val s = seederState
     when (s) {
         is SeederState.Done -> if (s.userId == currentUser.userId) {
-            if (profile.profileSetupDone) {
+            if (profile == null) {
+                SetupScreen()
+            } else if (profile!!.profileSetupDone) {
                 content(currentUser.userId)
             } else {
                 ProfileSetupScreen()

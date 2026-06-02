@@ -71,11 +71,11 @@ class SessionViewModel @Inject constructor(
 
     private fun load() = viewModelScope.launch {
         val userId = currentUserIdProvider.requireUserId()
+        val session = workouts.getSessionById(sessionId) ?: return@launch
+        val pdId = session.programDayId ?: return@launch
         val profile = userPrefs.profile(userId).first()
         val latestBodyLog = bodyRepository.getLatest(userId)
         val recentBodyLogs = bodyRepository.observeSince(userId, LocalDate.now().minusDays(28)).first()
-        val session = workouts.getSessionById(sessionId) ?: return@launch
-        val pdId = session.programDayId ?: return@launch
         val activeProgram = workouts.getActiveProgram(userId)
         val baseline = com.nicholasbergesen.gunsout.domain.baseline.BaselineWeekResolver.isActive(
             programCreatedAt = activeProgram?.createdAt,
