@@ -79,7 +79,7 @@ class BackupManager @Inject constructor(
         )
 
         val backup = GunsoutBackup(
-            schemaVersion = 4,
+            schemaVersion = 5,
             exportedAtIso = LocalDateTime.now().toString(),
             programs = programs,
             programDays = days,
@@ -113,13 +113,13 @@ class BackupManager @Inject constructor(
      * once the database stores multiple users' rows side by side.
      *
      * Accepts schemaVersion 1 (no userProfile), 2 (single-user profile, no macro overrides),
-     * 3 (per-user profile fields plus macro overrides), and 4 (themeStyle).
+     * 3 (per-user profile fields plus macro overrides), 4 (themeStyle), and 5 (water liters).
      */
     suspend fun importFromJson(userId: String, jsonText: String): ImportResult = withContext(Dispatchers.IO) {
         val parsed = runCatching { json.decodeFromString(GunsoutBackup.serializer(), jsonText) }
             .getOrElse { return@withContext ImportResult.Error(it.message ?: "Parse failed") }
 
-        if (parsed.schemaVersion !in 1..4) {
+        if (parsed.schemaVersion !in 1..5) {
             return@withContext ImportResult.Error("Unsupported backup schema v${parsed.schemaVersion}")
         }
 

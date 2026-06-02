@@ -31,9 +31,9 @@ Identity uses the Google account `sub` (`GoogleIdTokenCredential.uniqueId`). The
 - Daily reminder time per supplement (Material 3 time picker) backed by `AlarmManager.setInexactRepeating`. Reminders persist across reboot via a boot receiver and are scoped to the currently signed-in user.
 
 **Body**
-- Composition log with weight required; body fat %, muscle mass kg, water %, bone mass kg, visceral fat rating all optional. Upsert by date so a same-day update merges rather than duplicating.
+- Composition log with weight required; body fat %, muscle mass kg, water liters, and visceral fat rating all optional. Upsert by date so a same-day update merges rather than duplicating.
 - InBody QR import scans result-sheet QR codes, parses the payload locally on device, and imports supported InBody 270 measurements without a network request.
-- Multi-series trend chart with toggles for weight / body fat % / muscle / water %. Date-axis with min and max labels. Weight series shows a goal line.
+- Multi-series trend chart with toggles for weight / body fat % / muscle / water liters. Date-axis with min and max labels. Weight series shows a goal line.
 - Latest card sources directly from the most recent log row.
 - Auto-adjust kcal target: reads recent weight trend (linear regression over the last 14 days, requires 4+ logs spanning 7+ days) and suggests a 150 kcal nudge that is applied as a manual kcal override on the daily target.
 - Baseline week auto-derives from `Program.createdAt`: the first 7 days are baseline. The Settings toggle remains as a manual force-off override.
@@ -43,7 +43,7 @@ Identity uses the Google account `sub` (`GoogleIdTokenCredential.uniqueId`). The
 - Appearance card with six per-account visual themes: Gunmetal Crimson, Clean Light Minimal, Neo-Brutalist, Glassmorphism, Soft Pastel, and Vibrant Gradient.
 - Body weight, goal weight, height, age, sex, activity level, goal type, knee-injury caution, baseline-week override.
 - Daily Targets card with the four suggestion fields, override editing, and Reset to suggested.
-- JSON backup: export and import all of the signed-in user's data (including the DataStore profile, selected theme, and any macro overrides) via the system file picker (SAF). Import is destructive for the current user only, wrapped in a transaction, and gated by a confirmation dialog. Schema version is 4; the importer also accepts schemaVersion 1, 2, and 3 (those legacy files are folded into the current user's data).
+- JSON backup: export and import all of the signed-in user's data (including the DataStore profile, selected theme, and any macro overrides) via the system file picker (SAF). Import is destructive for the current user only, wrapped in a transaction, and gated by a confirmation dialog. Schema version is 5; the importer also accepts schemaVersion 1, 2, 3, and 4 (those legacy files are folded into the current user's data).
 
 ## Visual design
 

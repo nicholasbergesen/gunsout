@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nicholasbergesen.gunsout.data.entity.BodyMetricsLog
 import com.nicholasbergesen.gunsout.ui.components.BigValue
-import com.nicholasbergesen.gunsout.ui.components.ChipButton
 import com.nicholasbergesen.gunsout.ui.components.MetricGrid
 import com.nicholasbergesen.gunsout.ui.components.MetricItem
 import com.nicholasbergesen.gunsout.ui.components.MockupScreenColumn
@@ -62,7 +61,6 @@ fun BodyScreen(
     var bodyFat by remember { mutableStateOf("") }
     var muscle by remember { mutableStateOf("") }
     var water by remember { mutableStateOf("") }
-    var bone by remember { mutableStateOf("") }
     var visceral by remember { mutableStateOf("") }
     var showMore by remember { mutableStateOf(false) }
     var selectedTrend by remember { mutableStateOf("Weight") }
@@ -106,7 +104,7 @@ fun BodyScreen(
             "Weight" to state.logs.map { it.date to it.weightKg },
             "Body fat" to state.logs.mapNotNull { row -> row.bodyFatPct?.let { row.date to it } },
             "Muscle" to state.logs.mapNotNull { row -> row.muscleMassKg?.let { row.date to it } },
-            "Water" to state.logs.mapNotNull { row -> row.waterPct?.let { row.date to it } }
+            "Water" to state.logs.mapNotNull { row -> row.waterLiters?.let { row.date to it } }
         ).filter { it.second.size >= 2 }
         val activeTrend = trendSeries.firstOrNull { it.first == selectedTrend } ?: trendSeries.firstOrNull()
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -146,16 +144,18 @@ fun BodyScreen(
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf("Weight", "Body fat", "Muscle", "Water").forEach { label ->
-                if (trendSeries.any { it.first == label }) {
-                    ChipButton(
-                        text = label,
-                        selected = activeTrend?.first == label,
-                        onClick = { selectedTrend = label }
-                    )
+                val enabled = trendSeries.any { it.first == label }
+                val modifier = Modifier.weight(1f)
+                if (activeTrend?.first == label && enabled) {
+                    Button(onClick = { selectedTrend = label }, modifier = modifier) { Text(label) }
                 } else {
-                    StatusChip(label)
+                    OutlinedButton(
+                        onClick = { selectedTrend = label },
+                        modifier = modifier,
+                        enabled = enabled
+                    ) { Text(label) }
                 }
             }
         }
@@ -164,7 +164,7 @@ fun BodyScreen(
             items = listOf(
                 MetricItem("Body fat", latest?.bodyFatPct?.let { "${"%.1f".format(it)}%" } ?: "-"),
                 MetricItem("Muscle", latest?.muscleMassKg?.let { "%.1f".format(it) } ?: "-"),
-                MetricItem("Water", latest?.waterPct?.let { "${"%.0f".format(it)}%" } ?: "-")
+                MetricItem("Water", latest?.waterLiters?.let { "${"%.1f".format(it)} L" } ?: "-")
             )
         )
 
@@ -178,10 +178,12 @@ fun BodyScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth()
             )
-            ChipButton(
-                text = if (showMore) "Hide more metrics" else "More metrics",
-                onClick = { showMore = !showMore }
-            )
+            OutlinedButton(
+                onClick = { showMore = !showMore },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (showMore) "Hide more metrics" else "Show more metrics")
+            }
             OutlinedButton(
                 onClick = onScanInBody,
                 modifier = Modifier.fillMaxWidth()
@@ -191,8 +193,7 @@ fun BodyScreen(
             if (showMore) {
                 OutlinedTextField(value = bodyFat, onValueChange = { bodyFat = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Body fat %") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = muscle, onValueChange = { muscle = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Muscle mass (kg)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = water, onValueChange = { water = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Water %") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = bone, onValueChange = { bone = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Bone mass (kg)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = water, onValueChange = { water = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Water (L)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = visceral, onValueChange = { visceral = it.filter(Char::isDigit) }, label = { Text("Visceral fat rating") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         }
@@ -204,11 +205,10 @@ fun BodyScreen(
                     weightKg = w,
                     bodyFatPct = bodyFat.toDoubleOrNull(),
                     muscleMassKg = muscle.toDoubleOrNull(),
-                    waterPct = water.toDoubleOrNull(),
-                    boneMassKg = bone.toDoubleOrNull(),
+                    waterLiters = water.toDoubleOrNull(),
                     visceralFatRating = visceral.toIntOrNull()
                 )
-                weight = ""; bodyFat = ""; muscle = ""; water = ""; bone = ""; visceral = ""
+                weight = ""; bodyFat = ""; muscle = ""; water = ""; visceral = ""
                 showMore = false
             },
             modifier = Modifier.fillMaxWidth(),
@@ -247,7 +247,7 @@ private fun BodyTrendChart(logs: List<BodyMetricsLog>, goalKg: Double) {
         "Weight (kg)" to logs.map { it.date to it.weightKg },
         "Body fat %" to logs.mapNotNull { row -> row.bodyFatPct?.let { row.date to it } },
         "Muscle (kg)" to logs.mapNotNull { row -> row.muscleMassKg?.let { row.date to it } },
-        "Water %" to logs.mapNotNull { row -> row.waterPct?.let { row.date to it } }
+        "Water (L)" to logs.mapNotNull { row -> row.waterLiters?.let { row.date to it } }
     ).filter { it.second.size >= 2 }
 
     var selected by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(seriesOptions.first().first) }

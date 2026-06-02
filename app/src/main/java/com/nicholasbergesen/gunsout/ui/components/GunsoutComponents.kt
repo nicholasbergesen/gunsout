@@ -132,7 +132,7 @@ fun StatusChip(
 ) {
     Surface(
         modifier = modifier,
-        shape = CircleShape,
+        shape = MaterialTheme.shapes.small,
         color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
         contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
         border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -156,7 +156,7 @@ fun ChipButton(
     Surface(
         onClick = onClick,
         modifier = modifier.minimumInteractiveComponentSize(),
-        shape = CircleShape,
+        shape = MaterialTheme.shapes.small,
         color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
         contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
         border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)

@@ -29,7 +29,7 @@ import com.nicholasbergesen.gunsout.data.entity.SupplementLog
 import com.nicholasbergesen.gunsout.data.entity.WorkoutSession
 
 @Database(
-    version = 4,
+    version = 5,
     exportSchema = true,
     entities = [
         Program::class,

@@ -29,7 +29,7 @@ class InBodyQrImportUseCaseTest {
         assertEquals(14.2, saved.bodyFatPct!!, 0.001)
         assertEquals(32.8, saved.muscleMassKg!!, 0.001)
         assertEquals(3, saved.visceralFatRating)
-        assertNull(saved.waterPct)
+        assertNull(saved.waterLiters)
         assertNull(saved.boneMassKg)
         assertEquals("InBody 270 #27379084 · 2025-10-20 10:40", saved.notes)
     }
@@ -44,7 +44,7 @@ class InBodyQrImportUseCaseTest {
                 userId = "user",
                 date = date,
                 weightKg = 66.0,
-                waterPct = 55.0,
+                waterLiters = 36.3,
                 boneMassKg = 3.1,
                 notes = "manual note"
             )
@@ -57,7 +57,7 @@ class InBodyQrImportUseCaseTest {
         assertEquals(67.8, saved.weightKg, 0.001)
         assertEquals(14.2, saved.bodyFatPct!!, 0.001)
         assertEquals(32.8, saved.muscleMassKg!!, 0.001)
-        assertEquals(55.0, saved.waterPct!!, 0.001)
+        assertEquals(36.3, saved.waterLiters!!, 0.001)
         assertEquals(3.1, saved.boneMassKg!!, 0.001)
         assertEquals("manual note", saved.notes)
     }
@@ -85,7 +85,7 @@ class InBodyQrImportUseCaseTest {
                 weightKg = 66.0,
                 bodyFatPct = 12.0,
                 muscleMassKg = 31.0,
-                waterPct = 55.0,
+                waterLiters = 36.3,
                 boneMassKg = 3.1,
                 visceralFatRating = 2,
                 notes = "manual note"
@@ -100,7 +100,7 @@ class InBodyQrImportUseCaseTest {
         assertEquals(66.0, restored.weightKg, 0.001)
         assertEquals(12.0, restored.bodyFatPct!!, 0.001)
         assertEquals(31.0, restored.muscleMassKg!!, 0.001)
-        assertEquals(55.0, restored.waterPct!!, 0.001)
+        assertEquals(36.3, restored.waterLiters!!, 0.001)
         assertEquals(3.1, restored.boneMassKg!!, 0.001)
         assertEquals(2, restored.visceralFatRating)
         assertEquals("manual note", restored.notes)

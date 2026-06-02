@@ -73,7 +73,7 @@ data class MacroOverridesBackup(
 @Serializable data class FoodEntryBackup(val id: Long, val date: String, val mealType: String, val name: String, val kcal: Int, val proteinG: Double, val carbsG: Double, val fatG: Double, val sourceTemplateId: Long? = null, val createdAt: Long)
 @Serializable data class SupplementBackup(val id: Long, val name: String, val defaultDose: Double, val unit: String, val notes: String? = null, val takeWith: String? = null, val reminderTime: String? = null, val isActive: Boolean, val isUserCreated: Boolean, val seedKey: String? = null)
 @Serializable data class SupplementLogBackup(val id: Long, val supplementId: Long, val date: String, val doseTaken: Double, val unit: String, val takenAt: String)
-@Serializable data class BodyMetricsLogBackup(val id: Long, val date: String, val weightKg: Double, val bodyFatPct: Double? = null, val muscleMassKg: Double? = null, val waterPct: Double? = null, val boneMassKg: Double? = null, val visceralFatRating: Int? = null, val notes: String? = null)
+@Serializable data class BodyMetricsLogBackup(val id: Long, val date: String, val weightKg: Double, val bodyFatPct: Double? = null, val muscleMassKg: Double? = null, val waterPct: Double? = null, val waterLiters: Double? = null, val boneMassKg: Double? = null, val visceralFatRating: Int? = null, val notes: String? = null)
 
 fun Program.toBackup() = ProgramBackup(id, name, type.name, notes, isActive, isTemplate, seedKey, createdAt)
 fun ProgramBackup.toEntity(userId: String) = Program(
@@ -155,9 +155,21 @@ fun SupplementLogBackup.toEntity(userId: String) = SupplementLog(
     takenAt = LocalDateTime.parse(takenAt)
 )
 
-fun BodyMetricsLog.toBackup() = BodyMetricsLogBackup(id, date.toString(), weightKg, bodyFatPct, muscleMassKg, waterPct, boneMassKg, visceralFatRating, notes)
+fun BodyMetricsLog.toBackup() = BodyMetricsLogBackup(
+    id = id,
+    date = date.toString(),
+    weightKg = weightKg,
+    bodyFatPct = bodyFatPct,
+    muscleMassKg = muscleMassKg,
+    waterPct = waterPct,
+    waterLiters = waterLiters,
+    boneMassKg = boneMassKg,
+    visceralFatRating = visceralFatRating,
+    notes = notes
+)
 fun BodyMetricsLogBackup.toEntity(userId: String) = BodyMetricsLog(
     id = id, userId = userId, date = LocalDate.parse(date), weightKg = weightKg,
     bodyFatPct = bodyFatPct, muscleMassKg = muscleMassKg, waterPct = waterPct,
+    waterLiters = waterLiters ?: waterPct?.let { weightKg * it / 100.0 },
     boneMassKg = boneMassKg, visceralFatRating = visceralFatRating, notes = notes
 )

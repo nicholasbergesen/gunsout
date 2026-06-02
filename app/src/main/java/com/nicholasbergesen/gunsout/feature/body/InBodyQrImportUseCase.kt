@@ -59,7 +59,7 @@ class InBodyQrImportUseCase @Inject constructor(
             weightKg = draft.weightKg,
             bodyFatPct = draft.bodyFatPct,
             muscleMassKg = draft.muscleMassKg,
-            waterPct = null,
+            waterLiters = null,
             boneMassKg = null,
             visceralFatRating = draft.visceralFatRating,
             notes = if (previousLog == null) draft.provenanceNote else null

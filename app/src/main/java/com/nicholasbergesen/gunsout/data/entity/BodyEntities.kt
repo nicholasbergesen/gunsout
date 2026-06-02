@@ -58,6 +58,7 @@ data class BodyMetricsLog(
     val bodyFatPct: Double? = null,
     val muscleMassKg: Double? = null,
     val waterPct: Double? = null,
+    val waterLiters: Double? = null,
     val boneMassKg: Double? = null,
     val visceralFatRating: Int? = null,
     val notes: String? = null
