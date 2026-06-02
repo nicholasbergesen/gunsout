@@ -30,4 +30,9 @@ class MigrationsConsistencyTest {
             overlap.isEmpty()
         )
     }
+
+    @Test
+    fun `latest schema has v5 to v6 migration registered`() {
+        assertTrue(Migrations.allMigrations.any { it.startVersion == 5 && it.endVersion == 6 })
+    }
 }

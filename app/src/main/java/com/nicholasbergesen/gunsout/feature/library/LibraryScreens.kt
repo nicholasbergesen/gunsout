@@ -2,18 +2,21 @@ package com.nicholasbergesen.gunsout.feature.library
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -33,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nicholasbergesen.gunsout.data.entity.Equipment
 import com.nicholasbergesen.gunsout.data.entity.MuscleGroup
+import com.nicholasbergesen.gunsout.data.entity.MovementPattern
 import com.nicholasbergesen.gunsout.ui.components.ChipButton
 import com.nicholasbergesen.gunsout.ui.components.MockupScreenColumn
 import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
@@ -46,16 +50,51 @@ fun LibraryListScreen(
     vm: LibraryListViewModel = hiltViewModel()
 ) {
     val exercises by vm.exercises.collectAsState()
+    var query by remember { mutableStateOf("") }
+    var muscleFilter by remember { mutableStateOf<MuscleGroup?>(null) }
+    var equipmentFilter by remember { mutableStateOf<Equipment?>(null) }
+    var movementFilter by remember { mutableStateOf<MovementPattern?>(null) }
+    val filtered = exercises.filter { ex ->
+        (query.isBlank() || ex.name.contains(query, ignoreCase = true)) &&
+            (muscleFilter == null || ex.primaryMuscleGroup == muscleFilter) &&
+            (equipmentFilter == null || ex.equipment == equipmentFilter) &&
+            (movementFilter == null || ex.movementPattern == movementFilter)
+    }
 
     MockupScreenColumn(modifier = Modifier.verticalScroll(rememberScrollState())) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             ScreenTitle("Exercises")
             ChipButton("+ New", selected = true, onClick = onCreate)
         }
-        if (exercises.isEmpty()) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            label = { Text("Search exercise name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        FilterRow(
+            label = "Muscle",
+            selected = muscleFilter,
+            values = MuscleGroup.values().toList(),
+            onSelect = { muscleFilter = it }
+        )
+        FilterRow(
+            label = "Equipment",
+            selected = equipmentFilter,
+            values = Equipment.values().toList(),
+            onSelect = { equipmentFilter = it }
+        )
+        FilterRow(
+            label = "Movement",
+            selected = movementFilter,
+            values = MovementPattern.values().toList(),
+            onSelect = { movementFilter = it }
+        )
+        if (filtered.isEmpty()) {
             ThemedCard { Text("No exercises found.") }
         }
-        exercises.groupBy { it.primaryMuscleGroup }.forEach { (muscle, list) ->
+        filtered.groupBy { it.primaryMuscleGroup }.forEach { (muscle, list) ->
             SectionLabel(muscle.name)
             list.forEach { ex ->
                 ThemedCard {
@@ -63,7 +102,7 @@ fun LibraryListScreen(
                         Column(Modifier.weight(1f)) {
                             Text(ex.name)
                             Text(
-                                ex.equipment.name,
+                                "${ex.equipment.name} | ${ex.movementPattern.name}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -114,6 +153,13 @@ fun ExerciseEditScreen(
                 modifier = Modifier.weight(1f)
             )
         }
+        EnumDropdown(
+            label = "Movement pattern",
+            value = state.movementPattern,
+            values = MovementPattern.values().toList(),
+            onChange = vm::setMovementPattern,
+            modifier = Modifier.fillMaxWidth()
+        )
         OutlinedTextField(
             value = state.defaultRestSec,
             onValueChange = vm::setRestSec,
@@ -149,6 +195,36 @@ fun ExerciseEditScreen(
             Text("Save")
         }
         TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }
+    }
+}
+
+@Composable
+private fun <T : Enum<T>> FilterRow(
+    label: String,
+    selected: T?,
+    values: List<T>,
+    onSelect: (T?) -> Unit
+) {
+    Column {
+        Text(label, style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            FilterChip(
+                selected = selected == null,
+                onClick = { onSelect(null) },
+                label = { Text("All") }
+            )
+            values.forEach { value ->
+                FilterChip(
+                    selected = selected == value,
+                    onClick = { onSelect(value) },
+                    label = { Text(value.name) }
+                )
+            }
+        }
     }
 }
 

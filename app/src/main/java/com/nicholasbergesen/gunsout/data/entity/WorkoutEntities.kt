@@ -51,6 +51,7 @@ data class Exercise(
     val name: String,
     val primaryMuscleGroup: MuscleGroup,
     val equipment: Equipment,
+    val movementPattern: MovementPattern = defaultMovementPatternFor(primaryMuscleGroup),
     val formNotes: String? = null,
     val defaultRestSec: Int = 90,
     val baselineNote: String? = null,

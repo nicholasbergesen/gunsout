@@ -21,6 +21,7 @@ import javax.inject.Singleton
 enum class Sex { MALE, FEMALE }
 enum class ActivityLevel { SEDENTARY, LIGHT, MODERATE, ACTIVE, VERY_ACTIVE }
 enum class GoalType { CUT, MAINTAIN, BULK }
+enum class TrainingExperience { BEGINNER, NOVICE, INTERMEDIATE, ADVANCED }
 
 data class UserProfile(
     val currentBodyWeightKg: Double = 100.0,
@@ -29,12 +30,14 @@ data class UserProfile(
     val heightCm: Int? = null,
     val age: Int? = null,
     val sex: Sex? = null,
+    val trainingExperience: TrainingExperience = TrainingExperience.BEGINNER,
     val activityLevel: ActivityLevel = ActivityLevel.MODERATE,
     val goalType: GoalType = GoalType.MAINTAIN,
     val kneeInjuryFlag: Boolean = true,
     val baselineWeekActive: Boolean = true,
     val themeStyle: ThemeStyle = ThemeStyle.Default,
-    val firstRunDone: Boolean = false
+    val firstRunDone: Boolean = false,
+    val profileSetupDone: Boolean = false
 )
 
 /** Optional manual overrides for the daily macro target. Null means "use the suggestion". */
@@ -72,12 +75,14 @@ class UserPreferences @Inject constructor(
         val heightCm = intPreferencesKey("height_cm")
         val age = intPreferencesKey("age")
         val sex = stringPreferencesKey("sex")
+        val trainingExperience = stringPreferencesKey("training_experience")
         val activityLevel = stringPreferencesKey("activity_level")
         val goalType = stringPreferencesKey("goal_type")
         val kneeInjuryFlag = booleanPreferencesKey("knee_injury_flag")
         val baselineWeekActive = booleanPreferencesKey("baseline_week_active")
         val themeStyle = stringPreferencesKey("theme_style")
         val firstRunDone = booleanPreferencesKey("first_run_done")
+        val profileSetupDone = booleanPreferencesKey("profile_setup_done")
         val overrideKcal = intPreferencesKey("override_kcal")
         val overrideProteinG = intPreferencesKey("override_protein_g")
         val overrideCarbsG = intPreferencesKey("override_carbs_g")
@@ -115,12 +120,14 @@ class UserPreferences @Inject constructor(
             next.heightCm?.let { p[Keys.heightCm] = it } ?: p.remove(Keys.heightCm)
             next.age?.let { p[Keys.age] = it } ?: p.remove(Keys.age)
             next.sex?.let { p[Keys.sex] = it.name } ?: p.remove(Keys.sex)
+            p[Keys.trainingExperience] = next.trainingExperience.name
             p[Keys.activityLevel] = next.activityLevel.name
             p[Keys.goalType] = next.goalType.name
             p[Keys.kneeInjuryFlag] = next.kneeInjuryFlag
             p[Keys.baselineWeekActive] = next.baselineWeekActive
             p[Keys.themeStyle] = next.themeStyle.name
             p[Keys.firstRunDone] = next.firstRunDone
+            p[Keys.profileSetupDone] = next.profileSetupDone
         }
     }
 
@@ -146,12 +153,16 @@ class UserPreferences @Inject constructor(
         heightCm = this[Keys.heightCm],
         age = this[Keys.age],
         sex = this[Keys.sex]?.let { runCatching { Sex.valueOf(it) }.getOrNull() },
+        trainingExperience = this[Keys.trainingExperience]
+            ?.let { runCatching { TrainingExperience.valueOf(it) }.getOrNull() }
+            ?: TrainingExperience.BEGINNER,
         activityLevel = this[Keys.activityLevel]?.let { runCatching { ActivityLevel.valueOf(it) }.getOrNull() } ?: ActivityLevel.MODERATE,
         goalType = this[Keys.goalType]?.let { runCatching { GoalType.valueOf(it) }.getOrNull() } ?: GoalType.MAINTAIN,
         kneeInjuryFlag = this[Keys.kneeInjuryFlag] ?: true,
         baselineWeekActive = this[Keys.baselineWeekActive] ?: true,
         themeStyle = ThemeStyle.fromStoredName(this[Keys.themeStyle]),
-        firstRunDone = this[Keys.firstRunDone] ?: false
+        firstRunDone = this[Keys.firstRunDone] ?: false,
+        profileSetupDone = this[Keys.profileSetupDone] ?: false
     )
 
     private fun Preferences.toOverrides(): MacroOverrides = MacroOverrides(

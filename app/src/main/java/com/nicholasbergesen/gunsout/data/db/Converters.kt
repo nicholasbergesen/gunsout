@@ -6,6 +6,7 @@ import com.nicholasbergesen.gunsout.data.entity.DayHint
 import com.nicholasbergesen.gunsout.data.entity.Equipment
 import com.nicholasbergesen.gunsout.data.entity.MealType
 import com.nicholasbergesen.gunsout.data.entity.MuscleGroup
+import com.nicholasbergesen.gunsout.data.entity.MovementPattern
 import com.nicholasbergesen.gunsout.data.entity.ProgramType
 import com.nicholasbergesen.gunsout.data.entity.Protocol
 import com.nicholasbergesen.gunsout.data.entity.SessionStatus
@@ -29,6 +30,9 @@ class Converters {
 
     @TypeConverter fun muscleGroupToString(v: MuscleGroup?): String? = v?.name
     @TypeConverter fun stringToMuscleGroup(v: String?): MuscleGroup? = v?.let(MuscleGroup::valueOf)
+
+    @TypeConverter fun movementPatternToString(v: MovementPattern?): String? = v?.name
+    @TypeConverter fun stringToMovementPattern(v: String?): MovementPattern? = v?.let(MovementPattern::valueOf)
 
     @TypeConverter fun alternateReasonToString(v: AlternateReason?): String? = v?.name
     @TypeConverter fun stringToAlternateReason(v: String?): AlternateReason? = v?.let(AlternateReason::valueOf)

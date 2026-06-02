@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nicholasbergesen.gunsout.data.entity.Protocol
+import com.nicholasbergesen.gunsout.domain.recommendation.RecommendationTarget
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
@@ -111,32 +112,23 @@ private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
             )
         }
 
-        item.suggestion?.let { sug ->
-            val (text, _) = when (sug) {
-                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.IncreaseWeight ->
-                    "Suggested: +${sug.deltaKg} kg" to true
-                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.DecreaseWeight ->
-                    "Suggested: drop 5 percent" to true
-                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.HoldWeight ->
-                    "Suggested: hold weight" to true
-                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.GraduatePullUp ->
-                    "Suggested: graduate to ${sug.newScheme}" to true
-                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.RegressPullUp ->
-                    "Suggested: try ${sug.variant}" to true
-                com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.KeepCollectingData ->
-                    "" to false
-            }
-            if (text.isNotEmpty()) {
-                Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-            }
+        item.recommendation?.let { rec ->
+            Text(rec.displayText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            Text(rec.explanation, style = MaterialTheme.typography.bodySmall)
         }
 
         for (setIndex in 1..item.programExercise.sets) {
             val existing = item.sets.firstOrNull { it.setIndex == setIndex }
+            val recommendation = item.recommendation
             SetRow(
                 setIndex = setIndex,
                 existing = existing,
-                suggestedKg = (item.previousBest?.weightKg) ?: 0.0,
+                prefillWeightKg = recommendation
+                    ?.takeIf { it.target == RecommendationTarget.WEIGHT_KG && existing == null }
+                    ?.weightKg,
+                prefillReps = recommendation
+                    ?.takeIf { it.target == RecommendationTarget.REPS && existing == null }
+                    ?.reps,
                 onLog = { weight, reps, rpe, isWarmup ->
                     vm.logSet(item.programExercise, item.exercise, setIndex, weight, reps, rpe, isWarmup)
                 }
@@ -207,11 +199,16 @@ private fun SwapAlternateDialog(
 private fun SetRow(
     setIndex: Int,
     existing: com.nicholasbergesen.gunsout.data.entity.SetEntry?,
-    suggestedKg: Double,
+    prefillWeightKg: Double?,
+    prefillReps: Int?,
     onLog: (weight: Double?, reps: Int?, rpe: Int?, isWarmup: Boolean) -> Unit
 ) {
-    var weightText by remember(existing?.id) { mutableStateOf(existing?.weightKg?.toString() ?: "") }
-    var repsText by remember(existing?.id) { mutableStateOf(existing?.reps?.toString() ?: "") }
+    var weightText by remember(existing?.id) {
+        mutableStateOf(existing?.weightKg?.toString() ?: prefillWeightKg?.let(::formatKg).orEmpty())
+    }
+    var repsText by remember(existing?.id) {
+        mutableStateOf(existing?.reps?.toString() ?: prefillReps?.toString().orEmpty())
+    }
     var rpeText by remember(existing?.id) { mutableStateOf(existing?.rpe?.toString() ?: "") }
     var isWarmup by remember(existing?.id) { mutableStateOf(existing?.isWarmup ?: false) }
 
@@ -258,6 +255,9 @@ private fun SetRow(
         }
     }
 }
+
+private fun formatKg(value: Double): String =
+    if (value % 1.0 == 0.0) value.toInt().toString() else "%.1f".format(value)
 
 @Composable
 private fun KneeFeelAndFinish(vm: SessionViewModel) {
