@@ -53,11 +53,13 @@ interface SetEntryDao {
     suspend fun getForSession(sessionId: Long): List<SetEntry>
 
     @Query("""
-        SELECT * FROM set_entry
-        WHERE userId = :userId
-          AND exerciseIdSnapshot = :exerciseId
-          AND sessionId IN (SELECT id FROM workout_session WHERE userId = :userId AND status = 'COMPLETED')
-        ORDER BY id DESC
+        SELECT se.* FROM set_entry se
+        INNER JOIN workout_session ws ON ws.id = se.sessionId
+        WHERE se.userId = :userId
+          AND se.exerciseIdSnapshot = :exerciseId
+          AND ws.userId = :userId
+          AND ws.status = 'COMPLETED'
+        ORDER BY ws.date DESC, ws.id DESC, se.setIndex ASC, se.isWarmup ASC, se.id ASC
         LIMIT 50
     """)
     suspend fun getRecentForExercise(userId: String, exerciseId: Long): List<SetEntry>

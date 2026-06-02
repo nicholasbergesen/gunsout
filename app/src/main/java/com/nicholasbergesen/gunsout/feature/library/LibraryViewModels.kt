@@ -7,7 +7,9 @@ import com.nicholasbergesen.gunsout.auth.CurrentUserIdProvider
 import com.nicholasbergesen.gunsout.data.entity.Equipment
 import com.nicholasbergesen.gunsout.data.entity.Exercise
 import com.nicholasbergesen.gunsout.data.entity.MuscleGroup
+import com.nicholasbergesen.gunsout.data.entity.MovementPattern
 import com.nicholasbergesen.gunsout.data.entity.SetEntry
+import com.nicholasbergesen.gunsout.data.entity.defaultMovementPatternFor
 import com.nicholasbergesen.gunsout.data.repo.ProgramRepository
 import com.nicholasbergesen.gunsout.data.repo.WorkoutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,6 +41,7 @@ data class ExerciseEditState(
     val name: String = "",
     val muscle: MuscleGroup = MuscleGroup.CHEST,
     val equipment: Equipment = Equipment.DUMBBELL,
+    val movementPattern: MovementPattern = MovementPattern.PUSH,
     val formNotes: String = "",
     val defaultRestSec: String = "90",
     val history: List<HistoryPoint> = emptyList(),
@@ -68,6 +71,7 @@ class ExerciseEditViewModel @Inject constructor(
             val history = buildHistory(exerciseId)
             _state.value = ExerciseEditState(
                 name = e.name, muscle = e.primaryMuscleGroup, equipment = e.equipment,
+                movementPattern = e.movementPattern,
                 formNotes = e.formNotes.orEmpty(),
                 defaultRestSec = e.defaultRestSec.toString(),
                 history = history
@@ -95,8 +99,19 @@ class ExerciseEditViewModel @Inject constructor(
     }
 
     fun setName(v: String) = _state.update { it.copy(name = v) }
-    fun setMuscle(v: MuscleGroup) = _state.update { it.copy(muscle = v) }
+    fun setMuscle(v: MuscleGroup) = _state.update {
+        val currentDefault = defaultMovementPatternFor(it.muscle)
+        it.copy(
+            muscle = v,
+            movementPattern = if (it.movementPattern == currentDefault) {
+                defaultMovementPatternFor(v)
+            } else {
+                it.movementPattern
+            }
+        )
+    }
     fun setEquipment(v: Equipment) = _state.update { it.copy(equipment = v) }
+    fun setMovementPattern(v: MovementPattern) = _state.update { it.copy(movementPattern = v) }
     fun setFormNotes(v: String) = _state.update { it.copy(formNotes = v) }
     fun setRestSec(v: String) = _state.update { it.copy(defaultRestSec = v.filter(Char::isDigit)) }
 
@@ -109,11 +124,13 @@ class ExerciseEditViewModel @Inject constructor(
             name = "",
             primaryMuscleGroup = MuscleGroup.CHEST,
             equipment = Equipment.DUMBBELL,
+            movementPattern = MovementPattern.PUSH,
             isUserCreated = true
         )).copy(
             name = s.name.trim(),
             primaryMuscleGroup = s.muscle,
             equipment = s.equipment,
+            movementPattern = s.movementPattern,
             formNotes = s.formNotes.ifBlank { null },
             defaultRestSec = s.defaultRestSec.toIntOrNull() ?: 90
         )

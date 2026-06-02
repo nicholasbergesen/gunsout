@@ -39,6 +39,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.nicholasbergesen.gunsout.core.text.formatOneDecimalOrInt
+import com.nicholasbergesen.gunsout.core.text.normalizeDecimalInput
+import com.nicholasbergesen.gunsout.core.text.toNormalizedDoubleOrNull
 import com.nicholasbergesen.gunsout.data.entity.MealType
 import com.nicholasbergesen.gunsout.domain.nutrition.MacroTarget
 import com.nicholasbergesen.gunsout.ui.components.BigValue
@@ -324,7 +327,7 @@ private fun AddMealSheet(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = protein,
-                    onValueChange = { protein = it.filter { c -> c.isDigit() || c == '.' } },
+                    onValueChange = { protein = it.normalizeDecimalInput() },
                     label = { Text("Protein g") },
                     singleLine = true,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
@@ -332,7 +335,7 @@ private fun AddMealSheet(
                 )
                 OutlinedTextField(
                     value = carbs,
-                    onValueChange = { carbs = it.filter { c -> c.isDigit() || c == '.' } },
+                    onValueChange = { carbs = it.normalizeDecimalInput() },
                     label = { Text("Carbs g") },
                     singleLine = true,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
@@ -340,7 +343,7 @@ private fun AddMealSheet(
                 )
                 OutlinedTextField(
                     value = fat,
-                    onValueChange = { fat = it.filter { c -> c.isDigit() || c == '.' } },
+                    onValueChange = { fat = it.normalizeDecimalInput() },
                     label = { Text("Fat g") },
                     singleLine = true,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
@@ -364,9 +367,9 @@ private fun AddMealSheet(
                             name,
                             mealType,
                             kcal.toIntOrNull() ?: 0,
-                            protein.toDoubleOrNull() ?: 0.0,
-                            carbs.toDoubleOrNull() ?: 0.0,
-                            fat.toDoubleOrNull() ?: 0.0,
+                            protein.toNormalizedDoubleOrNull() ?: 0.0,
+                            carbs.toNormalizedDoubleOrNull() ?: 0.0,
+                            fat.toNormalizedDoubleOrNull() ?: 0.0,
                             saveAsTemplate
                         )
                     }
@@ -435,9 +438,9 @@ private fun FoodEntryEditDialog(
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = kcal, onValueChange = { kcal = it.filter(Char::isDigit) }, label = { Text("kcal") }, singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
-                OutlinedTextField(value = protein, onValueChange = { protein = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Protein g") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = carbs, onValueChange = { carbs = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Carbs g") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = fat, onValueChange = { fat = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Fat g") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = protein, onValueChange = { protein = it.normalizeDecimalInput() }, label = { Text("Protein g") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = carbs, onValueChange = { carbs = it.normalizeDecimalInput() }, label = { Text("Carbs g") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = fat, onValueChange = { fat = it.normalizeDecimalInput() }, label = { Text("Fat g") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = {
@@ -445,9 +448,9 @@ private fun FoodEntryEditDialog(
                 onSave(entry.copy(
                     name = name.trim().ifBlank { entry.name },
                     kcal = kcal.toIntOrNull() ?: entry.kcal,
-                    proteinG = protein.toDoubleOrNull() ?: entry.proteinG,
-                    carbsG = carbs.toDoubleOrNull() ?: entry.carbsG,
-                    fatG = fat.toDoubleOrNull() ?: entry.fatG
+                    proteinG = protein.toNormalizedDoubleOrNull() ?: entry.proteinG,
+                    carbsG = carbs.toNormalizedDoubleOrNull() ?: entry.carbsG,
+                    fatG = fat.toNormalizedDoubleOrNull() ?: entry.fatG
                 ))
             }) { Text("Save") }
         },
@@ -493,4 +496,4 @@ private fun MacroRow(label: String, value: Double, target: Double, unit: String)
 }
 
 private val Double.g: String
-    get() = if (this % 1.0 == 0.0) toInt().toString() else "%.1f".format(this)
+    get() = formatOneDecimalOrInt(this)

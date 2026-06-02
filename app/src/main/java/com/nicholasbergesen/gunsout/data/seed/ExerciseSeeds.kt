@@ -4,6 +4,7 @@ import com.nicholasbergesen.gunsout.data.entity.AlternateReason
 import com.nicholasbergesen.gunsout.data.entity.Equipment
 import com.nicholasbergesen.gunsout.data.entity.Exercise
 import com.nicholasbergesen.gunsout.data.entity.MuscleGroup
+import com.nicholasbergesen.gunsout.data.entity.MovementPattern
 
 /** Seeded exercises, keyed by stable seedKey strings. */
 object ExerciseSeeds {
@@ -250,6 +251,298 @@ object ExerciseSeeds {
             formNotes = "Flat on bench, grip behind head. Raise legs to 90 degrees, lower slowly without arching back.",
             defaultRestSec = 60,
             seedKey = "lying_leg_raise"
+        )),
+
+        // Expanded commercial-gym library
+        Seed("barbell_bench_press", Exercise(
+            userId = "",
+            name = "Barbell Bench Press",
+            primaryMuscleGroup = MuscleGroup.CHEST,
+            equipment = Equipment.BARBELL,
+            movementPattern = MovementPattern.PUSH,
+            formNotes = "Shoulder blades pinned. Touch lower chest, press up and slightly back. Total bar weight includes the bar.",
+            defaultRestSec = 120,
+            seedKey = "barbell_bench_press"
+        )),
+        Seed("machine_chest_press", Exercise(
+            userId = "",
+            name = "Machine Chest Press",
+            primaryMuscleGroup = MuscleGroup.CHEST,
+            equipment = Equipment.MACHINE,
+            movementPattern = MovementPattern.PUSH,
+            formNotes = "Seat set so handles start around mid-chest. Press smoothly without shrugging.",
+            defaultRestSec = 90,
+            seedKey = "machine_chest_press"
+        )),
+        Seed("pec_deck_fly", Exercise(
+            userId = "",
+            name = "Pec Deck Fly",
+            primaryMuscleGroup = MuscleGroup.CHEST,
+            equipment = Equipment.MACHINE,
+            movementPattern = MovementPattern.ISOLATION,
+            formNotes = "Keep chest tall and elbows softly bent. Bring pads together without bouncing.",
+            defaultRestSec = 60,
+            seedKey = "pec_deck_fly"
+        )),
+        Seed("cable_chest_fly", Exercise(
+            userId = "",
+            name = "Cable Chest Fly",
+            primaryMuscleGroup = MuscleGroup.CHEST,
+            equipment = Equipment.CABLE,
+            movementPattern = MovementPattern.ISOLATION,
+            formNotes = "Cables set around chest height. Step forward, hug wide arcs together, control the stretch.",
+            defaultRestSec = 60,
+            seedKey = "cable_chest_fly"
+        )),
+        Seed("bodyweight_dip", Exercise(
+            userId = "",
+            name = "Bodyweight Dip",
+            primaryMuscleGroup = MuscleGroup.TRICEPS,
+            equipment = Equipment.BODYWEIGHT,
+            movementPattern = MovementPattern.PUSH,
+            formNotes = "Use parallel bars. Lower under control until shoulders stay comfortable, press to lockout.",
+            defaultRestSec = 90,
+            seedKey = "bodyweight_dip"
+        )),
+        Seed("seated_cable_row", Exercise(
+            userId = "",
+            name = "Seated Cable Row",
+            primaryMuscleGroup = MuscleGroup.BACK,
+            equipment = Equipment.CABLE,
+            movementPattern = MovementPattern.PULL,
+            formNotes = "Tall torso. Pull handle to lower ribs, pause, and return until lats stretch.",
+            defaultRestSec = 90,
+            seedKey = "seated_cable_row"
+        )),
+        Seed("machine_row", Exercise(
+            userId = "",
+            name = "Machine Row",
+            primaryMuscleGroup = MuscleGroup.BACK,
+            equipment = Equipment.MACHINE,
+            movementPattern = MovementPattern.PULL,
+            formNotes = "Chest on pad if available. Pull elbows back without leaning away from the machine.",
+            defaultRestSec = 90,
+            seedKey = "machine_row"
+        )),
+        Seed("single_arm_db_row", Exercise(
+            userId = "",
+            name = "Single-Arm Dumbbell Row",
+            primaryMuscleGroup = MuscleGroup.BACK,
+            equipment = Equipment.DUMBBELL,
+            movementPattern = MovementPattern.PULL,
+            formNotes = "One hand on bench. Row dumbbell toward hip, keep torso quiet. Load is per hand.",
+            defaultRestSec = 90,
+            seedKey = "single_arm_db_row"
+        )),
+        Seed("face_pull", Exercise(
+            userId = "",
+            name = "Cable Face Pull",
+            primaryMuscleGroup = MuscleGroup.SHOULDERS,
+            equipment = Equipment.CABLE,
+            movementPattern = MovementPattern.ISOLATION,
+            formNotes = "Rope at eye height. Pull toward forehead with elbows high and shoulder blades moving.",
+            defaultRestSec = 60,
+            seedKey = "face_pull"
+        )),
+        Seed("straight_arm_pulldown", Exercise(
+            userId = "",
+            name = "Straight-Arm Pulldown",
+            primaryMuscleGroup = MuscleGroup.BACK,
+            equipment = Equipment.CABLE,
+            movementPattern = MovementPattern.PULL,
+            formNotes = "Arms nearly straight. Pull bar from shoulder height to thighs using lats.",
+            defaultRestSec = 60,
+            seedKey = "straight_arm_pulldown"
+        )),
+        Seed("hack_squat", Exercise(
+            userId = "",
+            name = "Hack Squat",
+            primaryMuscleGroup = MuscleGroup.QUADS,
+            equipment = Equipment.MACHINE,
+            movementPattern = MovementPattern.SQUAT,
+            formNotes = "Feet shoulder-width on platform. Squat deep while keeping hips and back on pads.",
+            defaultRestSec = 120,
+            seedKey = "hack_squat"
+        )),
+        Seed("smith_squat", Exercise(
+            userId = "",
+            name = "Smith Machine Squat",
+            primaryMuscleGroup = MuscleGroup.QUADS,
+            equipment = Equipment.BARBELL,
+            movementPattern = MovementPattern.SQUAT,
+            formNotes = "Feet slightly forward. Sit between heels, drive up evenly. Total load includes the bar path setting.",
+            defaultRestSec = 120,
+            seedKey = "smith_squat"
+        )),
+        Seed("conventional_deadlift", Exercise(
+            userId = "",
+            name = "Conventional Deadlift",
+            primaryMuscleGroup = MuscleGroup.HAMSTRINGS,
+            equipment = Equipment.BARBELL,
+            movementPattern = MovementPattern.HINGE,
+            formNotes = "Bar over mid-foot. Brace, push floor away, and keep bar close. Total load includes the bar.",
+            defaultRestSec = 150,
+            seedKey = "conventional_deadlift"
+        )),
+        Seed("trap_bar_deadlift", Exercise(
+            userId = "",
+            name = "Trap Bar Deadlift",
+            primaryMuscleGroup = MuscleGroup.HAMSTRINGS,
+            equipment = Equipment.BARBELL,
+            movementPattern = MovementPattern.HINGE,
+            formNotes = "Stand centered in trap bar. Brace, drive through the floor, and lock out tall.",
+            defaultRestSec = 150,
+            seedKey = "trap_bar_deadlift"
+        )),
+        Seed("back_extension", Exercise(
+            userId = "",
+            name = "Back Extension",
+            primaryMuscleGroup = MuscleGroup.GLUTES,
+            equipment = Equipment.BODYWEIGHT,
+            movementPattern = MovementPattern.HINGE,
+            formNotes = "Hips on pad. Fold at hips, squeeze glutes to return to a straight line.",
+            defaultRestSec = 60,
+            seedKey = "back_extension"
+        )),
+        Seed("cable_pull_through", Exercise(
+            userId = "",
+            name = "Cable Pull-Through",
+            primaryMuscleGroup = MuscleGroup.GLUTES,
+            equipment = Equipment.CABLE,
+            movementPattern = MovementPattern.HINGE,
+            formNotes = "Rope on low pulley. Hinge away from stack, then drive hips through.",
+            defaultRestSec = 75,
+            seedKey = "cable_pull_through"
+        )),
+        Seed("db_walking_lunge", Exercise(
+            userId = "",
+            name = "Dumbbell Walking Lunge",
+            primaryMuscleGroup = MuscleGroup.QUADS,
+            equipment = Equipment.DUMBBELL,
+            movementPattern = MovementPattern.LUNGE,
+            formNotes = "Long smooth steps. Front knee tracks over toes, back knee lowers under control. Load is per hand.",
+            defaultRestSec = 90,
+            seedKey = "db_walking_lunge"
+        )),
+        Seed("db_reverse_lunge", Exercise(
+            userId = "",
+            name = "Dumbbell Reverse Lunge",
+            primaryMuscleGroup = MuscleGroup.QUADS,
+            equipment = Equipment.DUMBBELL,
+            movementPattern = MovementPattern.LUNGE,
+            formNotes = "Step back, lower under control, and drive through the front foot. Load is per hand.",
+            defaultRestSec = 90,
+            seedKey = "db_reverse_lunge"
+        )),
+        Seed("db_step_up", Exercise(
+            userId = "",
+            name = "Dumbbell Step-Up",
+            primaryMuscleGroup = MuscleGroup.QUADS,
+            equipment = Equipment.DUMBBELL,
+            movementPattern = MovementPattern.LUNGE,
+            formNotes = "Use a box around knee height. Step through the working leg without bouncing off the floor leg.",
+            defaultRestSec = 90,
+            seedKey = "db_step_up"
+        )),
+        Seed("triceps_pressdown", Exercise(
+            userId = "",
+            name = "Cable Triceps Pressdown",
+            primaryMuscleGroup = MuscleGroup.TRICEPS,
+            equipment = Equipment.CABLE,
+            movementPattern = MovementPattern.ISOLATION,
+            formNotes = "Elbows pinned to sides. Press rope or bar down and apart, then return under control.",
+            defaultRestSec = 60,
+            seedKey = "triceps_pressdown"
+        )),
+        Seed("rope_overhead_triceps", Exercise(
+            userId = "",
+            name = "Rope Overhead Triceps Extension",
+            primaryMuscleGroup = MuscleGroup.TRICEPS,
+            equipment = Equipment.CABLE,
+            movementPattern = MovementPattern.ISOLATION,
+            formNotes = "Cable low behind you. Elbows high, stretch long head, extend without flaring.",
+            defaultRestSec = 60,
+            seedKey = "rope_overhead_triceps"
+        )),
+        Seed("preacher_curl", Exercise(
+            userId = "",
+            name = "Preacher Curl",
+            primaryMuscleGroup = MuscleGroup.BICEPS,
+            equipment = Equipment.BARBELL,
+            movementPattern = MovementPattern.ISOLATION,
+            formNotes = "Upper arms fixed to pad. Curl smoothly, avoid relaxing at the bottom.",
+            defaultRestSec = 60,
+            seedKey = "preacher_curl"
+        )),
+        Seed("machine_biceps_curl", Exercise(
+            userId = "",
+            name = "Machine Biceps Curl",
+            primaryMuscleGroup = MuscleGroup.BICEPS,
+            equipment = Equipment.MACHINE,
+            movementPattern = MovementPattern.ISOLATION,
+            formNotes = "Seat adjusted so elbows align with pivot. Curl without lifting shoulders.",
+            defaultRestSec = 60,
+            seedKey = "machine_biceps_curl"
+        )),
+        Seed("seated_calf_raise", Exercise(
+            userId = "",
+            name = "Seated Calf Raise",
+            primaryMuscleGroup = MuscleGroup.CALVES,
+            equipment = Equipment.MACHINE,
+            movementPattern = MovementPattern.CALVES,
+            formNotes = "Pads over thighs. Full stretch at bottom, hard squeeze at top.",
+            defaultRestSec = 60,
+            seedKey = "seated_calf_raise"
+        )),
+        Seed("machine_calf_raise", Exercise(
+            userId = "",
+            name = "Machine Standing Calf Raise",
+            primaryMuscleGroup = MuscleGroup.CALVES,
+            equipment = Equipment.MACHINE,
+            movementPattern = MovementPattern.CALVES,
+            formNotes = "Knees softly unlocked. Drop heels for a full stretch, rise high onto toes.",
+            defaultRestSec = 60,
+            seedKey = "machine_calf_raise"
+        )),
+        Seed("cable_crunch", Exercise(
+            userId = "",
+            name = "Cable Crunch",
+            primaryMuscleGroup = MuscleGroup.CORE,
+            equipment = Equipment.CABLE,
+            movementPattern = MovementPattern.CORE,
+            formNotes = "Kneel facing stack. Curl ribs toward pelvis without pulling with arms.",
+            defaultRestSec = 60,
+            seedKey = "cable_crunch"
+        )),
+        Seed("machine_crunch", Exercise(
+            userId = "",
+            name = "Machine Crunch",
+            primaryMuscleGroup = MuscleGroup.CORE,
+            equipment = Equipment.MACHINE,
+            movementPattern = MovementPattern.CORE,
+            formNotes = "Set pads comfortably. Crunch by rounding trunk, not yanking with arms.",
+            defaultRestSec = 60,
+            seedKey = "machine_crunch"
+        )),
+        Seed("hanging_knee_raise", Exercise(
+            userId = "",
+            name = "Hanging Knee Raise",
+            primaryMuscleGroup = MuscleGroup.CORE,
+            equipment = Equipment.BODYWEIGHT,
+            movementPattern = MovementPattern.CORE,
+            formNotes = "Hang from bar or captain's chair. Curl knees toward chest without swinging.",
+            defaultRestSec = 60,
+            seedKey = "hanging_knee_raise"
+        )),
+        Seed("ab_wheel_rollout", Exercise(
+            userId = "",
+            name = "Ab Wheel Rollout",
+            primaryMuscleGroup = MuscleGroup.CORE,
+            equipment = Equipment.BODYWEIGHT,
+            movementPattern = MovementPattern.CORE,
+            formNotes = "Start from knees. Brace ribs down, roll out only as far as you can return with control.",
+            defaultRestSec = 60,
+            seedKey = "ab_wheel_rollout"
         ))
     )
 }

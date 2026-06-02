@@ -26,7 +26,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.nicholasbergesen.gunsout.core.text.formatOneDecimalOrInt
+import com.nicholasbergesen.gunsout.core.text.normalizeDecimalInput
+import com.nicholasbergesen.gunsout.core.text.toNormalizedDoubleOrNull
 import com.nicholasbergesen.gunsout.data.entity.Protocol
+import com.nicholasbergesen.gunsout.domain.recommendation.RecommendationTarget
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
@@ -111,32 +115,24 @@ private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
             )
         }
 
-        item.suggestion?.let { sug ->
-            val (text, _) = when (sug) {
-                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.IncreaseWeight ->
-                    "Suggested: +${sug.deltaKg} kg" to true
-                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.DecreaseWeight ->
-                    "Suggested: drop 5 percent" to true
-                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.HoldWeight ->
-                    "Suggested: hold weight" to true
-                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.GraduatePullUp ->
-                    "Suggested: graduate to ${sug.newScheme}" to true
-                is com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.RegressPullUp ->
-                    "Suggested: try ${sug.variant}" to true
-                com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine.Suggestion.KeepCollectingData ->
-                    "" to false
-            }
-            if (text.isNotEmpty()) {
-                Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-            }
+        item.recommendation?.let { rec ->
+            Text(rec.displayText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            Text(rec.explanation, style = MaterialTheme.typography.bodySmall)
         }
 
         for (setIndex in 1..item.programExercise.sets) {
             val existing = item.sets.firstOrNull { it.setIndex == setIndex }
+            val recommendation = item.recommendation
             SetRow(
                 setIndex = setIndex,
                 existing = existing,
-                suggestedKg = (item.previousBest?.weightKg) ?: 0.0,
+                prefillKey = "${item.exercise.id}:$setIndex:${recommendation?.target}:${recommendation?.weightKg}:${recommendation?.reps}",
+                prefillWeightKg = recommendation
+                    ?.takeIf { it.target == RecommendationTarget.WEIGHT_KG && existing == null }
+                    ?.weightKg,
+                prefillReps = recommendation
+                    ?.takeIf { it.target == RecommendationTarget.REPS && existing == null }
+                    ?.reps,
                 onLog = { weight, reps, rpe, isWarmup ->
                     vm.logSet(item.programExercise, item.exercise, setIndex, weight, reps, rpe, isWarmup)
                 }
@@ -207,13 +203,20 @@ private fun SwapAlternateDialog(
 private fun SetRow(
     setIndex: Int,
     existing: com.nicholasbergesen.gunsout.data.entity.SetEntry?,
-    suggestedKg: Double,
+    prefillKey: String,
+    prefillWeightKg: Double?,
+    prefillReps: Int?,
     onLog: (weight: Double?, reps: Int?, rpe: Int?, isWarmup: Boolean) -> Unit
 ) {
-    var weightText by remember(existing?.id) { mutableStateOf(existing?.weightKg?.toString() ?: "") }
-    var repsText by remember(existing?.id) { mutableStateOf(existing?.reps?.toString() ?: "") }
-    var rpeText by remember(existing?.id) { mutableStateOf(existing?.rpe?.toString() ?: "") }
-    var isWarmup by remember(existing?.id) { mutableStateOf(existing?.isWarmup ?: false) }
+    val rowKey = existing?.id ?: prefillKey
+    var weightText by remember(rowKey) {
+        mutableStateOf(existing?.weightKg?.toString() ?: prefillWeightKg?.let(::formatOneDecimalOrInt).orEmpty())
+    }
+    var repsText by remember(rowKey) {
+        mutableStateOf(existing?.reps?.toString() ?: prefillReps?.toString().orEmpty())
+    }
+    var rpeText by remember(rowKey) { mutableStateOf(existing?.rpe?.toString() ?: "") }
+    var isWarmup by remember(rowKey) { mutableStateOf(existing?.isWarmup ?: false) }
 
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
@@ -223,7 +226,7 @@ private fun SetRow(
             Text("$setIndex", modifier = Modifier.padding(top = 16.dp).padding(end = 4.dp))
             OutlinedTextField(
                 value = weightText,
-                onValueChange = { weightText = it.filter { c -> c.isDigit() || c == '.' } },
+                onValueChange = { weightText = it.normalizeDecimalInput() },
                 label = { Text("kg") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -246,7 +249,7 @@ private fun SetRow(
                 modifier = Modifier.weight(1f)
             )
             androidx.compose.material3.Button(onClick = {
-                onLog(weightText.toDoubleOrNull(), repsText.toIntOrNull(), rpeText.toIntOrNull(), isWarmup)
+                onLog(weightText.toNormalizedDoubleOrNull(), repsText.toIntOrNull(), rpeText.toIntOrNull(), isWarmup)
             }) { Text(if (existing == null) "Log" else "Save") }
         }
         Row(

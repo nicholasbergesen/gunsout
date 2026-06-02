@@ -9,8 +9,10 @@ import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
 import com.nicholasbergesen.gunsout.data.entity.SetEntry
 import com.nicholasbergesen.gunsout.data.entity.WorkoutSession
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
+import com.nicholasbergesen.gunsout.data.repo.BodyRepository
 import com.nicholasbergesen.gunsout.data.repo.WorkoutRepository
-import com.nicholasbergesen.gunsout.domain.progression.ProgressionEngine
+import com.nicholasbergesen.gunsout.domain.recommendation.ExerciseRecommendation
+import com.nicholasbergesen.gunsout.domain.recommendation.ExerciseRecommendationEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.LocalDateTime
 import javax.inject.Inject
 
@@ -26,7 +29,7 @@ data class PlannedExerciseUi(
     val exercise: Exercise,
     val sets: List<SetEntry>,
     val previousBest: SetEntry?,
-    val suggestion: ProgressionEngine.Suggestion?,
+    val recommendation: ExerciseRecommendation?,
     val alternates: List<Exercise> = emptyList()
 )
 
@@ -45,12 +48,13 @@ data class SessionUiState(
 class SessionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val workouts: WorkoutRepository,
+    private val bodyRepository: BodyRepository,
     private val userPrefs: UserPreferences,
     private val currentUserIdProvider: CurrentUserIdProvider,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
-    private val engine = ProgressionEngine()
+    private val engine = ExerciseRecommendationEngine()
     private val sessionId: Long = savedStateHandle.get<Long>("sessionId") ?: 0L
 
     /**
@@ -67,15 +71,19 @@ class SessionViewModel @Inject constructor(
 
     private fun load() = viewModelScope.launch {
         val userId = currentUserIdProvider.requireUserId()
-        val profile = userPrefs.profile(userId).first()
         val session = workouts.getSessionById(sessionId) ?: return@launch
         val pdId = session.programDayId ?: return@launch
+        val profile = userPrefs.profile(userId).first()
+        val latestBodyLog = bodyRepository.getLatest(userId)
+        val recentBodyLogs = bodyRepository.observeSince(userId, LocalDate.now().minusDays(28)).first()
         val activeProgram = workouts.getActiveProgram(userId)
         val baseline = com.nicholasbergesen.gunsout.domain.baseline.BaselineWeekResolver.isActive(
             programCreatedAt = activeProgram?.createdAt,
             forcedFlag = profile.baselineWeekActive
         )
         val pds = workouts.getProgramExercises(pdId)
+        val currentSetsByProgramExercise = workouts.getSetsForSession(sessionId)
+            .groupBy { it.programExerciseId }
         val items = pds.map { pe ->
             val effectiveId = sessionOverrides[pe.id] ?: pe.exerciseId
             val ex = workouts.getExercise(effectiveId)
@@ -101,10 +109,18 @@ class SessionViewModel @Inject constructor(
             val priorBest = priorSessions.firstOrNull()?.third
                 ?.maxByOrNull { (it.weightKg ?: 0.0) * (it.reps ?: 0) }
             val priorSets = priorSessions.firstOrNull()?.third.orEmpty()
-            val suggestion = engine.suggest(pe, ex, priorSets, baseline)
-            val currentSets = workouts.getSetsForSession(sessionId).filter { it.programExerciseId == pe.id }
+            val recommendation = engine.recommend(
+                prescription = pe,
+                exercise = ex,
+                previousWorkingSets = priorSets,
+                baselineWeekActive = baseline,
+                profile = profile,
+                latestBodyLog = latestBodyLog,
+                recentBodyLogs = recentBodyLogs
+            )
+            val currentSets = currentSetsByProgramExercise[pe.id].orEmpty()
             val alternates = workouts.getAlternates(ex.id)
-            PlannedExerciseUi(pe, ex, currentSets, priorBest, suggestion, alternates)
+            PlannedExerciseUi(pe, ex, currentSets, priorBest, recommendation, alternates)
         }
         _state.update {
             it.copy(

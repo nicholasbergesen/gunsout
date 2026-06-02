@@ -5,6 +5,7 @@ import com.nicholasbergesen.gunsout.data.db.GunsoutDatabase
 import com.nicholasbergesen.gunsout.data.prefs.ActivityLevel
 import com.nicholasbergesen.gunsout.data.prefs.GoalType
 import com.nicholasbergesen.gunsout.data.prefs.Sex
+import com.nicholasbergesen.gunsout.data.prefs.TrainingExperience
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import com.nicholasbergesen.gunsout.ui.theme.ThemeStyle
@@ -63,12 +64,14 @@ class BackupManager @Inject constructor(
             heightCm = profile.heightCm,
             age = profile.age,
             sex = profile.sex?.name,
+            trainingExperience = profile.trainingExperience.name,
             activityLevel = profile.activityLevel.name,
             goalType = profile.goalType.name,
             kneeInjuryFlag = profile.kneeInjuryFlag,
             baselineWeekActive = profile.baselineWeekActive,
             themeStyle = profile.themeStyle.name,
-            firstRunDone = profile.firstRunDone
+            firstRunDone = profile.firstRunDone,
+            profileSetupDone = profile.profileSetupDone
         )
         val overrides = userPrefs.overrides(userId).first()
         val overridesBackup = MacroOverridesBackup(
@@ -79,7 +82,7 @@ class BackupManager @Inject constructor(
         )
 
         val backup = GunsoutBackup(
-            schemaVersion = 5,
+            schemaVersion = 6,
             exportedAtIso = LocalDateTime.now().toString(),
             programs = programs,
             programDays = days,
@@ -113,13 +116,14 @@ class BackupManager @Inject constructor(
      * once the database stores multiple users' rows side by side.
      *
      * Accepts schemaVersion 1 (no userProfile), 2 (single-user profile, no macro overrides),
-     * 3 (per-user profile fields plus macro overrides), 4 (themeStyle), and 5 (water liters).
+     * 3 (per-user profile fields plus macro overrides), 4 (themeStyle), 5 (water liters),
+     * and 6 (strength profile setup and movement pattern).
      */
     suspend fun importFromJson(userId: String, jsonText: String): ImportResult = withContext(Dispatchers.IO) {
         val parsed = runCatching { json.decodeFromString(GunsoutBackup.serializer(), jsonText) }
             .getOrElse { return@withContext ImportResult.Error(it.message ?: "Parse failed") }
 
-        if (parsed.schemaVersion !in 1..5) {
+        if (parsed.schemaVersion !in 1..6) {
             return@withContext ImportResult.Error("Unsupported backup schema v${parsed.schemaVersion}")
         }
 
@@ -306,11 +310,15 @@ internal fun UserProfileBackup.toUserProfile(): UserProfile = UserProfile(
     heightCm = heightCm,
     age = age,
     sex = sex?.let { runCatching { Sex.valueOf(it) }.getOrNull() },
+    trainingExperience = trainingExperience
+        ?.let { runCatching { TrainingExperience.valueOf(it) }.getOrNull() }
+        ?: TrainingExperience.BEGINNER,
     activityLevel = activityLevel?.let { runCatching { ActivityLevel.valueOf(it) }.getOrNull() }
         ?: ActivityLevel.MODERATE,
     goalType = goalType?.let { runCatching { GoalType.valueOf(it) }.getOrNull() } ?: GoalType.MAINTAIN,
     kneeInjuryFlag = kneeInjuryFlag,
     baselineWeekActive = baselineWeekActive,
     themeStyle = ThemeStyle.fromStoredName(themeStyle),
-    firstRunDone = firstRunDone
+    firstRunDone = firstRunDone,
+    profileSetupDone = profileSetupDone
 )

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,8 +12,11 @@ import com.nicholasbergesen.gunsout.auth.AuthRepository
 import com.nicholasbergesen.gunsout.auth.AuthUser
 import com.nicholasbergesen.gunsout.auth.SeederController
 import com.nicholasbergesen.gunsout.auth.SeederState
+import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
+import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import com.nicholasbergesen.gunsout.feature.supplements.SupplementReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -23,6 +27,7 @@ import javax.inject.Inject
 class AuthGateViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     val seederController: SeederController,
+    private val userPreferences: UserPreferences,
     private val reminderScheduler: SupplementReminderScheduler
 ) : ViewModel() {
     val signedInUser: StateFlow<AuthUser?> = authRepository.signedInUser
@@ -39,6 +44,9 @@ class AuthGateViewModel @Inject constructor(
     fun retry(userId: String) {
         seederController.start(userId)
     }
+
+    fun profile(userId: String): Flow<UserProfile> =
+        userPreferences.profile(userId)
 
     /**
      * Sign-out path from the setup error screen. Reminder cancellation is best-effort: if it
@@ -82,10 +90,16 @@ fun AuthGate(
         LoginScreen()
         return
     }
+    val profileFlow = remember(currentUser.userId) { vm.profile(currentUser.userId) }
+    val profile by profileFlow.collectAsState(initial = UserProfile())
     val s = seederState
     when (s) {
         is SeederState.Done -> if (s.userId == currentUser.userId) {
-            content(currentUser.userId)
+            if (profile.profileSetupDone) {
+                content(currentUser.userId)
+            } else {
+                ProfileSetupScreen()
+            }
         } else {
             SetupScreen()
         }

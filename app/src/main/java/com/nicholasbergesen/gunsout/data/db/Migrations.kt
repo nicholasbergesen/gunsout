@@ -37,7 +37,27 @@ object Migrations {
         }
     }
 
-    val allMigrations: Array<Migration> = arrayOf(MIGRATION_4_5)
+    private val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("ALTER TABLE exercise ADD COLUMN movementPattern TEXT NOT NULL DEFAULT 'ISOLATION'")
+            database.execSQL(
+                """
+                UPDATE exercise
+                SET movementPattern = CASE
+                    WHEN primaryMuscleGroup IN ('CHEST', 'SHOULDERS', 'TRICEPS') THEN 'PUSH'
+                    WHEN primaryMuscleGroup IN ('BACK', 'BICEPS') THEN 'PULL'
+                    WHEN primaryMuscleGroup = 'QUADS' THEN 'SQUAT'
+                    WHEN primaryMuscleGroup IN ('HAMSTRINGS', 'GLUTES') THEN 'HINGE'
+                    WHEN primaryMuscleGroup = 'CALVES' THEN 'CALVES'
+                    WHEN primaryMuscleGroup = 'CORE' THEN 'CORE'
+                    ELSE 'ISOLATION'
+                END
+                """.trimIndent()
+            )
+        }
+    }
+
+    val allMigrations: Array<Migration> = arrayOf(MIGRATION_4_5, MIGRATION_5_6)
 
     val destructiveFallbackFromVersions: IntArray = intArrayOf(1, 2, 3)
 }

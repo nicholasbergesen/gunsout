@@ -4,6 +4,18 @@ enum class Equipment { DUMBBELL, BARBELL, MACHINE, BODYWEIGHT, BENCH, CABLE, OTH
 
 enum class MuscleGroup { CHEST, BACK, SHOULDERS, BICEPS, TRICEPS, QUADS, HAMSTRINGS, GLUTES, CALVES, CORE, FULL_BODY, OTHER }
 
+enum class MovementPattern { PUSH, PULL, SQUAT, HINGE, LUNGE, ISOLATION, CALVES, CORE }
+
+fun defaultMovementPatternFor(muscleGroup: MuscleGroup): MovementPattern = when (muscleGroup) {
+    MuscleGroup.CHEST, MuscleGroup.SHOULDERS, MuscleGroup.TRICEPS -> MovementPattern.PUSH
+    MuscleGroup.BACK, MuscleGroup.BICEPS -> MovementPattern.PULL
+    MuscleGroup.QUADS -> MovementPattern.SQUAT
+    MuscleGroup.HAMSTRINGS, MuscleGroup.GLUTES -> MovementPattern.HINGE
+    MuscleGroup.CALVES -> MovementPattern.CALVES
+    MuscleGroup.CORE -> MovementPattern.CORE
+    MuscleGroup.FULL_BODY, MuscleGroup.OTHER -> MovementPattern.ISOLATION
+}
+
 enum class AlternateReason { HOME, INJURY, NO_CABLE, STRENGTH_LOW, PREFERENCE }
 
 enum class Protocol { STANDARD, PULL_UP_5X2_3, AMRAP }

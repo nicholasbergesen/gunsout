@@ -1,6 +1,8 @@
 package com.nicholasbergesen.gunsout.data.backup
 
 import com.nicholasbergesen.gunsout.ui.theme.ThemeStyle
+import com.nicholasbergesen.gunsout.data.entity.MovementPattern
+import com.nicholasbergesen.gunsout.data.prefs.TrainingExperience
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -35,7 +37,7 @@ class BackupThemeStyleTest {
     @Test fun backupJson_encodesSchemaVersionAndThemeStyle() {
         val encoded = json.encodeToString(emptyBackup(ThemeStyle.SOFT_PASTEL))
 
-        assertTrue(encoded.contains("\"schemaVersion\":5"))
+        assertTrue(encoded.contains("\"schemaVersion\":6"))
         assertTrue(encoded.contains("\"themeStyle\":\"SOFT_PASTEL\""))
         assertFalse(encoded.contains("\"themeMode\""))
     }
@@ -73,6 +75,27 @@ class BackupThemeStyleTest {
         assertEquals(3, decoded.schemaVersion)
         assertNull(decoded.userProfile?.themeStyle)
         assertEquals(ThemeStyle.GUNMETAL_CRIMSON, decoded.userProfile!!.toUserProfile().themeStyle)
+        assertEquals(TrainingExperience.BEGINNER, decoded.userProfile!!.toUserProfile().trainingExperience)
+        assertFalse(decoded.userProfile!!.toUserProfile().profileSetupDone)
+    }
+
+    @Test fun legacyExerciseWithoutMovementPatternDefaultsFromMuscleGroup() {
+        val decoded = json.decodeFromString<ExerciseBackup>(
+            """
+            {
+              "id": 1,
+              "name": "Legacy Row",
+              "primaryMuscleGroup": "BACK",
+              "equipment": "CABLE",
+              "defaultRestSec": 90,
+              "isUserCreated": false,
+              "isArchived": false,
+              "seedKey": "legacy"
+            }
+            """.trimIndent()
+        )
+
+        assertEquals(MovementPattern.PULL, decoded.toEntity("u").movementPattern)
     }
 
     @Test fun legacyBodyMetricsWaterPercentRestoresAsLiters() {
@@ -87,7 +110,7 @@ class BackupThemeStyleTest {
     }
 
     private fun emptyBackup(themeStyle: ThemeStyle) = GunsoutBackup(
-        schemaVersion = 5,
+        schemaVersion = 6,
         exportedAtIso = "2026-05-30T00:00:00Z",
         programs = emptyList(),
         programDays = emptyList(),

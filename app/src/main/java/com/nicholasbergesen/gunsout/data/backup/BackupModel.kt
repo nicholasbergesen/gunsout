@@ -5,6 +5,7 @@ import com.nicholasbergesen.gunsout.data.entity.Exercise
 import com.nicholasbergesen.gunsout.data.entity.ExerciseAlternate
 import com.nicholasbergesen.gunsout.data.entity.FoodEntry
 import com.nicholasbergesen.gunsout.data.entity.MealTemplate
+import com.nicholasbergesen.gunsout.data.entity.defaultMovementPatternFor
 import com.nicholasbergesen.gunsout.data.entity.Program
 import com.nicholasbergesen.gunsout.data.entity.ProgramDay
 import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
@@ -45,13 +46,15 @@ data class UserProfileBackup(
     val heightCm: Int? = null,
     val age: Int? = null,
     val sex: String? = null,
+    val trainingExperience: String? = null,
     val activityLevel: String? = null,
     val goalType: String? = null,
     val kneeInjuryFlag: Boolean,
     val baselineWeekActive: Boolean,
     val themeMode: String? = null,
     val themeStyle: String? = null,
-    val firstRunDone: Boolean
+    val firstRunDone: Boolean,
+    val profileSetupDone: Boolean = false
 )
 
 @Serializable
@@ -64,7 +67,7 @@ data class MacroOverridesBackup(
 
 @Serializable data class ProgramBackup(val id: Long, val name: String, val type: String, val notes: String? = null, val isActive: Boolean, val isTemplate: Boolean, val seedKey: String? = null, val createdAt: Long)
 @Serializable data class ProgramDayBackup(val id: Long, val programId: Long, val orderIndex: Int, val label: String, val preferredDayOfWeek: String? = null, val isRest: Boolean)
-@Serializable data class ExerciseBackup(val id: Long, val name: String, val primaryMuscleGroup: String, val equipment: String, val formNotes: String? = null, val defaultRestSec: Int, val baselineNote: String? = null, val isUserCreated: Boolean, val isArchived: Boolean, val seedKey: String? = null)
+@Serializable data class ExerciseBackup(val id: Long, val name: String, val primaryMuscleGroup: String, val equipment: String, val movementPattern: String? = null, val formNotes: String? = null, val defaultRestSec: Int, val baselineNote: String? = null, val isUserCreated: Boolean, val isArchived: Boolean, val seedKey: String? = null)
 @Serializable data class ExerciseAlternateBackup(val exerciseId: Long, val alternateExerciseId: Long, val reason: String)
 @Serializable data class ProgramExerciseBackup(val id: Long, val programDayId: Long, val orderIndex: Int, val exerciseId: Long, val sets: Int, val repsMin: Int, val repsMax: Int, val restSec: Int, val rpeTarget: Int? = null, val supersetGroupId: Int? = null, val protocol: String)
 @Serializable data class WorkoutSessionBackup(val id: Long, val date: String, val programDayId: Long? = null, val programDayLabelSnapshot: String, val status: String, val notes: String? = null, val kneeFeel: Int? = null, val startedAt: String, val completedAt: String? = null)
@@ -87,11 +90,14 @@ fun ProgramDayBackup.toEntity(userId: String) = ProgramDay(
     preferredDayOfWeek = preferredDayOfWeek?.let { com.nicholasbergesen.gunsout.data.entity.DayHint.valueOf(it) }, isRest = isRest
 )
 
-fun Exercise.toBackup() = ExerciseBackup(id, name, primaryMuscleGroup.name, equipment.name, formNotes, defaultRestSec, baselineNote, isUserCreated, isArchived, seedKey)
+fun Exercise.toBackup() = ExerciseBackup(id, name, primaryMuscleGroup.name, equipment.name, movementPattern.name, formNotes, defaultRestSec, baselineNote, isUserCreated, isArchived, seedKey)
 fun ExerciseBackup.toEntity(userId: String) = Exercise(
     id = id, userId = userId, name = name,
     primaryMuscleGroup = com.nicholasbergesen.gunsout.data.entity.MuscleGroup.valueOf(primaryMuscleGroup),
     equipment = com.nicholasbergesen.gunsout.data.entity.Equipment.valueOf(equipment),
+    movementPattern = movementPattern
+        ?.let { runCatching { com.nicholasbergesen.gunsout.data.entity.MovementPattern.valueOf(it) }.getOrNull() }
+        ?: defaultMovementPatternFor(com.nicholasbergesen.gunsout.data.entity.MuscleGroup.valueOf(primaryMuscleGroup)),
     formNotes = formNotes, defaultRestSec = defaultRestSec, baselineNote = baselineNote,
     isUserCreated = isUserCreated, isArchived = isArchived, seedKey = seedKey
 )

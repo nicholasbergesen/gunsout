@@ -45,10 +45,13 @@ import androidx.lifecycle.viewModelScope
 import com.nicholasbergesen.gunsout.auth.AuthRepository
 import com.nicholasbergesen.gunsout.auth.AuthUser
 import com.nicholasbergesen.gunsout.auth.CurrentUserIdProvider
+import com.nicholasbergesen.gunsout.core.text.normalizeDecimalInput
+import com.nicholasbergesen.gunsout.core.text.toNormalizedDoubleOrNull
 import com.nicholasbergesen.gunsout.data.prefs.ActivityLevel
 import com.nicholasbergesen.gunsout.data.prefs.GoalType
 import com.nicholasbergesen.gunsout.data.prefs.MacroOverrides
 import com.nicholasbergesen.gunsout.data.prefs.Sex
+import com.nicholasbergesen.gunsout.data.prefs.TrainingExperience
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import com.nicholasbergesen.gunsout.domain.nutrition.MacroTarget
@@ -145,6 +148,7 @@ class SettingsViewModel @Inject constructor(
         heightCm: Int?,
         age: Int?,
         sex: Sex?,
+        trainingExperience: TrainingExperience,
         activityLevel: ActivityLevel,
         goalType: GoalType,
         kneeInjury: Boolean,
@@ -158,6 +162,7 @@ class SettingsViewModel @Inject constructor(
                 heightCm = heightCm,
                 age = age,
                 sex = sex,
+                trainingExperience = trainingExperience,
                 activityLevel = activityLevel,
                 goalType = goalType,
                 kneeInjuryFlag = kneeInjury,
@@ -203,6 +208,7 @@ fun SettingsScreen(
     var heightCm by remember(profile.heightCm) { mutableStateOf(profile.heightCm?.toString() ?: "") }
     var age by remember(profile.age) { mutableStateOf(profile.age?.toString() ?: "") }
     var sex by remember(profile.sex) { mutableStateOf(profile.sex) }
+    var trainingExperience by remember(profile.trainingExperience) { mutableStateOf(profile.trainingExperience) }
     var activityLevel by remember(profile.activityLevel) { mutableStateOf(profile.activityLevel) }
     var goalType by remember(profile.goalType) { mutableStateOf(profile.goalType) }
     var kneeInjury by remember(profile.kneeInjuryFlag) { mutableStateOf(profile.kneeInjuryFlag) }
@@ -244,7 +250,7 @@ fun SettingsScreen(
             SectionLabel("Profile")
             OutlinedTextField(
                 value = currentWeight,
-                onValueChange = { currentWeight = it.filter { c -> c.isDigit() || c == '.' } },
+                onValueChange = { currentWeight = it.normalizeDecimalInput() },
                 label = { Text("Current weight (kg)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -252,7 +258,7 @@ fun SettingsScreen(
             )
             OutlinedTextField(
                 value = goalWeight,
-                onValueChange = { goalWeight = it.filter { c -> c.isDigit() || c == '.' } },
+                onValueChange = { goalWeight = it.normalizeDecimalInput() },
                 label = { Text("Goal weight (kg)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -281,6 +287,12 @@ fun SettingsScreen(
                 selected = sex?.name,
                 options = Sex.values().map { it.name to it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
                 onSelect = { sex = it?.let { Sex.valueOf(it) } }
+            )
+            LabeledChoiceRow(
+                label = "Training experience",
+                selected = trainingExperience.name,
+                options = TrainingExperience.values().map { it.name to it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                onSelect = { trainingExperience = TrainingExperience.valueOf(it!!) }
             )
             LabeledChoiceRow(
                 label = "Activity",
@@ -418,11 +430,12 @@ fun SettingsScreen(
         Button(
             onClick = {
                 vm.save(
-                    currentWeight = currentWeight.toDoubleOrNull() ?: profile.currentBodyWeightKg,
-                    goalWeight = goalWeight.toDoubleOrNull() ?: profile.goalBodyWeightKg,
+                    currentWeight = currentWeight.toNormalizedDoubleOrNull() ?: profile.currentBodyWeightKg,
+                    goalWeight = goalWeight.toNormalizedDoubleOrNull() ?: profile.goalBodyWeightKg,
                     heightCm = heightCm.toIntOrNull(),
                     age = age.toIntOrNull(),
                     sex = sex,
+                    trainingExperience = trainingExperience,
                     activityLevel = activityLevel,
                     goalType = goalType,
                     kneeInjury = kneeInjury,
