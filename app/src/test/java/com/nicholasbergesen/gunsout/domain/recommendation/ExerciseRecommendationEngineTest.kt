@@ -17,6 +17,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
+import java.util.Locale
 
 class ExerciseRecommendationEngineTest {
 
@@ -42,6 +43,26 @@ class ExerciseRecommendationEngineTest {
         assertEquals(RecommendationTarget.WEIGHT_KG, recommendation!!.target)
         assertEquals(16.0, recommendation.weightKg!!, 0.001)
         assertEquals("Start with 16 kg", recommendation.displayText)
+    }
+
+    @Test fun `kg display uses dot decimal regardless of default locale`() {
+        val originalLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.GERMANY)
+            val recommendation = engine.recommend(
+                prescription = pe(),
+                exercise = exercise(seedKey = "back_squat", equipment = Equipment.BARBELL),
+                previousWorkingSets = emptyList(),
+                baselineWeekActive = false,
+                profile = profile(),
+                latestBodyLog = BodyMetricsLog(userId = "u", date = LocalDate.now(), weightKg = 100.0),
+                recentBodyLogs = emptyList()
+            )
+
+            assertEquals("Start with 37.5 kg", recommendation!!.displayText)
+        } finally {
+            Locale.setDefault(originalLocale)
+        }
     }
 
     @Test fun `pure bodyweight exercise returns exact reps`() {

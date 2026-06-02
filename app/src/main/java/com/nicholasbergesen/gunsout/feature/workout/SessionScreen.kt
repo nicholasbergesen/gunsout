@@ -31,6 +31,7 @@ import com.nicholasbergesen.gunsout.domain.recommendation.RecommendationTarget
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
+import java.util.Locale
 
 @Composable
 fun SessionScreen(
@@ -257,7 +258,7 @@ private fun SetRow(
 }
 
 private fun formatKg(value: Double): String =
-    if (value % 1.0 == 0.0) value.toInt().toString() else "%.1f".format(value)
+    if (value % 1.0 == 0.0) value.toInt().toString() else String.format(Locale.US, "%.1f", value)
 
 @Composable
 private fun KneeFeelAndFinish(vm: SessionViewModel) {
