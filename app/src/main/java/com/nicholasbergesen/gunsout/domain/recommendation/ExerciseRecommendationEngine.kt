@@ -1,5 +1,6 @@
 package com.nicholasbergesen.gunsout.domain.recommendation
 
+import com.nicholasbergesen.gunsout.core.text.formatOneDecimalOrInt
 import com.nicholasbergesen.gunsout.data.entity.BodyMetricsLog
 import com.nicholasbergesen.gunsout.data.entity.Equipment
 import com.nicholasbergesen.gunsout.data.entity.Exercise
@@ -11,8 +12,6 @@ import com.nicholasbergesen.gunsout.data.prefs.Sex
 import com.nicholasbergesen.gunsout.data.prefs.TrainingExperience
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import java.time.temporal.ChronoUnit
-import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
@@ -225,9 +224,9 @@ class ExerciseRecommendationEngine {
                 }
             } else {
                 when {
-                    reps.all { it >= prescription.repsMax } -> (reps.max() + 1).coerceAtMost(25)
-                    reps.any { it < prescription.repsMin } -> reps.min().coerceAtLeast(1)
-                    else -> reps.max().coerceAtLeast(prescription.repsMin)
+                    reps.all { it >= prescription.repsMax } -> ((reps.maxOrNull() ?: prescription.repsMax) + 1).coerceAtMost(25)
+                    reps.any { it < prescription.repsMin } -> (reps.minOrNull() ?: prescription.repsMin).coerceAtLeast(1)
+                    else -> (reps.maxOrNull() ?: prescription.repsMin).coerceAtLeast(prescription.repsMin)
                 }
             }
         }
@@ -274,7 +273,7 @@ class ExerciseRecommendationEngine {
         return ExerciseRecommendation(
             target = RecommendationTarget.WEIGHT_KG,
             weightKg = target,
-            displayText = "$label ${formatKg(target)} kg",
+            displayText = "$label ${formatOneDecimalOrInt(target)} kg",
             explanation = "${exercise.name} target uses local formula, prior sets, and recent body metrics.",
             confidence = confidence
         )
@@ -304,8 +303,13 @@ class ExerciseRecommendationEngine {
             else -> 1.0
         }
         val leanMassFactor = latestBodyLog?.let { log ->
-            val leanKg = log.muscleMassKg ?: log.bodyFatPct?.let { bodyFat -> log.weightKg * (1 - bodyFat / 100.0) }
-            leanKg?.let { (it / (log.weightKg * 0.72)).coerceIn(0.85, 1.10) }
+            if (log.weightKg <= 0.0 || !log.weightKg.isFinite()) {
+                null
+            } else {
+                val leanKg = log.muscleMassKg ?: log.bodyFatPct?.let { bodyFat -> log.weightKg * (1 - bodyFat / 100.0) }
+                val ratio = leanKg?.let { it / (log.weightKg * 0.72) }
+                ratio?.takeIf { it.isFinite() }?.coerceIn(0.85, 1.10)
+            }
         } ?: 1.0
         val raw = bodyWeightKg * formula.bodyWeightRatio * sexFactor * experienceFactor * ageFactor * leanMassFactor
         return roundDown(raw.coerceAtLeast(formula.minWeightKg), formula.roundingKg)
@@ -377,12 +381,4 @@ class ExerciseRecommendationEngine {
         return (rounded * 10.0).roundToInt() / 10.0
     }
 
-    private fun formatKg(value: Double): String {
-        val roundedInt = value.roundToInt()
-        return if (abs(value - roundedInt) < 0.000_001) {
-            roundedInt.toString()
-        } else {
-            String.format(Locale.US, "%.1f", value)
-        }
-    }
 }

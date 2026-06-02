@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 6,
-    "identityHash": "8bf9f01934e06c7aeafad6ff3b0aa2a6",
+    "identityHash": "df826848c57191ef4b42e3e41cb5a6de",
     "entities": [
       {
         "tableName": "program",
@@ -171,7 +171,7 @@
       },
       {
         "tableName": "exercise",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `userId` TEXT NOT NULL, `name` TEXT NOT NULL, `primaryMuscleGroup` TEXT NOT NULL, `equipment` TEXT NOT NULL, `movementPattern` TEXT NOT NULL, `formNotes` TEXT, `defaultRestSec` INTEGER NOT NULL, `baselineNote` TEXT, `isUserCreated` INTEGER NOT NULL, `isArchived` INTEGER NOT NULL, `seedKey` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `userId` TEXT NOT NULL, `name` TEXT NOT NULL, `primaryMuscleGroup` TEXT NOT NULL, `equipment` TEXT NOT NULL, `movementPattern` TEXT NOT NULL DEFAULT 'ISOLATION', `formNotes` TEXT, `defaultRestSec` INTEGER NOT NULL, `baselineNote` TEXT, `isUserCreated` INTEGER NOT NULL, `isArchived` INTEGER NOT NULL, `seedKey` TEXT)",
         "fields": [
           {
             "fieldPath": "id",
@@ -207,7 +207,8 @@
             "fieldPath": "movementPattern",
             "columnName": "movementPattern",
             "affinity": "TEXT",
-            "notNull": true
+            "notNull": true,
+            "defaultValue": "'ISOLATION'"
           },
           {
             "fieldPath": "formNotes",
@@ -1207,7 +1208,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8bf9f01934e06c7aeafad6ff3b0aa2a6')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'df826848c57191ef4b42e3e41cb5a6de')"
     ]
   }
 }

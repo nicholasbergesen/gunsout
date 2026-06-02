@@ -2,6 +2,7 @@ package com.nicholasbergesen.gunsout.data.repo
 
 import com.nicholasbergesen.gunsout.data.dao.FoodEntryDao
 import com.nicholasbergesen.gunsout.data.dao.MealTemplateDao
+import com.nicholasbergesen.gunsout.core.text.formatOneDecimalOrInt
 import com.nicholasbergesen.gunsout.data.entity.FoodEntry
 import com.nicholasbergesen.gunsout.data.entity.MealTemplate
 import com.nicholasbergesen.gunsout.data.entity.MealType
@@ -45,7 +46,7 @@ class DietRepository @Inject constructor(
     }
 
     private fun formatMul(m: Double): String =
-        if (m == m.toInt().toDouble()) m.toInt().toString() else "%.1f".format(m).trimEnd('0').trimEnd('.')
+        formatOneDecimalOrInt(m)
 
     suspend fun logCustomFood(
         userId: String,

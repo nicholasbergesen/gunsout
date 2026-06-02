@@ -45,6 +45,8 @@ import androidx.lifecycle.viewModelScope
 import com.nicholasbergesen.gunsout.auth.AuthRepository
 import com.nicholasbergesen.gunsout.auth.AuthUser
 import com.nicholasbergesen.gunsout.auth.CurrentUserIdProvider
+import com.nicholasbergesen.gunsout.core.text.normalizeDecimalInput
+import com.nicholasbergesen.gunsout.core.text.toNormalizedDoubleOrNull
 import com.nicholasbergesen.gunsout.data.prefs.ActivityLevel
 import com.nicholasbergesen.gunsout.data.prefs.GoalType
 import com.nicholasbergesen.gunsout.data.prefs.MacroOverrides
@@ -248,7 +250,7 @@ fun SettingsScreen(
             SectionLabel("Profile")
             OutlinedTextField(
                 value = currentWeight,
-                onValueChange = { currentWeight = it.filter { c -> c.isDigit() || c == '.' } },
+                onValueChange = { currentWeight = it.normalizeDecimalInput() },
                 label = { Text("Current weight (kg)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -256,7 +258,7 @@ fun SettingsScreen(
             )
             OutlinedTextField(
                 value = goalWeight,
-                onValueChange = { goalWeight = it.filter { c -> c.isDigit() || c == '.' } },
+                onValueChange = { goalWeight = it.normalizeDecimalInput() },
                 label = { Text("Goal weight (kg)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -428,8 +430,8 @@ fun SettingsScreen(
         Button(
             onClick = {
                 vm.save(
-                    currentWeight = currentWeight.toDoubleOrNull() ?: profile.currentBodyWeightKg,
-                    goalWeight = goalWeight.toDoubleOrNull() ?: profile.goalBodyWeightKg,
+                    currentWeight = currentWeight.toNormalizedDoubleOrNull() ?: profile.currentBodyWeightKg,
+                    goalWeight = goalWeight.toNormalizedDoubleOrNull() ?: profile.goalBodyWeightKg,
                     heightCm = heightCm.toIntOrNull(),
                     age = age.toIntOrNull(),
                     sex = sex,

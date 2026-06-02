@@ -36,6 +36,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.nicholasbergesen.gunsout.core.text.formatOneDecimalOrInt
+import com.nicholasbergesen.gunsout.core.text.normalizeDecimalInput
+import com.nicholasbergesen.gunsout.core.text.toNormalizedDoubleOrNull
 import com.nicholasbergesen.gunsout.data.entity.BodyMetricsLog
 import com.nicholasbergesen.gunsout.ui.components.BigValue
 import com.nicholasbergesen.gunsout.ui.components.MetricGrid
@@ -115,9 +118,9 @@ fun BodyScreen(
         ThemedCard(accent = true) {
             SectionLabel("Latest weight")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                BigValue("${"%.1f".format(latestWeight)} kg")
+                BigValue("${formatOneDecimalOrInt(latestWeight)} kg")
                 latest?.let {
-                    StatusChip("Goal ${"%.0f".format(state.profile.goalBodyWeightKg)}", selected = true)
+                    StatusChip("Goal ${formatOneDecimalOrInt(state.profile.goalBodyWeightKg)}", selected = true)
                 }
             }
             if (activeTrend != null) {
@@ -133,7 +136,7 @@ fun BodyScreen(
                 activeTrend?.let { trend ->
                     Text(
                         if (trend.first == "Weight") {
-                            "goal ${"%.0f".format(state.profile.goalBodyWeightKg)} kg"
+                            "goal ${formatOneDecimalOrInt(state.profile.goalBodyWeightKg)} kg"
                         } else {
                             trend.first
                         },
@@ -162,9 +165,9 @@ fun BodyScreen(
 
         MetricGrid(
             items = listOf(
-                MetricItem("Body fat", latest?.bodyFatPct?.let { "${"%.1f".format(it)}%" } ?: "-"),
-                MetricItem("Muscle", latest?.muscleMassKg?.let { "%.1f".format(it) } ?: "-"),
-                MetricItem("Water", latest?.waterLiters?.let { "${"%.1f".format(it)} L" } ?: "-")
+                MetricItem("Body fat", latest?.bodyFatPct?.let { "${formatOneDecimalOrInt(it)}%" } ?: "-"),
+                MetricItem("Muscle", latest?.muscleMassKg?.let { formatOneDecimalOrInt(it) } ?: "-"),
+                MetricItem("Water", latest?.waterLiters?.let { "${formatOneDecimalOrInt(it)} L" } ?: "-")
             )
         )
 
@@ -172,7 +175,7 @@ fun BodyScreen(
             SectionLabel("Log today")
             OutlinedTextField(
                 value = weight,
-                onValueChange = { weight = it.filter { c -> c.isDigit() || c == '.' } },
+                onValueChange = { weight = it.normalizeDecimalInput() },
                 label = { Text("Weight (kg) - required") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -191,28 +194,28 @@ fun BodyScreen(
                 Text("Import from InBody QR")
             }
             if (showMore) {
-                OutlinedTextField(value = bodyFat, onValueChange = { bodyFat = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Body fat %") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = muscle, onValueChange = { muscle = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Muscle mass (kg)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = water, onValueChange = { water = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("Water (L)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = bodyFat, onValueChange = { bodyFat = it.normalizeDecimalInput() }, label = { Text("Body fat %") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = muscle, onValueChange = { muscle = it.normalizeDecimalInput() }, label = { Text("Muscle mass (kg)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = water, onValueChange = { water = it.normalizeDecimalInput() }, label = { Text("Water (L)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = visceral, onValueChange = { visceral = it.filter(Char::isDigit) }, label = { Text("Visceral fat rating") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         }
 
         Button(
             onClick = {
-                val w = weight.toDoubleOrNull() ?: return@Button
+                val w = weight.toNormalizedDoubleOrNull() ?: return@Button
                 vm.logToday(
                     weightKg = w,
-                    bodyFatPct = bodyFat.toDoubleOrNull(),
-                    muscleMassKg = muscle.toDoubleOrNull(),
-                    waterLiters = water.toDoubleOrNull(),
+                    bodyFatPct = bodyFat.toNormalizedDoubleOrNull(),
+                    muscleMassKg = muscle.toNormalizedDoubleOrNull(),
+                    waterLiters = water.toNormalizedDoubleOrNull(),
                     visceralFatRating = visceral.toIntOrNull()
                 )
                 weight = ""; bodyFat = ""; muscle = ""; water = ""; visceral = ""
                 showMore = false
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = weight.toDoubleOrNull() != null
+            enabled = weight.toNormalizedDoubleOrNull() != null
         ) { Text("Log today") }
 
         ThemedCard {
@@ -282,8 +285,10 @@ private fun DateAxisLineChart(
     val totalDays = java.time.temporal.ChronoUnit.DAYS.between(minDate, maxDate).coerceAtLeast(1L).toFloat()
 
     val values = points.map { it.second }
-    val minVal = minOf(values.min() - (values.max() - values.min()) * 0.1, goalValue ?: values.min())
-    val maxVal = maxOf(values.max() + (values.max() - values.min()) * 0.1, goalValue ?: values.max())
+    val minSeriesValue = values.minOrNull() ?: return
+    val maxSeriesValue = values.maxOrNull() ?: return
+    val minVal = minOf(minSeriesValue - (maxSeriesValue - minSeriesValue) * 0.1, goalValue ?: minSeriesValue)
+    val maxVal = maxOf(maxSeriesValue + (maxSeriesValue - minSeriesValue) * 0.1, goalValue ?: maxSeriesValue)
     val range = (maxVal - minVal).coerceAtLeast(0.01)
 
     val primary = MaterialTheme.colorScheme.primary
@@ -293,7 +298,7 @@ private fun DateAxisLineChart(
     Column {
         // Axis label row above the canvas.
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("${"%.1f".format(maxVal)}", style = MaterialTheme.typography.labelSmall, color = muted)
+            Text(formatOneDecimalOrInt(maxVal), style = MaterialTheme.typography.labelSmall, color = muted)
             Text("→", style = MaterialTheme.typography.labelSmall, color = muted)
         }
         Canvas(modifier = Modifier.fillMaxWidth().height(160.dp)) {
@@ -313,7 +318,7 @@ private fun DateAxisLineChart(
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("${"%.1f".format(minVal)}", style = MaterialTheme.typography.labelSmall, color = muted)
+            Text(formatOneDecimalOrInt(minVal), style = MaterialTheme.typography.labelSmall, color = muted)
             Text("${minDate}  →  ${maxDate}", style = MaterialTheme.typography.labelSmall, color = muted)
         }
     }

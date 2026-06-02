@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
 @Entity(
     tableName = "program",
@@ -51,6 +52,7 @@ data class Exercise(
     val name: String,
     val primaryMuscleGroup: MuscleGroup,
     val equipment: Equipment,
+    @ColumnInfo(defaultValue = "'ISOLATION'")
     val movementPattern: MovementPattern = defaultMovementPatternFor(primaryMuscleGroup),
     val formNotes: String? = null,
     val defaultRestSec: Int = 90,

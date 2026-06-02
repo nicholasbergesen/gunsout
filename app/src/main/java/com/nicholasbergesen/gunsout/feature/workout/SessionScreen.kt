@@ -26,14 +26,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.nicholasbergesen.gunsout.core.text.formatOneDecimalOrInt
+import com.nicholasbergesen.gunsout.core.text.normalizeDecimalInput
+import com.nicholasbergesen.gunsout.core.text.toNormalizedDoubleOrNull
 import com.nicholasbergesen.gunsout.data.entity.Protocol
 import com.nicholasbergesen.gunsout.domain.recommendation.RecommendationTarget
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
-import java.util.Locale
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
 @Composable
 fun SessionScreen(
@@ -126,6 +126,7 @@ private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
             SetRow(
                 setIndex = setIndex,
                 existing = existing,
+                prefillKey = "${item.exercise.id}:$setIndex:${recommendation?.target}:${recommendation?.weightKg}:${recommendation?.reps}",
                 prefillWeightKg = recommendation
                     ?.takeIf { it.target == RecommendationTarget.WEIGHT_KG && existing == null }
                     ?.weightKg,
@@ -202,14 +203,16 @@ private fun SwapAlternateDialog(
 private fun SetRow(
     setIndex: Int,
     existing: com.nicholasbergesen.gunsout.data.entity.SetEntry?,
+    prefillKey: String,
     prefillWeightKg: Double?,
     prefillReps: Int?,
     onLog: (weight: Double?, reps: Int?, rpe: Int?, isWarmup: Boolean) -> Unit
 ) {
-    var weightText by remember(existing?.id) {
-        mutableStateOf(existing?.weightKg?.toString() ?: prefillWeightKg?.let(::formatKg).orEmpty())
+    val rowKey = existing?.id ?: prefillKey
+    var weightText by remember(rowKey) {
+        mutableStateOf(existing?.weightKg?.toString() ?: prefillWeightKg?.let(::formatOneDecimalOrInt).orEmpty())
     }
-    var repsText by remember(existing?.id) {
+    var repsText by remember(rowKey) {
         mutableStateOf(existing?.reps?.toString() ?: prefillReps?.toString().orEmpty())
     }
     var rpeText by remember(existing?.id) { mutableStateOf(existing?.rpe?.toString() ?: "") }
@@ -223,7 +226,7 @@ private fun SetRow(
             Text("$setIndex", modifier = Modifier.padding(top = 16.dp).padding(end = 4.dp))
             OutlinedTextField(
                 value = weightText,
-                onValueChange = { weightText = it.filter { c -> c.isDigit() || c == '.' } },
+                onValueChange = { weightText = it.normalizeDecimalInput() },
                 label = { Text("kg") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -246,7 +249,7 @@ private fun SetRow(
                 modifier = Modifier.weight(1f)
             )
             androidx.compose.material3.Button(onClick = {
-                onLog(weightText.toDoubleOrNull(), repsText.toIntOrNull(), rpeText.toIntOrNull(), isWarmup)
+                onLog(weightText.toNormalizedDoubleOrNull(), repsText.toIntOrNull(), rpeText.toIntOrNull(), isWarmup)
             }) { Text(if (existing == null) "Log" else "Save") }
         }
         Row(
@@ -256,15 +259,6 @@ private fun SetRow(
             androidx.compose.material3.Checkbox(checked = isWarmup, onCheckedChange = { isWarmup = it })
             Text("Warmup", style = MaterialTheme.typography.bodySmall)
         }
-    }
-}
-
-private fun formatKg(value: Double): String {
-    val roundedInt = value.roundToInt()
-    return if (abs(value - roundedInt) < 0.000_001) {
-        roundedInt.toString()
-    } else {
-        String.format(Locale.US, "%.1f", value)
     }
 }
 

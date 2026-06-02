@@ -99,7 +99,17 @@ class ExerciseEditViewModel @Inject constructor(
     }
 
     fun setName(v: String) = _state.update { it.copy(name = v) }
-    fun setMuscle(v: MuscleGroup) = _state.update { it.copy(muscle = v, movementPattern = defaultMovementPatternFor(v)) }
+    fun setMuscle(v: MuscleGroup) = _state.update {
+        val currentDefault = defaultMovementPatternFor(it.muscle)
+        it.copy(
+            muscle = v,
+            movementPattern = if (it.movementPattern == currentDefault) {
+                defaultMovementPatternFor(v)
+            } else {
+                it.movementPattern
+            }
+        )
+    }
     fun setEquipment(v: Equipment) = _state.update { it.copy(equipment = v) }
     fun setMovementPattern(v: MovementPattern) = _state.update { it.copy(movementPattern = v) }
     fun setFormNotes(v: String) = _state.update { it.copy(formNotes = v) }

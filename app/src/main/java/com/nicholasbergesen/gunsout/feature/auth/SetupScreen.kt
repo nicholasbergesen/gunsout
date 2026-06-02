@@ -36,6 +36,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nicholasbergesen.gunsout.auth.CurrentUserIdProvider
+import com.nicholasbergesen.gunsout.core.text.normalizeDecimalInput
+import com.nicholasbergesen.gunsout.core.text.toNormalizedDoubleOrNull
 import com.nicholasbergesen.gunsout.data.prefs.Sex
 import com.nicholasbergesen.gunsout.data.prefs.TrainingExperience
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
@@ -138,8 +140,8 @@ fun ProfileSetupScreen(
                 var bodyFat by remember { mutableStateOf("") }
 
                 val ageValue = age.toIntOrNull()
-                val currentWeightValue = currentWeight.toDoubleOrNull()
-                val goalWeightValue = goalWeight.toDoubleOrNull()
+                val currentWeightValue = currentWeight.toNormalizedDoubleOrNull()
+                val goalWeightValue = goalWeight.toNormalizedDoubleOrNull()
                 val canSave = sex != null &&
                     ageValue != null &&
                     ageValue > 0 &&
@@ -183,7 +185,7 @@ fun ProfileSetupScreen(
                             )
                             OutlinedTextField(
                                 value = currentWeight,
-                                onValueChange = { currentWeight = it.filterDecimal() },
+                                onValueChange = { currentWeight = it.normalizeDecimalInput() },
                                 label = { Text("Current kg") },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -192,7 +194,7 @@ fun ProfileSetupScreen(
                         }
                         OutlinedTextField(
                             value = goalWeight,
-                            onValueChange = { goalWeight = it.filterDecimal() },
+                            onValueChange = { goalWeight = it.normalizeDecimalInput() },
                             label = { Text("Goal weight (kg)") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -210,7 +212,7 @@ fun ProfileSetupScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(
                                 value = muscleMass,
-                                onValueChange = { muscleMass = it.filterDecimal() },
+                                onValueChange = { muscleMass = it.normalizeDecimalInput() },
                                 label = { Text("Muscle kg") },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -218,7 +220,7 @@ fun ProfileSetupScreen(
                             )
                             OutlinedTextField(
                                 value = bodyFat,
-                                onValueChange = { bodyFat = it.filterDecimal() },
+                                onValueChange = { bodyFat = it.normalizeDecimalInput() },
                                 label = { Text("Body fat %") },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -236,8 +238,8 @@ fun ProfileSetupScreen(
                                 age = ageValue!!,
                                 currentWeightKg = currentWeightValue!!,
                                 goalWeightKg = goalWeightValue!!,
-                                muscleMassKg = muscleMass.toDoubleOrNull(),
-                                bodyFatPct = bodyFat.toDoubleOrNull()
+                                muscleMassKg = muscleMass.toNormalizedDoubleOrNull(),
+                                bodyFatPct = bodyFat.toNormalizedDoubleOrNull()
                             )
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -274,6 +276,3 @@ fun ProfileSetupScreen(
 
             private fun Sex.displayName(): String =
                 name.lowercase().replaceFirstChar { it.uppercase() }
-
-            private fun String.filterDecimal(): String =
-                replace(',', '.').filter { it.isDigit() || it == '.' }

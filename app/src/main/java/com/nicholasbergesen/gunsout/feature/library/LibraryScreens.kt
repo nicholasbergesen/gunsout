@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.nicholasbergesen.gunsout.core.text.formatOneDecimalOrInt
 import com.nicholasbergesen.gunsout.data.entity.Equipment
 import com.nicholasbergesen.gunsout.data.entity.MuscleGroup
 import com.nicholasbergesen.gunsout.data.entity.MovementPattern
@@ -183,7 +184,7 @@ fun ExerciseEditScreen(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("${latest.date}", style = MaterialTheme.typography.bodySmall)
                     Text(
-                        "${"%.1f".format(latest.topWeightKg)} kg x ${latest.reps}",
+                        "${formatOneDecimalOrInt(latest.topWeightKg)} kg x ${latest.reps}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -258,8 +259,8 @@ private fun <T : Enum<T>> EnumDropdown(
 private fun HistoryChart(history: List<HistoryPoint>) {
     if (history.size < 2) return
     val weights = history.map { it.topWeightKg }
-    val minW = (weights.min() - 2).coerceAtLeast(0.0)
-    val maxW = weights.max() + 2
+    val minW = ((weights.minOrNull() ?: 0.0) - 2).coerceAtLeast(0.0)
+    val maxW = (weights.maxOrNull() ?: 0.0) + 2
     val range = (maxW - minW).coerceAtLeast(1.0)
     val primary = MaterialTheme.colorScheme.primary
 
