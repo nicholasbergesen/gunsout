@@ -276,4 +276,4 @@ fun ProfileSetupScreen(
                 name.lowercase().replaceFirstChar { it.uppercase() }
 
             private fun String.filterDecimal(): String =
-                filter { it.isDigit() || it == '.' }
+                replace(',', '.').filter { it.isDigit() || it == '.' }

@@ -82,6 +82,8 @@ class SessionViewModel @Inject constructor(
             forcedFlag = profile.baselineWeekActive
         )
         val pds = workouts.getProgramExercises(pdId)
+        val currentSetsByProgramExercise = workouts.getSetsForSession(sessionId)
+            .groupBy { it.programExerciseId }
         val items = pds.map { pe ->
             val effectiveId = sessionOverrides[pe.id] ?: pe.exerciseId
             val ex = workouts.getExercise(effectiveId)
@@ -116,7 +118,7 @@ class SessionViewModel @Inject constructor(
                 latestBodyLog = latestBodyLog,
                 recentBodyLogs = recentBodyLogs
             )
-            val currentSets = workouts.getSetsForSession(sessionId).filter { it.programExerciseId == pe.id }
+            val currentSets = currentSetsByProgramExercise[pe.id].orEmpty()
             val alternates = workouts.getAlternates(ex.id)
             PlannedExerciseUi(pe, ex, currentSets, priorBest, recommendation, alternates)
         }

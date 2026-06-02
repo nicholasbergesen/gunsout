@@ -32,6 +32,8 @@ import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @Composable
 fun SessionScreen(
@@ -257,8 +259,14 @@ private fun SetRow(
     }
 }
 
-private fun formatKg(value: Double): String =
-    if (value % 1.0 == 0.0) value.toInt().toString() else String.format(Locale.US, "%.1f", value)
+private fun formatKg(value: Double): String {
+    val roundedInt = value.roundToInt()
+    return if (abs(value - roundedInt) < 0.000_001) {
+        roundedInt.toString()
+    } else {
+        String.format(Locale.US, "%.1f", value)
+    }
+}
 
 @Composable
 private fun KneeFeelAndFinish(vm: SessionViewModel) {

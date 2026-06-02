@@ -12,6 +12,7 @@ import com.nicholasbergesen.gunsout.data.prefs.TrainingExperience
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
@@ -250,7 +251,12 @@ class ExerciseRecommendationEngine {
         recentBodyLogs: List<BodyMetricsLog>,
         confidence: RecommendationConfidence
     ): ExerciseRecommendation? {
-        val previousWeight = working.mapNotNull { it.weightKg }.maxOrNull()
+        val previousWeights = working.mapNotNull { it.weightKg }
+        val previousWeight = if (formula.assistanceSetting) {
+            previousWeights.minOrNull()
+        } else {
+            previousWeights.maxOrNull()
+        }
         val target = if (previousWeight == null) {
             val bodyWeight = latestBodyLog?.weightKg ?: profile.currentBodyWeightKg.takeIf { it > 0.0 } ?: return null
             startingWeight(formula, bodyWeight, profile, latestBodyLog)
@@ -371,6 +377,12 @@ class ExerciseRecommendationEngine {
         return (rounded * 10.0).roundToInt() / 10.0
     }
 
-    private fun formatKg(value: Double): String =
-        if (value % 1.0 == 0.0) value.toInt().toString() else String.format(Locale.US, "%.1f", value)
+    private fun formatKg(value: Double): String {
+        val roundedInt = value.roundToInt()
+        return if (abs(value - roundedInt) < 0.000_001) {
+            roundedInt.toString()
+        } else {
+            String.format(Locale.US, "%.1f", value)
+        }
+    }
 }

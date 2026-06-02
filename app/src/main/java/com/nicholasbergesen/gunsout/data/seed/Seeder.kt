@@ -75,6 +75,8 @@ class Seeder @Inject constructor(
             if (existing == null) {
                 exerciseDao.insert(seed.exercise.copy(userId = userId))
             } else if (
+                existing.primaryMuscleGroup == seed.exercise.primaryMuscleGroup &&
+                existing.equipment == seed.exercise.equipment &&
                 existing.movementPattern == defaultMovementPatternFor(existing.primaryMuscleGroup) &&
                 existing.movementPattern != seed.exercise.movementPattern
             ) {

@@ -194,6 +194,20 @@ class ExerciseRecommendationEngineTest {
         assertEquals(35.0, recommendation!!.weightKg!!, 0.001)
     }
 
+    @Test fun `assisted pull up anchors progression to lowest assistance set`() {
+        val recommendation = engine.recommend(
+            prescription = pe(repsMin = 6, repsMax = 8),
+            exercise = exercise(seedKey = "assisted_pullup", equipment = Equipment.MACHINE),
+            previousWorkingSets = listOf(set(45.0, 8), set(35.0, 8), set(40.0, 8)),
+            baselineWeekActive = false,
+            profile = profile(),
+            latestBodyLog = null,
+            recentBodyLogs = emptyList()
+        )
+
+        assertEquals(30.0, recommendation!!.weightKg!!, 0.001)
+    }
+
     private fun pe(
         repsMin: Int = 8,
         repsMax: Int = 10,
