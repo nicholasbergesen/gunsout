@@ -11,7 +11,7 @@ Identity uses the Google account `sub` (`GoogleIdTokenCredential.uniqueId`). The
 ## Features
 
 **Workout**
-- 4-day Upper/Lower split seeded per user, with form notes, default rest, supersets, and the pull-up "5x2-3" protocol as a first-class scheme.
+- Ten seeded program templates per user, including upper/lower, runner, cyclist, male strength, female strength, beginner full body, hypertrophy PPL, recomposition, and climbing-focused plans.
 - Flexible scheduling: the "Today" screen routes by rotation pointer (not calendar date), with one-tap options to continue, pick a different day, mark rest, or skip the next day. A marked rest day does not disturb the rotation.
 - Sessions: per-set logging (weight, reps, RPE, optional warmup checkbox), previous-best display, in-session swap to an alternate exercise (with optional save-to-program), automatic foreground-service rest timer between sets, progression suggestions (+2.5 / +5 kg on hit, -5% on miss, RPE-based bumps, pull-up graduation, baseline-week suppression).
 - Program builder: list, activate, duplicate, rename, delete, full day + exercise + scheme editor with sets/reps/rest/RPE/superset/protocol.
@@ -33,7 +33,7 @@ Identity uses the Google account `sub` (`GoogleIdTokenCredential.uniqueId`). The
 **Body**
 - Composition log with weight required; body fat %, muscle mass kg, water liters, and visceral fat rating all optional. Upsert by date so a same-day update merges rather than duplicating.
 - InBody import supports result-sheet QR codes and InBody app CSV exports, parses locally on device, and imports supported InBody 270 measurements without a network request.
-- Multi-series trend chart with toggles for weight / body fat % / muscle / water liters. Date-axis with min and max labels. Weight series shows a goal line.
+- Multi-series trend chart with toggles for weight / body fat % / muscle / water liters. The y-axis starts at zero, gridlines aid readability, and the weight series shows a goal line.
 - Latest card sources directly from the most recent log row.
 - Auto-adjust kcal target: reads recent weight trend (linear regression over the last 14 days, requires 4+ logs spanning 7+ days) and suggests a 150 kcal nudge that is applied as a manual kcal override on the daily target.
 - Baseline week auto-derives from `Program.createdAt`: the first 7 days are baseline. The Settings toggle remains as a manual force-off override.

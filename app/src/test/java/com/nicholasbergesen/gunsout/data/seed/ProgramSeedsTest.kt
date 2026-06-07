@@ -1,13 +1,115 @@
 package com.nicholasbergesen.gunsout.data.seed
 
+import com.nicholasbergesen.gunsout.data.entity.Program
 import com.nicholasbergesen.gunsout.data.entity.ProgramDay
 import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
+import com.nicholasbergesen.gunsout.data.entity.ProgramType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ProgramSeedsTest {
+
+    @Test fun `program catalog contains ten targeted templates`() {
+        assertEquals(
+            listOf(
+                "Upper / Lower 4-Day (Free Weights)",
+                "Runner Strength 2-Day",
+                "Runner Race Prep 3-Day",
+                "Cyclist Strength 2-Day",
+                "Male Strength 4-Day",
+                "Female Strength 4-Day",
+                "Beginner Full Body 3-Day",
+                "Hypertrophy PPL 6-Day",
+                "Body Recomposition 3-Day",
+                "Climber Strength and Antagonists 3-Day"
+            ),
+            ProgramSeeds.all.map { it.name }
+        )
+    }
+
+    @Test fun `program catalog uses unique stable seed keys`() {
+        val seedKeys = ProgramSeeds.all.map { it.seedKey }
+
+        assertEquals(10, seedKeys.size)
+        assertEquals(seedKeys.size, seedKeys.toSet().size)
+    }
+
+    @Test fun `program catalog only references seeded exercises`() {
+        val exerciseKeys = ExerciseSeeds.all.map { it.exercise.seedKey!! }.toSet()
+        val missingKeys = ProgramSeeds.all
+            .flatMap { it.days }
+            .flatMap { it.exercises }
+            .map { it.exerciseSeedKey }
+            .filterNot { it in exerciseKeys }
+
+        assertTrue("Missing exercise seed keys: $missingKeys", missingKeys.isEmpty())
+    }
+
+    @Test fun `exercise seed wrapper keys match persisted seed keys`() {
+        val mismatches = ExerciseSeeds.all
+            .filter { it.key != it.exercise.seedKey }
+            .map { "${it.key} != ${it.exercise.seedKey}" }
+
+        assertTrue("Mismatched seed keys: $mismatches", mismatches.isEmpty())
+    }
+
+    @Test fun `seeded template metadata backfill adds missing notes and type`() {
+        val legacyProgram = Program(
+            userId = "u",
+            name = ProgramSeeds.upperLower4Day.name,
+            type = ProgramType.CUSTOM,
+            notes = null,
+            isTemplate = true,
+            seedKey = ProgramSeeds.upperLower4Day.seedKey
+        )
+
+        val backfilled = Seeder.SeededProgramRefresh.backfillSeededTemplateMetadata(
+            legacyProgram,
+            ProgramSeeds.upperLower4Day
+        )
+
+        assertEquals(ProgramType.UPPER_LOWER, backfilled.type)
+        assertEquals(ProgramSeeds.upperLower4Day.notes, backfilled.notes)
+    }
+
+    @Test fun `seeded template metadata backfill preserves existing notes`() {
+        val legacyProgram = Program(
+            userId = "u",
+            name = ProgramSeeds.upperLower4Day.name,
+            type = ProgramType.CUSTOM,
+            notes = "Keep this note",
+            isTemplate = true,
+            seedKey = ProgramSeeds.upperLower4Day.seedKey
+        )
+
+        val backfilled = Seeder.SeededProgramRefresh.backfillSeededTemplateMetadata(
+            legacyProgram,
+            ProgramSeeds.upperLower4Day
+        )
+
+        assertEquals(ProgramType.UPPER_LOWER, backfilled.type)
+        assertEquals("Keep this note", backfilled.notes)
+    }
+
+    @Test fun `seeded template metadata backfill ignores non template programs`() {
+        val customProgram = Program(
+            userId = "u",
+            name = ProgramSeeds.upperLower4Day.name,
+            type = ProgramType.CUSTOM,
+            notes = null,
+            isTemplate = false,
+            seedKey = ProgramSeeds.upperLower4Day.seedKey
+        )
+
+        val backfilled = Seeder.SeededProgramRefresh.backfillSeededTemplateMetadata(
+            customProgram,
+            ProgramSeeds.upperLower4Day
+        )
+
+        assertEquals(customProgram, backfilled)
+    }
 
     @Test fun `default program uses descriptive day labels`() {
         val labels = ProgramSeeds.upperLower4Day.days.map { it.label }

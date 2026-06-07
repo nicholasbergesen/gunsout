@@ -34,6 +34,7 @@ import com.nicholasbergesen.gunsout.domain.recommendation.RecommendationTarget
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
+import com.nicholasbergesen.gunsout.ui.components.WrappingRow
 
 @Composable
 fun SessionScreen(
@@ -267,7 +268,10 @@ private fun KneeFeelAndFinish(vm: SessionViewModel) {
     val state by vm.state.collectAsState()
     ThemedCard {
         Text("Knee feel", style = MaterialTheme.typography.titleSmall)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        WrappingRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             (1..5).forEach { v ->
                 FilterChip(
                     selected = state.kneeFeel == v,

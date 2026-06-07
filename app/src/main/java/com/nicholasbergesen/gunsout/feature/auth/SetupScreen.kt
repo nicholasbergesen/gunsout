@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -47,6 +48,7 @@ import com.nicholasbergesen.gunsout.ui.components.MockupScreenColumn
 import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
+import com.nicholasbergesen.gunsout.ui.components.WrappingRow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
@@ -259,12 +261,15 @@ fun ProfileSetupScreen(
                 Column {
                     Text(label, style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    WrappingRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         options.forEach { (value, display) ->
                             FilterChip(
                                 selected = selected == value,
                                 onClick = { onSelect(value) },
-                                label = { Text(display) }
+                                label = { Text(display, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                             )
                         }
                     }

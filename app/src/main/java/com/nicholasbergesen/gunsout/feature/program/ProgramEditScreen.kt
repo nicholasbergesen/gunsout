@@ -43,6 +43,7 @@ import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
+import com.nicholasbergesen.gunsout.ui.components.WrappingRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -145,7 +146,7 @@ private fun DayCard(
                 ChipButton("Rename", onClick = { renaming = true })
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        WrappingRow {
             ChipButton(if (day.isRest) "Rest day" else "Training day", onClick = onToggleRest)
             ChipButton("Delete day", onClick = onDelete)
         }

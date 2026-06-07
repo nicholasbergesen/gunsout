@@ -28,6 +28,7 @@ import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
+import com.nicholasbergesen.gunsout.ui.components.WrappingRow
 
 @Composable
 fun TodayScreen(
@@ -91,7 +92,7 @@ fun TodayScreen(
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        WrappingRow {
             ChipButton(
                 text = "Pick a day",
                 selected = dayPickerOpen,

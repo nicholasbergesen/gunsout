@@ -2,7 +2,6 @@ package com.nicholasbergesen.gunsout.feature.library
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nicholasbergesen.gunsout.core.text.formatOneDecimalOrInt
@@ -43,6 +43,7 @@ import com.nicholasbergesen.gunsout.ui.components.MockupScreenColumn
 import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
+import com.nicholasbergesen.gunsout.ui.components.WrappingRow
 
 @Composable
 fun LibraryListScreen(
@@ -209,20 +210,19 @@ private fun <T : Enum<T>> FilterRow(
     Column {
         Text(label, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        WrappingRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             FilterChip(
                 selected = selected == null,
                 onClick = { onSelect(null) },
-                label = { Text("All") }
+                label = { Text("All", maxLines = 1, overflow = TextOverflow.Ellipsis) }
             )
             values.forEach { value ->
                 FilterChip(
                     selected = selected == value,
                     onClick = { onSelect(value) },
-                    label = { Text(value.name) }
+                    label = { Text(value.name, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 )
             }
         }

@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nicholasbergesen.gunsout.core.text.formatOneDecimalOrInt
@@ -50,6 +51,7 @@ import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
+import com.nicholasbergesen.gunsout.ui.components.WrappingRow
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -185,18 +187,23 @@ fun BodyScreen(
             }
         }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        WrappingRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             listOf("Weight", "Body fat", "Muscle", "Water").forEach { label ->
                 val enabled = trendSeries.any { it.first == label }
-                val modifier = Modifier.weight(1f)
                 if (activeTrend?.first == label && enabled) {
-                    Button(onClick = { selectedTrend = label }, modifier = modifier) { Text(label) }
+                    Button(onClick = { selectedTrend = label }) {
+                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 } else {
                     OutlinedButton(
                         onClick = { selectedTrend = label },
-                        modifier = modifier,
                         enabled = enabled
-                    ) { Text(label) }
+                    ) {
+                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
         }
@@ -283,9 +290,13 @@ fun BodyScreen(
             suggestion?.let { s ->
                 Text(s.text, style = MaterialTheme.typography.bodyMedium)
                 if (s.newKcalTarget != null) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { vm.applyKcalSuggestion() }) { Text("Apply ${s.newKcalTarget} kcal") }
-                        androidx.compose.material3.TextButton(onClick = { vm.dismissKcalSuggestion() }) { Text("Dismiss") }
+                    WrappingRow {
+                        Button(onClick = { vm.applyKcalSuggestion() }) {
+                            Text("Apply ${s.newKcalTarget} kcal", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        androidx.compose.material3.TextButton(onClick = { vm.dismissKcalSuggestion() }) {
+                            Text("Dismiss", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 } else {
                     androidx.compose.material3.TextButton(onClick = { vm.dismissKcalSuggestion() }) { Text("OK") }
@@ -311,12 +322,15 @@ private fun BodyTrendChart(logs: List<BodyMetricsLog>, goalKg: Double) {
     val current = seriesOptions.firstOrNull { it.first == selected } ?: seriesOptions.first()
 
     Column {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        WrappingRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             seriesOptions.forEach { (label, _) ->
                 androidx.compose.material3.FilterChip(
                     selected = selected == label,
                     onClick = { selected = label },
-                    label = { Text(label) }
+                    label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 )
             }
         }
@@ -339,15 +353,16 @@ private fun DateAxisLineChart(
     val totalDays = java.time.temporal.ChronoUnit.DAYS.between(minDate, maxDate).coerceAtLeast(1L).toFloat()
 
     val values = points.map { it.second }
-    val minSeriesValue = values.minOrNull() ?: return
     val maxSeriesValue = values.maxOrNull() ?: return
-    val minVal = minOf(minSeriesValue - (maxSeriesValue - minSeriesValue) * 0.1, goalValue ?: minSeriesValue)
-    val maxVal = maxOf(maxSeriesValue + (maxSeriesValue - minSeriesValue) * 0.1, goalValue ?: maxSeriesValue)
+    val minVal = 0.0
+    val maxSourceValue = maxOf(maxSeriesValue, goalValue ?: maxSeriesValue)
+    val maxVal = if (maxSourceValue <= 0.0) 1.0 else maxSourceValue * 1.1
     val range = (maxVal - minVal).coerceAtLeast(0.01)
 
     val primary = MaterialTheme.colorScheme.primary
     val goalColor = MaterialTheme.colorScheme.tertiary
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val grid = MaterialTheme.colorScheme.outlineVariant
 
     Column {
         // Axis label row above the canvas.
@@ -358,6 +373,14 @@ private fun DateAxisLineChart(
         Canvas(modifier = Modifier.fillMaxWidth().height(160.dp)) {
             val w = size.width
             val h = size.height
+            for (i in 0..4) {
+                val y = h * (i / 4f)
+                drawLine(color = grid, start = Offset(0f, y), end = Offset(w, y), strokeWidth = 1f)
+            }
+            for (i in 0..4) {
+                val x = w * (i / 4f)
+                drawLine(color = grid, start = Offset(x, 0f), end = Offset(x, h), strokeWidth = 1f)
+            }
             val path = Path()
             points.forEachIndexed { i, (date, value) ->
                 val daysIn = java.time.temporal.ChronoUnit.DAYS.between(minDate, date).toFloat()
