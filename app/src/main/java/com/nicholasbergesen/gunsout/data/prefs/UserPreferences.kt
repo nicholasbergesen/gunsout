@@ -37,7 +37,8 @@ data class UserProfile(
     val baselineWeekActive: Boolean = true,
     val themeStyle: ThemeStyle = ThemeStyle.Default,
     val firstRunDone: Boolean = false,
-    val profileSetupDone: Boolean = false
+    val profileSetupDone: Boolean = false,
+    val defaultProgramRefreshVersion: Int = 0
 )
 
 /** Optional manual overrides for the daily macro target. Null means "use the suggestion". */
@@ -83,6 +84,7 @@ class UserPreferences @Inject constructor(
         val themeStyle = stringPreferencesKey("theme_style")
         val firstRunDone = booleanPreferencesKey("first_run_done")
         val profileSetupDone = booleanPreferencesKey("profile_setup_done")
+        val defaultProgramRefreshVersion = intPreferencesKey("default_program_refresh_version")
         val overrideKcal = intPreferencesKey("override_kcal")
         val overrideProteinG = intPreferencesKey("override_protein_g")
         val overrideCarbsG = intPreferencesKey("override_carbs_g")
@@ -128,6 +130,7 @@ class UserPreferences @Inject constructor(
             p[Keys.themeStyle] = next.themeStyle.name
             p[Keys.firstRunDone] = next.firstRunDone
             p[Keys.profileSetupDone] = next.profileSetupDone
+            p[Keys.defaultProgramRefreshVersion] = next.defaultProgramRefreshVersion
         }
     }
 
@@ -162,7 +165,8 @@ class UserPreferences @Inject constructor(
         baselineWeekActive = this[Keys.baselineWeekActive] ?: true,
         themeStyle = ThemeStyle.fromStoredName(this[Keys.themeStyle]),
         firstRunDone = this[Keys.firstRunDone] ?: false,
-        profileSetupDone = this[Keys.profileSetupDone] ?: false
+        profileSetupDone = this[Keys.profileSetupDone] ?: false,
+        defaultProgramRefreshVersion = this[Keys.defaultProgramRefreshVersion] ?: 0
     )
 
     private fun Preferences.toOverrides(): MacroOverrides = MacroOverrides(
