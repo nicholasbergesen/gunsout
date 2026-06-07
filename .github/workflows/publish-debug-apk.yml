@@ -4,6 +4,10 @@ on:
   push:
     branches: [ main ]
 
+concurrency:
+  group: publish-debug-apk-main
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -38,20 +42,21 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
+      - name: Set monotonic app version
+        run: |
+          version_code="$(date +%s)"
+          echo "VERSION_CODE=$version_code" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=0.1.$version_code" >> "$GITHUB_ENV"
+
       - name: Build debug APK
         env:
           GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
-          # Drive versionCode and versionName from the CI run number so every published APK is a
-          # strictly higher version than the one before it. Combined with the checked-in stable
-          # debug keystore, this means sideloaded updates install in place without uninstalling.
-          VERSION_CODE: ${{ github.run_number }}
-          VERSION_NAME: 0.1.${{ github.run_number }}
         run: ./gradlew :app:assembleDebug --no-daemon
 
       - name: Rename APK
         run: |
           mkdir -p artifacts
-          cp app/build/outputs/apk/debug/app-debug.apk "artifacts/gunsout-debug-${GITHUB_SHA::7}.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk artifacts/gunsout-debug.apk
 
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
@@ -61,7 +66,23 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Check latest release freshness
+        run: |
+          current_sha="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ -z "$current_sha" ]; then
+            echo "Could not determine current origin/main SHA." >&2
+            exit 1
+          fi
+
+          if [ "$GITHUB_SHA" = "$current_sha" ]; then
+            echo "PUBLISH_LATEST=true" >> "$GITHUB_ENV"
+          else
+            echo "PUBLISH_LATEST=false" >> "$GITHUB_ENV"
+            echo "Skipping latest release because origin/main is now $current_sha."
+          fi
+
       - name: Publish to "latest" release
+        if: env.PUBLISH_LATEST == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
@@ -74,6 +95,7 @@ jobs:
 
             Install via Android sideload (settings, install unknown apps).
           files: artifacts/*.apk
+          overwrite_files: true
           prerelease: true
           make_latest: false
         env:

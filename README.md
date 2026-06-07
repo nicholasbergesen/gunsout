@@ -96,7 +96,7 @@ For Android to install a new APK in-place over the previous one (preserving the 
 2. Use an **increasing `versionCode`**.
 3. Use the **same `applicationId`** (debug builds install as `com.nicholasbergesen.gunsout.debug`).
 
-This repo handles (3) automatically and CI handles (2) by driving `versionCode` and `versionName` from `${{ github.run_number }}`. For (1), the build expects a checked-in debug keystore at `app/gunsout-debug.keystore`.
+This repo handles (3) automatically and CI handles (2) by deriving `versionCode` and `versionName` from the publish job timestamp. For (1), the build expects a checked-in debug keystore at `app/gunsout-debug.keystore`.
 
 **One-time setup** (run once per clone, then commit the keystore):
 
