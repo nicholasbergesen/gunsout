@@ -44,7 +44,8 @@ jobs:
 
       - name: Set monotonic app version
         run: |
-          version_code="$(date +%s)"
+          version_epoch_base=1704067200
+          version_code="$(($(date +%s) - version_epoch_base))"
           echo "VERSION_CODE=$version_code" >> "$GITHUB_ENV"
           echo "VERSION_NAME=0.1.$version_code" >> "$GITHUB_ENV"
 
