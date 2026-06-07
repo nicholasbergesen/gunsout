@@ -41,7 +41,7 @@ class ScheduleResolverTest {
         assertNull(s.daysSinceLastSession)
     }
 
-    @Test fun `after Upper Push Pull completed next is Lower Strength`() {
+    @Test fun `after Upper Push slash Pull completed next is Lower Strength`() {
         val today = LocalDate.of(2026, 5, 19) // Tuesday
         val sessions = listOf(session(1, SessionStatus.COMPLETED, today.minusDays(1)))
         val s = resolver.resolveNext(days, sessions, today)

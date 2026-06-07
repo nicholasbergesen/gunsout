@@ -28,7 +28,7 @@ class ProgramSeedsTest {
 
     @Test fun `lower posterior core uses loadable preferred exercises`() {
         val exerciseKeys = ProgramSeeds.upperLower4Day.days
-            .single { it.label == "Lower Posterior/Core" }
+            .single { it.orderIndex == 4 }
             .exercises
             .map { it.exerciseSeedKey }
 
