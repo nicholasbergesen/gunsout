@@ -71,7 +71,8 @@ class BackupManager @Inject constructor(
             baselineWeekActive = profile.baselineWeekActive,
             themeStyle = profile.themeStyle.name,
             firstRunDone = profile.firstRunDone,
-            profileSetupDone = profile.profileSetupDone
+            profileSetupDone = profile.profileSetupDone,
+            defaultProgramRefreshVersion = profile.defaultProgramRefreshVersion
         )
         val overrides = userPrefs.overrides(userId).first()
         val overridesBackup = MacroOverridesBackup(
@@ -272,6 +273,8 @@ class BackupManager @Inject constructor(
             userPrefs.update(userId) {
                 p.toUserProfile()
             }
+        } ?: userPrefs.update(userId) {
+            it.copy(defaultProgramRefreshVersion = 0)
         }
 
         // Reset overrides first so an old v1/v2 import (with no macroOverrides field) clears any
@@ -320,5 +323,6 @@ internal fun UserProfileBackup.toUserProfile(): UserProfile = UserProfile(
     baselineWeekActive = baselineWeekActive,
     themeStyle = ThemeStyle.fromStoredName(themeStyle),
     firstRunDone = firstRunDone,
-    profileSetupDone = profileSetupDone
+    profileSetupDone = profileSetupDone,
+    defaultProgramRefreshVersion = defaultProgramRefreshVersion
 )

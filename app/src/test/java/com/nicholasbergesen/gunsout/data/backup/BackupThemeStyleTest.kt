@@ -77,6 +77,13 @@ class BackupThemeStyleTest {
         assertEquals(ThemeStyle.GUNMETAL_CRIMSON, decoded.userProfile!!.toUserProfile().themeStyle)
         assertEquals(TrainingExperience.BEGINNER, decoded.userProfile!!.toUserProfile().trainingExperience)
         assertFalse(decoded.userProfile!!.toUserProfile().profileSetupDone)
+        assertEquals(0, decoded.userProfile!!.toUserProfile().defaultProgramRefreshVersion)
+    }
+
+    @Test fun userProfileBackup_restoresDefaultProgramRefreshVersion() {
+        val profile = profileBackup(themeStyle = null, defaultProgramRefreshVersion = 1).toUserProfile()
+
+        assertEquals(1, profile.defaultProgramRefreshVersion)
     }
 
     @Test fun legacyExerciseWithoutMovementPatternDefaultsFromMuscleGroup() {
@@ -127,12 +134,16 @@ class BackupThemeStyleTest {
         userProfile = profileBackup(themeStyle = themeStyle.name)
     )
 
-    private fun profileBackup(themeStyle: String?) = UserProfileBackup(
+    private fun profileBackup(
+        themeStyle: String?,
+        defaultProgramRefreshVersion: Int = 0
+    ) = UserProfileBackup(
         currentBodyWeightKg = 100.0,
         goalBodyWeightKg = 80.0,
         kneeInjuryFlag = true,
         baselineWeekActive = true,
         themeStyle = themeStyle,
-        firstRunDone = true
+        firstRunDone = true,
+        defaultProgramRefreshVersion = defaultProgramRefreshVersion
     )
 }

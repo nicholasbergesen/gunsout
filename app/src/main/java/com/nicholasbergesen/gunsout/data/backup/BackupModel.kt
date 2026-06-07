@@ -54,7 +54,8 @@ data class UserProfileBackup(
     val themeMode: String? = null,
     val themeStyle: String? = null,
     val firstRunDone: Boolean,
-    val profileSetupDone: Boolean = false
+    val profileSetupDone: Boolean = false,
+    val defaultProgramRefreshVersion: Int = 0
 )
 
 @Serializable

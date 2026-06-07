@@ -48,18 +48,32 @@ class Seeder @Inject constructor(
 ) {
 
     suspend fun seedIfNeeded(userId: String) {
-        val firstRun = !userPrefs.profile(userId).first().firstRunDone
+        val profile = userPrefs.profile(userId).first()
+        val firstRun = !profile.firstRunDone
+        val needsDefaultProgramRefresh = profile.defaultProgramRefreshVersion < defaultProgramRefreshVersion
         db.withTransaction {
             seedExercises(userId)
             seedAlternates(userId)
-            seedProgram(userId, activateOnFirstRun = firstRun)
+            seedProgram(
+                userId = userId,
+                activateOnFirstRun = firstRun,
+                refreshExistingSeededProgram = needsDefaultProgramRefresh
+            )
             seedSupplements(userId)
         }
         // Re-arm any supplement reminders saved in the DB (e.g. after install on a new device or
         // after a backup-import). Boot is handled separately by SupplementBootReceiver.
         rearmReminders(userId)
-        if (firstRun) {
-            userPrefs.update(userId) { it.copy(firstRunDone = true) }
+        if (firstRun || needsDefaultProgramRefresh) {
+            userPrefs.update(userId) {
+                it.copy(
+                    firstRunDone = it.firstRunDone || firstRun,
+                    defaultProgramRefreshVersion = maxOf(
+                        it.defaultProgramRefreshVersion,
+                        defaultProgramRefreshVersion
+                    )
+                )
+            }
         }
     }
 
@@ -100,7 +114,11 @@ class Seeder @Inject constructor(
         }
     }
 
-    private suspend fun seedProgram(userId: String, activateOnFirstRun: Boolean) {
+    private suspend fun seedProgram(
+        userId: String,
+        activateOnFirstRun: Boolean,
+        refreshExistingSeededProgram: Boolean
+    ) {
         val planProgram = ProgramSeeds.upperLower4Day
         var program = programDao.getBySeedKey(userId, planProgram.seedKey)
         if (program == null) {
@@ -140,6 +158,50 @@ class Seeder @Inject constructor(
                     ))
                 }
             }
+        } else if (refreshExistingSeededProgram) {
+            refreshSeededProgram(userId, program, planProgram)
+        }
+    }
+
+    private suspend fun refreshSeededProgram(
+        userId: String,
+        program: Program,
+        planProgram: ProgramSeeds.PlanProgram
+    ) {
+        val daysByOrder = programDayDao.getForProgram(program.id).associateBy { it.orderIndex }
+        for (planDay in planProgram.days) {
+            val day = daysByOrder[planDay.orderIndex] ?: continue
+            if (SeededProgramRefresh.shouldRefreshLabel(day, planDay)) {
+                programDayDao.update(day.copy(label = planDay.label))
+            }
+        }
+
+        val lowerDay = daysByOrder[SeededProgramRefresh.lowerPosteriorCoreOrder] ?: return
+        val existingExercises = programExerciseDao.getForDay(lowerDay.id).sortedBy { it.orderIndex }
+        val seedKeysByExerciseId = existingExercises.associate {
+            it.exerciseId to exerciseDao.getById(it.exerciseId)?.seedKey
+        }
+        if (!SeededProgramRefresh.matchesLegacyLowerPosteriorCore(existingExercises, seedKeysByExerciseId)) {
+            return
+        }
+
+        val planExercises = planProgram.days
+            .single { it.orderIndex == SeededProgramRefresh.lowerPosteriorCoreOrder }
+            .exercises
+        for ((index, planExercise) in planExercises.withIndex()) {
+            val current = existingExercises.getOrNull(index) ?: return
+            val exercise = exerciseDao.getBySeedKey(userId, planExercise.exerciseSeedKey) ?: return
+            programExerciseDao.update(current.copy(
+                orderIndex = index,
+                exerciseId = exercise.id,
+                sets = planExercise.sets,
+                repsMin = planExercise.repsMin,
+                repsMax = planExercise.repsMax,
+                restSec = planExercise.restSec,
+                rpeTarget = planExercise.rpeTarget,
+                supersetGroupId = planExercise.supersetGroupId,
+                protocol = planExercise.protocol
+            ))
         }
     }
 
@@ -158,6 +220,53 @@ class Seeder @Inject constructor(
                 isUserCreated = false,
                 seedKey = key
             ))
+        }
+    }
+
+    private companion object {
+        const val defaultProgramRefreshVersion = 1
+    }
+
+    object SeededProgramRefresh {
+        const val lowerPosteriorCoreOrder = 4
+
+        private val legacyDayLabelsByOrder = mapOf(
+            0 to "Upper A",
+            1 to "Lower A",
+            3 to "Upper B",
+            4 to "Lower B"
+        )
+
+        private val legacyLowerPosteriorCoreExercises = listOf(
+            ProgramSeeds.PlanExercise("leg_curl", 3, 10, 12, 60),
+            ProgramSeeds.PlanExercise("goblet_squat", 3, 10, 10, 90),
+            ProgramSeeds.PlanExercise("hip_thrust", 3, 12, 12, 90),
+            ProgramSeeds.PlanExercise("lying_leg_raise", 3, 15, 15, 60)
+        )
+
+        fun shouldRefreshLabel(day: ProgramDay, planDay: ProgramSeeds.PlanDay): Boolean =
+            day.orderIndex == planDay.orderIndex &&
+                day.label == legacyDayLabelsByOrder[day.orderIndex] &&
+                day.label != planDay.label
+
+        fun matchesLegacyLowerPosteriorCore(
+            exercises: List<ProgramExercise>,
+            seedKeysByExerciseId: Map<Long, String?>
+        ): Boolean {
+            val sorted = exercises.sortedBy { it.orderIndex }
+            if (sorted.size != legacyLowerPosteriorCoreExercises.size) return false
+            return sorted.zip(legacyLowerPosteriorCoreExercises).withIndex().all { (index, pair) ->
+                val (existing, legacy) = pair
+                existing.orderIndex == index &&
+                    seedKeysByExerciseId[existing.exerciseId] == legacy.exerciseSeedKey &&
+                    existing.sets == legacy.sets &&
+                    existing.repsMin == legacy.repsMin &&
+                    existing.repsMax == legacy.repsMax &&
+                    existing.restSec == legacy.restSec &&
+                    existing.rpeTarget == legacy.rpeTarget &&
+                    existing.supersetGroupId == legacy.supersetGroupId &&
+                    existing.protocol == legacy.protocol
+            }
         }
     }
 }
