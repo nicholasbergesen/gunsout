@@ -66,6 +66,8 @@ import com.nicholasbergesen.gunsout.ui.components.ThemedCard
 import com.nicholasbergesen.gunsout.ui.theme.ThemeStyle
 import com.nicholasbergesen.gunsout.ui.theme.backdropBrushFor
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -76,6 +78,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -654,14 +657,20 @@ private fun SessionExportRow(vm: SettingsViewModel) {
     ) { uri ->
         if (uri != null) {
             scope.launch {
-                val text = vm.exportExerciseSessionsJsonText()
-                val output = context.contentResolver.openOutputStream(uri)
-                if (output == null) {
-                    vm.setSessionExportMessage("Session export failed: file could not be opened.")
-                    return@launch
+                try {
+                    val text = vm.exportExerciseSessionsJsonText()
+                    withContext(Dispatchers.IO) {
+                        val output = context.contentResolver.openOutputStream(uri)
+                            ?: error("The selected file could not be opened.")
+                        output.bufferedWriter(Charsets.UTF_8).use { it.write(text) }
+                    }
+                    vm.setSessionExportMessage("Session export saved.")
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    vm.setSessionExportMessage(
+                        "Session export failed: ${error.message ?: error::class.java.simpleName}"
+                    )
                 }
-                output.bufferedWriter(Charsets.UTF_8).use { it.write(text) }
-                vm.setSessionExportMessage("Session export saved.")
             }
         }
     }

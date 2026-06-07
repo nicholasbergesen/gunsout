@@ -58,7 +58,7 @@ private fun WorkoutSession.toExerciseSessionExport(sets: List<SetEntry>): Exerci
     ExerciseSessionExport(
         sourceSessionId = id,
         date = date.toString(),
-        dayLabel = if (sets.isEmpty()) "Rest" else programDayLabelSnapshot,
+        dayLabel = programDayLabelSnapshot.takeIf { it.isNotBlank() } ?: "Rest",
         sessionType = if (sets.isEmpty()) "REST" else "WORKOUT",
         startedAt = startedAt.toString(),
         completedAt = completedAt?.toString(),

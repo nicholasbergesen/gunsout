@@ -38,14 +38,14 @@ class ExerciseSessionExportTest {
     }
 
     @Test
-    fun `export represents sessions with no sets as rest days`() {
-        val session = workoutSession(id = 8, label = "Lower A")
+    fun `export represents sessions with no sets as rest days while preserving label`() {
+        val session = workoutSession(id = 8, label = "Recovery")
 
         val export = buildExerciseSessionsExport("2026-06-07T12:00:00", listOf(session to emptyList()))
 
         val exportedSession = export.sessions.single()
         assertEquals("REST", exportedSession.sessionType)
-        assertEquals("Rest", exportedSession.dayLabel)
+        assertEquals("Recovery", exportedSession.dayLabel)
         assertTrue(exportedSession.exercises.isEmpty())
     }
 

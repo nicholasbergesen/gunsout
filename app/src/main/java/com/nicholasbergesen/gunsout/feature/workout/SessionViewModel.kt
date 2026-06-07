@@ -14,14 +14,20 @@ import com.nicholasbergesen.gunsout.data.repo.WorkoutRepository
 import com.nicholasbergesen.gunsout.domain.recommendation.ExerciseRecommendation
 import com.nicholasbergesen.gunsout.domain.recommendation.ExerciseRecommendationEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.Collections
 import javax.inject.Inject
 
 data class PlannedExerciseUi(
@@ -56,6 +62,9 @@ class SessionViewModel @Inject constructor(
 
     private val engine = ExerciseRecommendationEngine()
     private val sessionId: Long = savedStateHandle.get<Long>("sessionId") ?: 0L
+    private val sessionWriteMutex = Mutex()
+    private val pendingSetSaves = Collections.synchronizedSet(mutableSetOf<Job>())
+    private var finishRequested = false
 
     /**
      * In-session swap overrides: maps programExerciseId -> exerciseId to use just for this
@@ -161,41 +170,51 @@ class SessionViewModel @Inject constructor(
         rpe: Int?,
         isWarmup: Boolean = false
     ) {
-        viewModelScope.launch {
-            val userId = currentUserIdProvider.requireUserId()
-            workouts.logSet(
-                SetEntry(
-                    userId = userId,
-                    sessionId = sessionId,
-                    programExerciseId = programExercise.id,
-                    exerciseIdSnapshot = exercise.id,
-                    exerciseNameSnapshot = exercise.name,
-                    setIndex = setIndex,
-                    weightKg = weightKg,
-                    reps = reps,
-                    rpe = rpe,
-                    isWarmup = isWarmup,
-                    completedAt = LocalDateTime.now()
+        if (finishRequested) return
+        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            sessionWriteMutex.withLock {
+                val userId = currentUserIdProvider.requireUserId()
+                workouts.logSet(
+                    SetEntry(
+                        userId = userId,
+                        sessionId = sessionId,
+                        programExerciseId = programExercise.id,
+                        exerciseIdSnapshot = exercise.id,
+                        exerciseNameSnapshot = exercise.name,
+                        setIndex = setIndex,
+                        weightKg = weightKg,
+                        reps = reps,
+                        rpe = rpe,
+                        isWarmup = isWarmup,
+                        completedAt = LocalDateTime.now()
+                    )
                 )
-            )
-            // Skip rest timer on warmup sets and on the very last set of the last exercise.
-            val items = _state.value.items
-            val itemIndex = items.indexOfFirst { it.programExercise.id == programExercise.id }
-            val isLastSet = setIndex >= programExercise.sets
-            val isLastExercise = itemIndex == items.size - 1
-            if (!isWarmup && !(isLastSet && isLastExercise)) {
-                RestTimerService.start(appContext, programExercise.restSec, exercise.name)
+                // Skip rest timer on warmup sets and on the very last set of the last exercise.
+                val items = _state.value.items
+                val itemIndex = items.indexOfFirst { it.programExercise.id == programExercise.id }
+                val isLastSet = setIndex >= programExercise.sets
+                val isLastExercise = itemIndex == items.size - 1
+                if (!isWarmup && !(isLastSet && isLastExercise)) {
+                    RestTimerService.start(appContext, programExercise.restSec, exercise.name)
+                }
+                load()
             }
-            load()
         }
+        pendingSetSaves.add(job)
+        job.invokeOnCompletion { pendingSetSaves.remove(job) }
+        job.start()
     }
 
     fun setKneeFeel(value: Int?) = _state.update { it.copy(kneeFeel = value) }
     fun setNotes(value: String) = _state.update { it.copy(notes = value) }
 
     fun finish() = viewModelScope.launch {
-        workouts.completeSession(sessionId, _state.value.kneeFeel, _state.value.notes.ifBlank { null })
-        RestTimerService.stop(appContext)
-        _state.update { it.copy(finished = true) }
+        finishRequested = true
+        synchronized(pendingSetSaves) { pendingSetSaves.toList() }.joinAll()
+        sessionWriteMutex.withLock {
+            workouts.completeSession(sessionId, _state.value.kneeFeel, _state.value.notes.ifBlank { null })
+            RestTimerService.stop(appContext)
+            _state.update { it.copy(finished = true) }
+        }
     }
 }
