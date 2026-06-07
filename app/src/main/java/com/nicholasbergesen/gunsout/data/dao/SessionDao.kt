@@ -34,6 +34,9 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_session WHERE userId = :userId AND date >= :since ORDER BY date ASC")
     suspend fun getSince(userId: String, since: LocalDate): List<WorkoutSession>
 
+    @Query("SELECT * FROM workout_session WHERE userId = :userId AND status = 'COMPLETED' ORDER BY date ASC, id ASC")
+    suspend fun getCompletedForExport(userId: String): List<WorkoutSession>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(session: WorkoutSession): Long
 

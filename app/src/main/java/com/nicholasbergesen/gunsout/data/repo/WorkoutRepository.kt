@@ -1,5 +1,7 @@
 package com.nicholasbergesen.gunsout.data.repo
 
+import com.nicholasbergesen.gunsout.data.analysis.ExerciseSessionsExport
+import com.nicholasbergesen.gunsout.data.analysis.buildExerciseSessionsExport
 import com.nicholasbergesen.gunsout.data.dao.ExerciseAlternateDao
 import com.nicholasbergesen.gunsout.data.dao.ExerciseDao
 import com.nicholasbergesen.gunsout.data.dao.ProgramDao
@@ -14,7 +16,10 @@ import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
 import com.nicholasbergesen.gunsout.data.entity.SessionStatus
 import com.nicholasbergesen.gunsout.data.entity.SetEntry
 import com.nicholasbergesen.gunsout.data.entity.WorkoutSession
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import java.time.LocalDate
 import java.time.LocalDateTime
 import javax.inject.Inject
@@ -30,6 +35,8 @@ class WorkoutRepository @Inject constructor(
     private val workoutSessionDao: WorkoutSessionDao,
     private val setEntryDao: SetEntryDao
 ) {
+    private val sessionExportJson = Json { prettyPrint = true }
+
     fun observeActiveProgram(userId: String): Flow<Program?> = programDao.observeActive(userId)
     fun observeDaysFor(programId: Long): Flow<List<ProgramDay>> = programDayDao.observeForProgram(programId)
     fun observeRecentCompletedAndSkipped(userId: String, limit: Int = 50): Flow<List<WorkoutSession>> =
@@ -54,6 +61,15 @@ class WorkoutRepository @Inject constructor(
 
     suspend fun getRecentSessions(userId: String): List<WorkoutSession> =
         workoutSessionDao.getSince(userId, LocalDate.now().minusDays(60))
+
+    suspend fun exportExerciseSessionsJson(userId: String): String = withContext(Dispatchers.IO) {
+        val sessions = workoutSessionDao.getCompletedForExport(userId)
+        val export = buildExerciseSessionsExport(
+            exportedAtIso = LocalDateTime.now().toString(),
+            sessions = sessions.map { session -> session to setEntryDao.getForSession(session.id) }
+        )
+        sessionExportJson.encodeToString(ExerciseSessionsExport.serializer(), export)
+    }
 
     suspend fun getLastCompletedSession(userId: String): WorkoutSession? =
         workoutSessionDao.getLastCompleted(userId)
@@ -117,9 +133,9 @@ class WorkoutRepository @Inject constructor(
 
     suspend fun completeSession(sessionId: Long, kneeFeel: Int?, notes: String?) {
         val s = workoutSessionDao.getById(sessionId) ?: return
-        workoutSessionDao.update(
-            s.copy(status = SessionStatus.COMPLETED, completedAt = LocalDateTime.now(), kneeFeel = kneeFeel, notes = notes)
-        )
+        val sets = setEntryDao.getForSession(sessionId)
+        val restLabel = if (sets.isEmpty()) getRestLabel(s.userId) else s.programDayLabelSnapshot
+        workoutSessionDao.update(completedSessionUpdate(s, sets.isNotEmpty(), LocalDateTime.now(), kneeFeel, notes, restLabel))
     }
 
     suspend fun markRestDay(userId: String) {
@@ -141,6 +157,11 @@ class WorkoutRepository @Inject constructor(
         )
     }
 
+    private suspend fun getRestLabel(userId: String): String {
+        val active = programDao.getActive(userId) ?: return "Rest"
+        return programDayDao.getForProgram(active.id).firstOrNull { it.isRest }?.label ?: "Rest"
+    }
+
     suspend fun skipNextDay(userId: String, nextProgramDay: ProgramDay) {
         workoutSessionDao.insert(
             WorkoutSession(
@@ -155,3 +176,20 @@ class WorkoutRepository @Inject constructor(
         )
     }
 }
+
+internal fun completedSessionUpdate(
+    session: WorkoutSession,
+    hasLoggedSets: Boolean,
+    completedAt: LocalDateTime,
+    kneeFeel: Int?,
+    notes: String?,
+    restLabel: String
+): WorkoutSession =
+    session.copy(
+        programDayId = if (hasLoggedSets) session.programDayId else null,
+        programDayLabelSnapshot = if (hasLoggedSets) session.programDayLabelSnapshot else restLabel,
+        status = SessionStatus.COMPLETED,
+        completedAt = completedAt,
+        kneeFeel = kneeFeel,
+        notes = notes
+    )

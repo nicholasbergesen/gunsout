@@ -37,6 +37,11 @@ sealed interface BodyUiEvent {
         val undo: InBodyQrImportUndo
     ) : BodyUiEvent
 
+    data class InBodyCsvImported(
+        val message: String,
+        val undo: InBodyCsvImportUndo
+    ) : BodyUiEvent
+
     data class Message(val message: String) : BodyUiEvent
 }
 
@@ -46,7 +51,8 @@ class BodyViewModel @Inject constructor(
     private val body: BodyRepository,
     private val userPrefs: UserPreferences,
     private val currentUserIdProvider: CurrentUserIdProvider,
-    private val inBodyQrImportUseCase: InBodyQrImportUseCase
+    private val inBodyQrImportUseCase: InBodyQrImportUseCase,
+    private val inBodyCsvImportUseCase: InBodyCsvImportUseCase
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<BodyUiEvent>(
@@ -117,9 +123,39 @@ class BodyViewModel @Inject constructor(
         }
     }
 
+    fun importInBodyCsv(rawCsv: String) {
+        if (inBodyImportInFlight) return
+        inBodyImportInFlight = true
+        viewModelScope.launch {
+            try {
+                val userId = currentUserIdProvider.requireUserId()
+                when (val result = inBodyCsvImportUseCase.import(userId, rawCsv)) {
+                    is InBodyCsvImportResult.Failed -> _events.tryEmit(BodyUiEvent.Message(result.message))
+                    is InBodyCsvImportResult.Imported -> _events.tryEmit(
+                        BodyUiEvent.InBodyCsvImported(
+                            message = result.message,
+                            undo = result.undo
+                        )
+                    )
+                }
+            } finally {
+                inBodyImportInFlight = false
+            }
+        }
+    }
+
     fun undoInBodyImport(undo: InBodyQrImportUndo) = viewModelScope.launch {
         inBodyQrImportUseCase.undo(undo)
         _events.tryEmit(BodyUiEvent.Message("InBody import undone"))
+    }
+
+    fun undoInBodyCsvImport(undo: InBodyCsvImportUndo) = viewModelScope.launch {
+        inBodyCsvImportUseCase.undo(undo)
+        _events.tryEmit(BodyUiEvent.Message("InBody CSV import undone"))
+    }
+
+    fun showMessage(message: String) {
+        _events.tryEmit(BodyUiEvent.Message(message))
     }
 
     fun suggestKcalAdjustment() = viewModelScope.launch {

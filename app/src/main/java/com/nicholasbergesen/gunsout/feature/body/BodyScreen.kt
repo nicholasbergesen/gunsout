@@ -27,12 +27,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -48,6 +50,10 @@ import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun BodyScreen(
@@ -59,6 +65,8 @@ fun BodyScreen(
     val state by vm.state.collectAsState()
     val scroll = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     var weight by remember { mutableStateOf("") }
     var bodyFat by remember { mutableStateOf("") }
@@ -67,6 +75,26 @@ fun BodyScreen(
     var visceral by remember { mutableStateOf("") }
     var showMore by remember { mutableStateOf(false) }
     var selectedTrend by remember { mutableStateOf("Weight") }
+
+    val csvImportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    val csvText = withContext(Dispatchers.IO) {
+                        val input = context.contentResolver.openInputStream(uri)
+                            ?: error("The selected file could not be opened.")
+                        input.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                    }
+                    vm.importInBodyCsv(csvText)
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    vm.showMessage("InBody CSV import failed: ${error.message ?: error::class.java.simpleName}")
+                }
+            }
+        }
+    }
 
     LaunchedEffect(scannedInBodyQrText) {
         val rawValue = scannedInBodyQrText
@@ -89,6 +117,16 @@ fun BodyScreen(
                     )
                     if (result == SnackbarResult.ActionPerformed) {
                         vm.undoInBodyImport(event.undo)
+                    }
+                }
+                is BodyUiEvent.InBodyCsvImported -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = event.message,
+                        actionLabel = "Undo",
+                        duration = SnackbarDuration.Short
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        vm.undoInBodyCsvImport(event.undo)
                     }
                 }
                 is BodyUiEvent.Message -> snackbarHostState.showSnackbar(event.message)
@@ -192,6 +230,22 @@ fun BodyScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Import from InBody QR")
+            }
+            OutlinedButton(
+                onClick = {
+                    csvImportLauncher.launch(
+                        arrayOf(
+                            "text/csv",
+                            "text/comma-separated-values",
+                            "application/vnd.ms-excel",
+                            "text/plain",
+                            "*/*"
+                        )
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Import from InBody CSV")
             }
             if (showMore) {
                 OutlinedTextField(value = bodyFat, onValueChange = { bodyFat = it.normalizeDecimalInput() }, label = { Text("Body fat %") }, singleLine = true, modifier = Modifier.fillMaxWidth())

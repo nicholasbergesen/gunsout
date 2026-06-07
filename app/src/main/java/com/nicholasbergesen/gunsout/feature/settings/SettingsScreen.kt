@@ -54,6 +54,7 @@ import com.nicholasbergesen.gunsout.data.prefs.Sex
 import com.nicholasbergesen.gunsout.data.prefs.TrainingExperience
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
+import com.nicholasbergesen.gunsout.data.repo.WorkoutRepository
 import com.nicholasbergesen.gunsout.domain.nutrition.MacroTarget
 import com.nicholasbergesen.gunsout.domain.nutrition.MacroTargetCalculator
 import com.nicholasbergesen.gunsout.ui.components.ChipButton
@@ -65,6 +66,8 @@ import com.nicholasbergesen.gunsout.ui.components.ThemedCard
 import com.nicholasbergesen.gunsout.ui.theme.ThemeStyle
 import com.nicholasbergesen.gunsout.ui.theme.backdropBrushFor
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -75,6 +78,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -82,6 +86,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val userPrefs: UserPreferences,
     private val backupManager: com.nicholasbergesen.gunsout.data.backup.BackupManager,
+    private val workouts: WorkoutRepository,
     private val currentUserIdProvider: CurrentUserIdProvider,
     private val authRepository: AuthRepository,
     private val reminderScheduler: com.nicholasbergesen.gunsout.feature.supplements.SupplementReminderScheduler
@@ -127,11 +132,20 @@ class SettingsViewModel @Inject constructor(
 
     private val _backupMessage = MutableStateFlow<String?>(null)
     val backupMessage: StateFlow<String?> = _backupMessage.asStateFlow()
+    private val _sessionExportMessage = MutableStateFlow<String?>(null)
+    val sessionExportMessage: StateFlow<String?> = _sessionExportMessage.asStateFlow()
 
     fun clearMessage() { _backupMessage.value = null }
 
     suspend fun exportToJsonText(): String =
         backupManager.exportToJson(currentUserIdProvider.requireUserId())
+
+    suspend fun exportExerciseSessionsJsonText(): String =
+        workouts.exportExerciseSessionsJson(currentUserIdProvider.requireUserId())
+
+    fun setSessionExportMessage(message: String) {
+        _sessionExportMessage.value = message
+    }
 
     fun importFromJsonText(json: String) = viewModelScope.launch {
         val userId = currentUserIdProvider.requireUserId()
@@ -415,6 +429,19 @@ fun SettingsScreen(
         }
 
         ThemedCard {
+            Text("Exercise session export", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Export completed workouts and rest days as JSON for external analysis.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            SessionExportRow(vm)
+            val msg by vm.sessionExportMessage.collectAsState()
+            msg?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        ThemedCard {
             Text("Backup", style = MaterialTheme.typography.titleMedium)
             Text(
                 "Export everything to a JSON file or restore from a previous export. Importing replaces all current data.",
@@ -618,6 +645,39 @@ private fun SettingsToggle(
             Text(description, style = MaterialTheme.typography.bodySmall)
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun SessionExportRow(vm: SettingsViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    val text = vm.exportExerciseSessionsJsonText()
+                    withContext(Dispatchers.IO) {
+                        val output = context.contentResolver.openOutputStream(uri)
+                            ?: error("The selected file could not be opened.")
+                        output.bufferedWriter(Charsets.UTF_8).use { it.write(text) }
+                    }
+                    vm.setSessionExportMessage("Session export saved.")
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    vm.setSessionExportMessage(
+                        "Session export failed: ${error.message ?: error::class.java.simpleName}"
+                    )
+                }
+            }
+        }
+    }
+
+    val ts = java.time.LocalDate.now().toString()
+    OutlinedButton(onClick = { exportLauncher.launch("gunsout-exercise-sessions-$ts.json") }) {
+        Text("Export sessions JSON")
     }
 }
 
