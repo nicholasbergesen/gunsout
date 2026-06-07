@@ -1,7 +1,9 @@
 package com.nicholasbergesen.gunsout.data.seed
 
+import com.nicholasbergesen.gunsout.data.entity.Program
 import com.nicholasbergesen.gunsout.data.entity.ProgramDay
 import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
+import com.nicholasbergesen.gunsout.data.entity.ProgramType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -35,7 +37,7 @@ class ProgramSeedsTest {
     }
 
     @Test fun `program catalog only references seeded exercises`() {
-        val exerciseKeys = ExerciseSeeds.all.map { it.key }.toSet()
+        val exerciseKeys = ExerciseSeeds.all.map { it.exercise.seedKey!! }.toSet()
         val missingKeys = ProgramSeeds.all
             .flatMap { it.days }
             .flatMap { it.exercises }
@@ -43,6 +45,70 @@ class ProgramSeedsTest {
             .filterNot { it in exerciseKeys }
 
         assertTrue("Missing exercise seed keys: $missingKeys", missingKeys.isEmpty())
+    }
+
+    @Test fun `exercise seed wrapper keys match persisted seed keys`() {
+        val mismatches = ExerciseSeeds.all
+            .filter { it.key != it.exercise.seedKey }
+            .map { "${it.key} != ${it.exercise.seedKey}" }
+
+        assertTrue("Mismatched seed keys: $mismatches", mismatches.isEmpty())
+    }
+
+    @Test fun `seeded template metadata backfill adds missing notes and type`() {
+        val legacyProgram = Program(
+            userId = "u",
+            name = ProgramSeeds.upperLower4Day.name,
+            type = ProgramType.CUSTOM,
+            notes = null,
+            isTemplate = true,
+            seedKey = ProgramSeeds.upperLower4Day.seedKey
+        )
+
+        val backfilled = Seeder.SeededProgramRefresh.backfillSeededTemplateMetadata(
+            legacyProgram,
+            ProgramSeeds.upperLower4Day
+        )
+
+        assertEquals(ProgramType.UPPER_LOWER, backfilled.type)
+        assertEquals(ProgramSeeds.upperLower4Day.notes, backfilled.notes)
+    }
+
+    @Test fun `seeded template metadata backfill preserves existing notes`() {
+        val legacyProgram = Program(
+            userId = "u",
+            name = ProgramSeeds.upperLower4Day.name,
+            type = ProgramType.CUSTOM,
+            notes = "Keep this note",
+            isTemplate = true,
+            seedKey = ProgramSeeds.upperLower4Day.seedKey
+        )
+
+        val backfilled = Seeder.SeededProgramRefresh.backfillSeededTemplateMetadata(
+            legacyProgram,
+            ProgramSeeds.upperLower4Day
+        )
+
+        assertEquals(ProgramType.UPPER_LOWER, backfilled.type)
+        assertEquals("Keep this note", backfilled.notes)
+    }
+
+    @Test fun `seeded template metadata backfill ignores non template programs`() {
+        val customProgram = Program(
+            userId = "u",
+            name = ProgramSeeds.upperLower4Day.name,
+            type = ProgramType.CUSTOM,
+            notes = null,
+            isTemplate = false,
+            seedKey = ProgramSeeds.upperLower4Day.seedKey
+        )
+
+        val backfilled = Seeder.SeededProgramRefresh.backfillSeededTemplateMetadata(
+            customProgram,
+            ProgramSeeds.upperLower4Day
+        )
+
+        assertEquals(customProgram, backfilled)
     }
 
     @Test fun `default program uses descriptive day labels`() {

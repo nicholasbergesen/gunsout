@@ -176,7 +176,16 @@ class Seeder @Inject constructor(
                 }
             }
         } else if (refreshExistingSeededProgram) {
-            refreshSeededProgram(userId, program, planProgram)
+            val backfilled = SeededProgramRefresh.backfillSeededTemplateMetadata(program, planProgram)
+            if (backfilled != program) {
+                programDao.update(backfilled)
+            }
+            refreshSeededProgram(userId, backfilled, planProgram)
+        } else {
+            val backfilled = SeededProgramRefresh.backfillSeededTemplateMetadata(program, planProgram)
+            if (backfilled != program) {
+                programDao.update(backfilled)
+            }
         }
     }
 
@@ -265,6 +274,17 @@ class Seeder @Inject constructor(
             day.orderIndex == planDay.orderIndex &&
                 day.label == legacyDayLabelsByOrder[day.orderIndex] &&
                 day.label != planDay.label
+
+        fun backfillSeededTemplateMetadata(
+            program: Program,
+            planProgram: ProgramSeeds.PlanProgram
+        ): Program {
+            if (!program.isTemplate) return program
+            return program.copy(
+                type = planProgram.programType,
+                notes = program.notes ?: planProgram.notes
+            )
+        }
 
         fun matchesLegacyLowerPosteriorCore(
             exercises: List<ProgramExercise>,
