@@ -12,7 +12,7 @@ object ExerciseSeeds {
     data class Seed(val key: String, val exercise: Exercise, val alternates: List<Pair<String, AlternateReason>> = emptyList())
 
     val all: List<Seed> = listOf(
-        // Upper A
+        // Upper Push/Pull
         Seed("inc_db_bench", Exercise(
             userId = "",
             name = "Incline Dumbbell Bench Press",
@@ -75,7 +75,7 @@ object ExerciseSeeds {
             seedKey = "db_rear_delt_fly"
         )),
 
-        // Lower A
+        // Lower Strength
         Seed("leg_press", Exercise(
             userId = "",
             name = "Leg Press",
@@ -147,7 +147,7 @@ object ExerciseSeeds {
             seedKey = "standing_calf_raise"
         )),
 
-        // Upper B
+        // Upper Hypertrophy
         Seed("chest_supported_row", Exercise(
             userId = "",
             name = "Chest-Supported Dumbbell Row",
@@ -205,7 +205,7 @@ object ExerciseSeeds {
             seedKey = "db_overhead_tricep"
         )),
 
-        // Lower B
+        // Lower Posterior/Core
         Seed("leg_curl", Exercise(
             userId = "",
             name = "Lying or Seated Leg Curl",

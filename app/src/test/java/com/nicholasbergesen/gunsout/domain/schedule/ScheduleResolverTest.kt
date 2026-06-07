@@ -18,11 +18,11 @@ class ScheduleResolverTest {
     private val resolver = ScheduleResolver()
 
     private val days = listOf(
-        ProgramDay(id = 1, userId = "u", programId = 1, orderIndex = 0, label = "Upper A", preferredDayOfWeek = DayHint.MON),
-        ProgramDay(id = 2, userId = "u", programId = 1, orderIndex = 1, label = "Lower A", preferredDayOfWeek = DayHint.TUE),
+        ProgramDay(id = 1, userId = "u", programId = 1, orderIndex = 0, label = "Upper Push/Pull", preferredDayOfWeek = DayHint.MON),
+        ProgramDay(id = 2, userId = "u", programId = 1, orderIndex = 1, label = "Lower Strength", preferredDayOfWeek = DayHint.TUE),
         ProgramDay(id = 3, userId = "u", programId = 1, orderIndex = 2, label = "Rest", preferredDayOfWeek = DayHint.WED, isRest = true),
-        ProgramDay(id = 4, userId = "u", programId = 1, orderIndex = 3, label = "Upper B", preferredDayOfWeek = DayHint.THU),
-        ProgramDay(id = 5, userId = "u", programId = 1, orderIndex = 4, label = "Lower B", preferredDayOfWeek = DayHint.FRI)
+        ProgramDay(id = 4, userId = "u", programId = 1, orderIndex = 3, label = "Upper Hypertrophy", preferredDayOfWeek = DayHint.THU),
+        ProgramDay(id = 5, userId = "u", programId = 1, orderIndex = 4, label = "Lower Posterior/Core", preferredDayOfWeek = DayHint.FRI)
     )
 
     private fun session(programDayId: Long, status: SessionStatus, date: LocalDate) =
@@ -41,7 +41,7 @@ class ScheduleResolverTest {
         assertNull(s.daysSinceLastSession)
     }
 
-    @Test fun `after Upper A completed next is Lower A`() {
+    @Test fun `after Upper Push Pull completed next is Lower Strength`() {
         val today = LocalDate.of(2026, 5, 19) // Tuesday
         val sessions = listOf(session(1, SessionStatus.COMPLETED, today.minusDays(1)))
         val s = resolver.resolveNext(days, sessions, today)
@@ -62,18 +62,18 @@ class ScheduleResolverTest {
         val today = LocalDate.of(2026, 5, 20) // Wednesday
         val sessions = listOf(session(2, SessionStatus.SKIPPED, today.minusDays(1)))
         val s = resolver.resolveNext(days, sessions, today)
-        assertEquals(4L, s.nextDay?.id) // Upper B
+        assertEquals(4L, s.nextDay?.id) // Upper Hypertrophy
     }
 
     @Test fun `off-schedule day returns alternativeForToday`() {
         val today = LocalDate.of(2026, 5, 21) // Thursday
-        // Last completed was Upper A on Monday: next is Lower A. Today is Thursday whose hint = Upper B.
+        // Last completed was Upper Push/Pull on Monday: next is Lower Strength. Today is Thursday whose hint = Upper Hypertrophy.
         val sessions = listOf(session(1, SessionStatus.COMPLETED, today.minusDays(3)))
         val s = resolver.resolveNext(days, sessions, today)
-        assertEquals(2L, s.nextDay?.id) // Lower A is what's next-due
+        assertEquals(2L, s.nextDay?.id) // Lower Strength is what's next-due
         assertFalse(s.onSchedule)
         assertNotNull(s.alternativeForToday)
-        assertEquals(4L, s.alternativeForToday?.id) // today's hint matches Upper B
+        assertEquals(4L, s.alternativeForToday?.id) // today's hint matches Upper Hypertrophy
     }
 
     @Test fun `empty non-rest set returns null nextDay`() {
@@ -92,7 +92,7 @@ class ScheduleResolverTest {
 
     @Test fun `marked rest day (programDayId null) does not advance or rewind rotation`() {
         val today = LocalDate.of(2026, 5, 20)
-        // Yesterday: completed Upper A. Today (Wed): user marked rest. Pointer must remain at Upper A so next is Lower A.
+        // Yesterday: completed Upper Push/Pull. Today (Wed): user marked rest. Pointer must remain at Upper Push/Pull so next is Lower Strength.
         val sessions = listOf(
             WorkoutSession(
                 id = 999, userId = "u", date = today, programDayId = null,
