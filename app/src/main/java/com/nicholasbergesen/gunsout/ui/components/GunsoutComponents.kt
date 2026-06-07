@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -141,7 +143,9 @@ fun StatusChip(
             text = text,
             modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -165,8 +169,27 @@ fun ChipButton(
             text = text,
             modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun WrappingRow(
+    modifier: Modifier = Modifier,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(8.dp),
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(8.dp),
+    content: @Composable () -> Unit
+) {
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = horizontalArrangement,
+        verticalArrangement = verticalArrangement
+    ) {
+        content()
     }
 }
 
@@ -327,11 +350,16 @@ fun ActionRow(
     secondaryText: String? = null,
     onSecondary: (() -> Unit)? = null
 ) {
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    if (secondaryText == null) {
+        Button(onClick = onPrimary, modifier = modifier.fillMaxWidth()) { Text(primaryText) }
+        return
+    }
+
+    WrappingRow(modifier = modifier) {
         secondaryText?.let {
-            OutlinedButton(onClick = onSecondary ?: {}, modifier = Modifier.weight(1f)) { Text(it) }
+            OutlinedButton(onClick = onSecondary ?: {}) { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         }
-        Button(onClick = onPrimary, modifier = Modifier.weight(1f)) { Text(primaryText) }
+        Button(onClick = onPrimary) { Text(primaryText, maxLines = 1, overflow = TextOverflow.Ellipsis) }
     }
 }
 

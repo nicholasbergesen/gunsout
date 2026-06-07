@@ -26,6 +26,7 @@ import com.nicholasbergesen.gunsout.ui.components.MockupScreenColumn
 import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
+import com.nicholasbergesen.gunsout.ui.components.WrappingRow
 
 @Composable
 fun ProgramListScreen(
@@ -52,7 +53,10 @@ fun ProgramListScreen(
                     if (program.isActive) StatusChip("Active", selected = true)
                 }
                 program.notes?.let { Text(it) }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                WrappingRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     ChipButton("Edit", onClick = { onEdit(program.id) })
                     if (!program.isActive) {
                         ChipButton("Activate", onClick = { vm.activate(program.id) })

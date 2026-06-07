@@ -38,6 +38,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -63,6 +64,7 @@ import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
+import com.nicholasbergesen.gunsout.ui.components.WrappingRow
 import com.nicholasbergesen.gunsout.ui.theme.ThemeStyle
 import com.nicholasbergesen.gunsout.ui.theme.backdropBrushFor
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -377,7 +379,7 @@ fun SettingsScreen(
                 "Leave a field blank to fall back to the suggested value.",
                 style = MaterialTheme.typography.bodySmall
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            WrappingRow {
                 Button(onClick = {
                     vm.saveOverrides(
                         kcal = overrideKcal.toIntOrNull(),
@@ -385,14 +387,14 @@ fun SettingsScreen(
                         carbsG = overrideCarbs.toIntOrNull(),
                         fatG = overrideFat.toIntOrNull()
                     )
-                }) { Text("Save overrides") }
+                }) { Text("Save overrides", maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 OutlinedButton(onClick = {
                     overrideKcal = ""
                     overrideProtein = ""
                     overrideCarbs = ""
                     overrideFat = ""
                     vm.resetOverrides()
-                }) { Text("Reset to suggested") }
+                }) { Text("Reset to suggested", maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
             target?.let { t ->
                 val caption = when (t.source) {
@@ -616,12 +618,15 @@ private fun LabeledChoiceRow(
     Column {
         Text(label, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        WrappingRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             options.forEach { (value, display) ->
                 androidx.compose.material3.FilterChip(
                     selected = selected == value,
                     onClick = { onSelect(value) },
-                    label = { Text(display) }
+                    label = { Text(display, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 )
             }
         }
@@ -710,9 +715,13 @@ private fun BackupRow(vm: SettingsViewModel) {
     }
 
     val ts = java.time.LocalDate.now().toString()
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = { exportLauncher.launch("gunsout-backup-$ts.json") }) { Text("Export JSON") }
-        OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }) { Text("Import JSON") }
+    WrappingRow {
+        OutlinedButton(onClick = { exportLauncher.launch("gunsout-backup-$ts.json") }) {
+            Text("Export JSON", maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }) {
+            Text("Import JSON", maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 
     pendingImport?.let { jsonText ->

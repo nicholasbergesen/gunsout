@@ -11,7 +11,6 @@ import com.nicholasbergesen.gunsout.data.entity.ExerciseAlternate
 import com.nicholasbergesen.gunsout.data.entity.Program
 import com.nicholasbergesen.gunsout.data.entity.ProgramDay
 import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
-import com.nicholasbergesen.gunsout.data.entity.ProgramType
 import com.nicholasbergesen.gunsout.data.entity.Supplement
 import com.nicholasbergesen.gunsout.data.entity.SupplementUnit
 import com.nicholasbergesen.gunsout.data.entity.defaultMovementPatternFor
@@ -30,7 +29,7 @@ import javax.inject.Singleton
  * hit a half-seeded program where the parent row exists but children are missing, and
  * [seedProgram] would skip inserting the children because it short-circuits on parent presence.
  *
- * Per-user [UserPreferences] (Phase 3) makes the `firstRunDone` gate a real per-user flag —
+ * Per-user [UserPreferences] (Phase 3) makes the `firstRunDone` gate a real per-user flag:
  * each Google account that signs in gets a fresh DataStore file, defaults `firstRunDone = false`,
  * and goes through its own first-run program activation.
  */
@@ -54,9 +53,9 @@ class Seeder @Inject constructor(
         db.withTransaction {
             seedExercises(userId)
             seedAlternates(userId)
-            seedProgram(
+            seedPrograms(
                 userId = userId,
-                activateOnFirstRun = firstRun,
+                activateDefaultOnFirstRun = firstRun,
                 refreshExistingSeededProgram = needsDefaultProgramRefresh
             )
             seedSupplements(userId)
@@ -114,18 +113,36 @@ class Seeder @Inject constructor(
         }
     }
 
+    private suspend fun seedPrograms(
+        userId: String,
+        activateDefaultOnFirstRun: Boolean,
+        refreshExistingSeededProgram: Boolean
+    ) {
+        for (planProgram in ProgramSeeds.all) {
+            seedProgram(
+                userId = userId,
+                planProgram = planProgram,
+                activateOnFirstRun = activateDefaultOnFirstRun &&
+                    planProgram.seedKey == ProgramSeeds.upperLower4Day.seedKey,
+                refreshExistingSeededProgram = refreshExistingSeededProgram &&
+                    planProgram.seedKey == ProgramSeeds.upperLower4Day.seedKey
+            )
+        }
+    }
+
     private suspend fun seedProgram(
         userId: String,
+        planProgram: ProgramSeeds.PlanProgram,
         activateOnFirstRun: Boolean,
         refreshExistingSeededProgram: Boolean
     ) {
-        val planProgram = ProgramSeeds.upperLower4Day
         var program = programDao.getBySeedKey(userId, planProgram.seedKey)
         if (program == null) {
             val newId = programDao.insert(Program(
                 userId = userId,
                 name = planProgram.name,
-                type = ProgramType.UPPER_LOWER,
+                type = planProgram.programType,
+                notes = planProgram.notes,
                 isActive = activateOnFirstRun,
                 isTemplate = true,
                 seedKey = planProgram.seedKey
