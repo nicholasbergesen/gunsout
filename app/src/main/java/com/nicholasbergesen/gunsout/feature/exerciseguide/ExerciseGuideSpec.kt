@@ -64,6 +64,7 @@ internal fun exerciseGuideSpecFor(
     )
 }
 
+@Suppress("REDUNDANT_ELSE_IN_WHEN")
 private fun muscleGuideFor(muscleGroup: MuscleGroup): MuscleGuide = when (muscleGroup) {
     MuscleGroup.CHEST -> MuscleGuide(
         label = "Chest",
@@ -120,12 +121,15 @@ private fun muscleGuideFor(muscleGroup: MuscleGroup): MuscleGuide = when (muscle
         cue = "Move as one connected chain while keeping the main joints stacked.",
         regions = BodyMuscleRegion.entries.toSet()
     )
-    MuscleGroup.OTHER -> MuscleGuide(
-        label = "General",
-        cue = "Use the form notes for exercise-specific setup and tempo.",
-        regions = BodyMuscleRegion.entries.toSet()
-    )
+    MuscleGroup.OTHER -> generalMuscleGuide()
+    else -> generalMuscleGuide()
 }
+
+private fun generalMuscleGuide(): MuscleGuide = MuscleGuide(
+    label = "General",
+    cue = "Use the form notes for exercise-specific setup and tempo.",
+    regions = BodyMuscleRegion.entries.toSet()
+)
 
 private fun movementGuideFor(movementPattern: MovementPattern): MovementGuide = when (movementPattern) {
     MovementPattern.PUSH -> MovementGuide(
