@@ -1,5 +1,6 @@
 package com.nicholasbergesen.gunsout.data.seed
 
+import com.nicholasbergesen.gunsout.data.entity.MovementPattern
 import com.nicholasbergesen.gunsout.data.entity.Program
 import com.nicholasbergesen.gunsout.data.entity.ProgramDay
 import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
@@ -53,6 +54,37 @@ class ProgramSeedsTest {
             .map { "${it.key} != ${it.exercise.seedKey}" }
 
         assertTrue("Mismatched seed keys: $mismatches", mismatches.isEmpty())
+    }
+
+    @Test fun `seeded isolation guide exercises use isolation movement pattern`() {
+        val isolationGuideSeedKeys = listOf(
+            "db_rear_delt_fly",
+            "leg_extension",
+            "db_lateral_raise",
+            "db_bicep_curl",
+            "db_overhead_tricep",
+            "leg_curl",
+            "db_lying_leg_curl",
+            "pec_deck_fly",
+            "cable_chest_fly",
+            "face_pull",
+            "triceps_pressdown",
+            "rope_overhead_triceps",
+            "preacher_curl",
+            "machine_biceps_curl"
+        )
+        val seedsByKey = ExerciseSeeds.all.associateBy { it.key }
+        val missingKeys = isolationGuideSeedKeys.filterNot { it in seedsByKey }
+
+        assertTrue("Missing isolation guide seed keys: $missingKeys", missingKeys.isEmpty())
+
+        val incorrectPatterns = isolationGuideSeedKeys
+            .mapNotNull { key ->
+                val pattern = seedsByKey.getValue(key).exercise.movementPattern
+                if (pattern == MovementPattern.ISOLATION) null else "$key=$pattern"
+            }
+
+        assertTrue("Expected isolation movement patterns: $incorrectPatterns", incorrectPatterns.isEmpty())
     }
 
     @Test fun `seeded template metadata backfill adds missing notes and type`() {

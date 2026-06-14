@@ -69,6 +69,7 @@ object ExerciseSeeds {
             name = "Dumbbell Rear Delt Flyes",
             primaryMuscleGroup = MuscleGroup.SHOULDERS,
             equipment = Equipment.DUMBBELL,
+            movementPattern = MovementPattern.ISOLATION,
             formNotes = "Seated, torso parallel to floor. Light dumbbells. Raise arms wide like wings, squeeze rear delts.",
             defaultRestSec = 60,
             baselineNote = "Start with 4 to 6 kg per hand. Never ego-lift.",
@@ -122,6 +123,7 @@ object ExerciseSeeds {
             name = "Leg Extensions",
             primaryMuscleGroup = MuscleGroup.QUADS,
             equipment = Equipment.MACHINE,
+            movementPattern = MovementPattern.ISOLATION,
             formNotes = "Pad on lower shins. Extend, squeeze quads hard for 1 second at top, lower slowly.",
             defaultRestSec = 60,
             seedKey = "leg_extension"
@@ -181,6 +183,7 @@ object ExerciseSeeds {
             name = "Dumbbell Lateral Raises",
             primaryMuscleGroup = MuscleGroup.SHOULDERS,
             equipment = Equipment.DUMBBELL,
+            movementPattern = MovementPattern.ISOLATION,
             formNotes = "Slight bend in elbows. Raise arms wide to parallel with floor. Lower slowly.",
             defaultRestSec = 60,
             baselineNote = "Start with 4 to 6 kg per hand.",
@@ -191,6 +194,7 @@ object ExerciseSeeds {
             name = "Dumbbell Bicep Curl",
             primaryMuscleGroup = MuscleGroup.BICEPS,
             equipment = Equipment.DUMBBELL,
+            movementPattern = MovementPattern.ISOLATION,
             formNotes = "Stand tall. Curl with control, supinate at top.",
             defaultRestSec = 60,
             seedKey = "db_bicep_curl"
@@ -200,6 +204,7 @@ object ExerciseSeeds {
             name = "Dumbbell Overhead Tricep Extension",
             primaryMuscleGroup = MuscleGroup.TRICEPS,
             equipment = Equipment.DUMBBELL,
+            movementPattern = MovementPattern.ISOLATION,
             formNotes = "Hold one heavy dumbbell overhead with both hands. Lower behind head, stretch triceps, press up.",
             defaultRestSec = 60,
             seedKey = "db_overhead_tricep"
@@ -211,6 +216,7 @@ object ExerciseSeeds {
             name = "Lying or Seated Leg Curl",
             primaryMuscleGroup = MuscleGroup.HAMSTRINGS,
             equipment = Equipment.MACHINE,
+            movementPattern = MovementPattern.ISOLATION,
             formNotes = "Pad on Achilles. Pull heels tight to glutes, squeeze hamstrings at peak.",
             defaultRestSec = 60,
             seedKey = "leg_curl"
@@ -220,6 +226,7 @@ object ExerciseSeeds {
             name = "Dumbbell Lying Leg Curl",
             primaryMuscleGroup = MuscleGroup.HAMSTRINGS,
             equipment = Equipment.DUMBBELL,
+            movementPattern = MovementPattern.ISOLATION,
             formNotes = "Face-down on bench, knees at edge. Squeeze dumbbell vertically between feet. Curl up.",
             defaultRestSec = 60,
             seedKey = "db_lying_leg_curl"
