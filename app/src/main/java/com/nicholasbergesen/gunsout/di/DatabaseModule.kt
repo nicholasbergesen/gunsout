@@ -29,7 +29,10 @@ object DatabaseModule {
         // invariant between explicit migrations and the destructive fallback list.
         return Room.databaseBuilder(context, GunsoutDatabase::class.java, "gunsout.db")
             .addMigrations(*Migrations.allMigrations)
-            .fallbackToDestructiveMigrationFrom(*Migrations.destructiveFallbackFromVersions)
+            .fallbackToDestructiveMigrationFrom(
+                dropAllTables = true,
+                *Migrations.destructiveFallbackFromVersions
+            )
             .build()
     }
 

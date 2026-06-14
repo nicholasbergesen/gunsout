@@ -47,7 +47,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class AuthRepository @Inject constructor(
-    @ApplicationContext private val appContext: Context,
+    @param:ApplicationContext private val appContext: Context,
     private val sessionStore: AuthSessionStore
 ) {
     val signedInUser: Flow<AuthUser?> = sessionStore.currentUser

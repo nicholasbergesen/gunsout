@@ -33,7 +33,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.nicholasbergesen.gunsout.core.text.formatOneDecimalOrInt
 import com.nicholasbergesen.gunsout.data.entity.Equipment
 import com.nicholasbergesen.gunsout.data.entity.MuscleGroup

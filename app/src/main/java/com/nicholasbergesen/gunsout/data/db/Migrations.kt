@@ -25,9 +25,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 object Migrations {
 
     private val MIGRATION_4_5 = object : Migration(4, 5) {
-        override fun migrate(database: SupportSQLiteDatabase) {
-            database.execSQL("ALTER TABLE body_metrics_log ADD COLUMN waterLiters REAL")
-            database.execSQL(
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE body_metrics_log ADD COLUMN waterLiters REAL")
+            db.execSQL(
                 """
                 UPDATE body_metrics_log
                 SET waterLiters = weightKg * waterPct / 100.0
@@ -38,9 +38,9 @@ object Migrations {
     }
 
     private val MIGRATION_5_6 = object : Migration(5, 6) {
-        override fun migrate(database: SupportSQLiteDatabase) {
-            database.execSQL("ALTER TABLE exercise ADD COLUMN movementPattern TEXT NOT NULL DEFAULT 'ISOLATION'")
-            database.execSQL(
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE exercise ADD COLUMN movementPattern TEXT NOT NULL DEFAULT 'ISOLATION'")
+            db.execSQL(
                 """
                 UPDATE exercise
                 SET movementPattern = CASE

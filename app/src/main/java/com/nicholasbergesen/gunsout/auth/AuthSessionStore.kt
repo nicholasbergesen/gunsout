@@ -30,7 +30,7 @@ private val Context.authSessionStore: DataStore<Preferences> by preferencesDataS
  */
 @Singleton
 class AuthSessionStore @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     private object Keys {
         val userId = stringPreferencesKey("current_signed_in_user_id")
