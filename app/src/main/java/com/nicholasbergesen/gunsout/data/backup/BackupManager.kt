@@ -8,6 +8,7 @@ import com.nicholasbergesen.gunsout.data.prefs.Sex
 import com.nicholasbergesen.gunsout.data.prefs.TrainingExperience
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
+import com.nicholasbergesen.gunsout.data.seed.SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
 import com.nicholasbergesen.gunsout.ui.theme.ThemeStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -72,7 +73,8 @@ class BackupManager @Inject constructor(
             themeStyle = profile.themeStyle.name,
             firstRunDone = profile.firstRunDone,
             profileSetupDone = profile.profileSetupDone,
-            defaultProgramRefreshVersion = profile.defaultProgramRefreshVersion
+            defaultProgramRefreshVersion = profile.defaultProgramRefreshVersion,
+            seededMovementPatternBackfillVersion = profile.seededMovementPatternBackfillVersion
         )
         val overrides = userPrefs.overrides(userId).first()
         val overridesBackup = MacroOverridesBackup(
@@ -166,7 +168,12 @@ class BackupManager @Inject constructor(
 
             val exerciseIdMap = HashMap<Long, Long>(parsed.exercises.size)
             for (b in parsed.exercises) {
-                val newId = db.exerciseDao().insert(b.toEntity(userId).copy(id = 0))
+                val newId = db.exerciseDao().insert(
+                    b.toEntity(
+                        userId = userId,
+                        backfillLegacySeededMovementPattern = parsed.schemaVersion < 6
+                    ).copy(id = 0)
+                )
                 exerciseIdMap[b.id] = newId
             }
 
@@ -271,10 +278,22 @@ class BackupManager @Inject constructor(
         // signed in on the same device are unaffected.
         parsed.userProfile?.let { p ->
             userPrefs.update(userId) {
-                p.toUserProfile()
+                val imported = p.toUserProfile()
+                imported.copy(
+                    seededMovementPatternBackfillVersion = maxOf(
+                        imported.seededMovementPatternBackfillVersion,
+                        SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
+                    )
+                )
             }
         } ?: userPrefs.update(userId) {
-            it.copy(defaultProgramRefreshVersion = 0)
+            it.copy(
+                defaultProgramRefreshVersion = 0,
+                seededMovementPatternBackfillVersion = maxOf(
+                    it.seededMovementPatternBackfillVersion,
+                    SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
+                )
+            )
         }
 
         // Reset overrides first so an old v1/v2 import (with no macroOverrides field) clears any
@@ -324,5 +343,6 @@ internal fun UserProfileBackup.toUserProfile(): UserProfile = UserProfile(
     themeStyle = ThemeStyle.fromStoredName(themeStyle),
     firstRunDone = firstRunDone,
     profileSetupDone = profileSetupDone,
-    defaultProgramRefreshVersion = defaultProgramRefreshVersion
+    defaultProgramRefreshVersion = defaultProgramRefreshVersion,
+    seededMovementPatternBackfillVersion = seededMovementPatternBackfillVersion
 )

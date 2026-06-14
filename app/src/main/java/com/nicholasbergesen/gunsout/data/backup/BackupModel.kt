@@ -56,7 +56,8 @@ data class UserProfileBackup(
     val themeStyle: String? = null,
     val firstRunDone: Boolean,
     val profileSetupDone: Boolean = false,
-    val defaultProgramRefreshVersion: Int = 0
+    val defaultProgramRefreshVersion: Int = 0,
+    val seededMovementPatternBackfillVersion: Int = 0
 )
 
 @Serializable
@@ -93,7 +94,10 @@ fun ProgramDayBackup.toEntity(userId: String) = ProgramDay(
 )
 
 fun Exercise.toBackup() = ExerciseBackup(id, name, primaryMuscleGroup.name, equipment.name, movementPattern.name, formNotes, defaultRestSec, baselineNote, isUserCreated, isArchived, seedKey)
-fun ExerciseBackup.toEntity(userId: String): Exercise {
+fun ExerciseBackup.toEntity(
+    userId: String,
+    backfillLegacySeededMovementPattern: Boolean = false
+): Exercise {
     val muscleGroup = com.nicholasbergesen.gunsout.data.entity.MuscleGroup.valueOf(primaryMuscleGroup)
     return Exercise(
         id = id, userId = userId, name = name,
@@ -104,7 +108,9 @@ fun ExerciseBackup.toEntity(userId: String): Exercise {
             ?: defaultMovementPatternFor(muscleGroup),
         formNotes = formNotes, defaultRestSec = defaultRestSec, baselineNote = baselineNote,
         isUserCreated = isUserCreated, isArchived = isArchived, seedKey = seedKey
-    ).withSeededMovementPatternBackfill()
+    ).withSeededMovementPatternBackfill(
+        enabled = backfillLegacySeededMovementPattern && movementPattern == null
+    )
 }
 
 fun ExerciseAlternate.toBackup() = ExerciseAlternateBackup(exerciseId, alternateExerciseId, reason.name)

@@ -121,7 +121,10 @@ class BackupThemeStyleTest {
             """.trimIndent()
         )
 
-        assertEquals(MovementPattern.ISOLATION, decoded.toEntity("u").movementPattern)
+        assertEquals(
+            MovementPattern.ISOLATION,
+            decoded.toEntity("u", backfillLegacySeededMovementPattern = true).movementPattern
+        )
     }
 
     @Test fun legacyBodyMetricsWaterPercentRestoresAsLiters() {

@@ -38,7 +38,8 @@ data class UserProfile(
     val themeStyle: ThemeStyle = ThemeStyle.Default,
     val firstRunDone: Boolean = false,
     val profileSetupDone: Boolean = false,
-    val defaultProgramRefreshVersion: Int = 0
+    val defaultProgramRefreshVersion: Int = 0,
+    val seededMovementPatternBackfillVersion: Int = 0
 )
 
 /** Optional manual overrides for the daily macro target. Null means "use the suggestion". */
@@ -85,6 +86,7 @@ class UserPreferences @Inject constructor(
         val firstRunDone = booleanPreferencesKey("first_run_done")
         val profileSetupDone = booleanPreferencesKey("profile_setup_done")
         val defaultProgramRefreshVersion = intPreferencesKey("default_program_refresh_version")
+        val seededMovementPatternBackfillVersion = intPreferencesKey("seeded_movement_pattern_backfill_version")
         val overrideKcal = intPreferencesKey("override_kcal")
         val overrideProteinG = intPreferencesKey("override_protein_g")
         val overrideCarbsG = intPreferencesKey("override_carbs_g")
@@ -131,6 +133,7 @@ class UserPreferences @Inject constructor(
             p[Keys.firstRunDone] = next.firstRunDone
             p[Keys.profileSetupDone] = next.profileSetupDone
             p[Keys.defaultProgramRefreshVersion] = next.defaultProgramRefreshVersion
+            p[Keys.seededMovementPatternBackfillVersion] = next.seededMovementPatternBackfillVersion
         }
     }
 
@@ -166,7 +169,8 @@ class UserPreferences @Inject constructor(
         themeStyle = ThemeStyle.fromStoredName(this[Keys.themeStyle]),
         firstRunDone = this[Keys.firstRunDone] ?: false,
         profileSetupDone = this[Keys.profileSetupDone] ?: false,
-        defaultProgramRefreshVersion = this[Keys.defaultProgramRefreshVersion] ?: 0
+        defaultProgramRefreshVersion = this[Keys.defaultProgramRefreshVersion] ?: 0,
+        seededMovementPatternBackfillVersion = this[Keys.seededMovementPatternBackfillVersion] ?: 0
     )
 
     private fun Preferences.toOverrides(): MacroOverrides = MacroOverrides(

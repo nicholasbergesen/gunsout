@@ -49,8 +49,14 @@ class Seeder @Inject constructor(
         val profile = userPrefs.profile(userId).first()
         val firstRun = !profile.firstRunDone
         val needsDefaultProgramRefresh = profile.defaultProgramRefreshVersion < defaultProgramRefreshVersion
+        val needsSeededMovementPatternBackfill =
+            profile.seededMovementPatternBackfillVersion < SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION &&
+                needsDefaultProgramRefresh
         db.withTransaction {
-            seedExercises(userId)
+            seedExercises(
+                userId = userId,
+                backfillLegacySeededMovementPatterns = needsSeededMovementPatternBackfill
+            )
             seedAlternates(userId)
             seedPrograms(
                 userId = userId,
@@ -62,13 +68,17 @@ class Seeder @Inject constructor(
         // Re-arm any supplement reminders saved in the DB (e.g. after install on a new device or
         // after a backup-import). Boot is handled separately by SupplementBootReceiver.
         rearmReminders(userId)
-        if (firstRun || needsDefaultProgramRefresh) {
+        if (firstRun || needsDefaultProgramRefresh || needsSeededMovementPatternBackfill) {
             userPrefs.update(userId) {
                 it.copy(
                     firstRunDone = it.firstRunDone || firstRun,
                     defaultProgramRefreshVersion = maxOf(
                         it.defaultProgramRefreshVersion,
                         defaultProgramRefreshVersion
+                    ),
+                    seededMovementPatternBackfillVersion = maxOf(
+                        it.seededMovementPatternBackfillVersion,
+                        SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
                     )
                 )
             }
@@ -80,14 +90,19 @@ class Seeder @Inject constructor(
         reminderScheduler.ensureChannel()
     }
 
-    private suspend fun seedExercises(userId: String) {
+    private suspend fun seedExercises(
+        userId: String,
+        backfillLegacySeededMovementPatterns: Boolean
+    ) {
         for (seed in ExerciseSeeds.all) {
             val seedKey = seed.exercise.seedKey!!
             val existing = exerciseDao.getBySeedKey(userId, seedKey)
             if (existing == null) {
                 exerciseDao.insert(seed.exercise.copy(userId = userId))
             } else {
-                val normalized = existing.withSeededMovementPatternBackfill()
+                val normalized = existing.withSeededMovementPatternBackfill(
+                    enabled = backfillLegacySeededMovementPatterns
+                )
                 if (normalized.movementPattern != existing.movementPattern) {
                     exerciseDao.update(normalized)
                 }
