@@ -5,9 +5,11 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    jacoco
 }
 
 import java.util.Properties
+import org.gradle.testing.jacoco.tasks.JacocoReport
 
 fun readBuildSecret(name: String): String {
     val fromEnv = System.getenv(name)?.takeIf { it.isNotBlank() }
@@ -129,6 +131,48 @@ android {
 // checked-in baseline.
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+tasks.register<JacocoReport>("debugUnitTestCoverage") {
+    dependsOn("testDebugUnitTest")
+
+    reports {
+        xml.required.set(true)
+        xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/debugUnitTestCoverage/debugUnitTestCoverage.xml"))
+        html.required.set(true)
+        csv.required.set(false)
+    }
+
+    val generatedClassExclusions = listOf(
+        "**/BuildConfig.*",
+        "**/Manifest*.*",
+        "**/R.class",
+        "**/R$*.class",
+        "**/ComposableSingletons*.*",
+        "**/*_Factory.*",
+        "**/*_MembersInjector.*",
+        "**/Dagger*.*",
+        "**/Hilt_*.*",
+        "**/*Hilt*.*"
+    )
+
+    classDirectories.setFrom(
+        files(
+            fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
+                exclude(generatedClassExclusions)
+            },
+            fileTree(layout.buildDirectory.dir("intermediates/javac/debug/classes")) {
+                exclude(generatedClassExclusions)
+            }
+        )
+    )
+    sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include("jacoco/testDebugUnitTest.exec")
+            include("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
+        }
+    )
 }
 
 // One-time helper: generate the shared debug keystore that every build (local and CI) signs with.
