@@ -148,6 +148,7 @@ tasks.register<JacocoReport>("debugUnitTestCoverage") {
         "**/Manifest*.*",
         "**/R.class",
         "**/R$*.class",
+        "**/ComposableSingletons*.*",
         "**/*_Factory.*",
         "**/*_MembersInjector.*",
         "**/Dagger*.*",
