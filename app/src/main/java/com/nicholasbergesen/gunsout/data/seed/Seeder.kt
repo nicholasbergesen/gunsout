@@ -351,7 +351,7 @@ class Seeder @Inject constructor(
             ProgramSeeds.PlanExercise("machine_crunch", 3, 10, 15, 60)
         )
 
-        val lowerPosteriorCoreV1ReplacedSeedKeys = setOf("trap_bar_deadlift", "machine_crunch")
+        val lowerPosteriorCoreV1ReplacedSeedKeys = LowerPosteriorCoreV1PrescriptionRepair.replacedSeedKeys
 
         val refreshExercisePrescriptionsByOrder = mapOf(
             upperPushPullOrder to legacyUpperPushPullExercises,
@@ -519,12 +519,31 @@ class Seeder @Inject constructor(
             val staleRowsToRetire = staleRows
                 .filter { it.id in staleProgramExerciseIdsToRetire }
                 .map { stale ->
-                    stale.copy(isRetired = true)
+                    val replacementSeedKey = seedKeysByExerciseId[stale.exerciseId]
+                    val legacyPrescription = replacementSeedKey
+                        ?.takeIf { it in existingPlannedSeedKeysToReplace }
+                        ?.let(LowerPosteriorCoreV1PrescriptionRepair::legacyPlanForReplacement)
+                    stale.copy(isRetired = true).withPrescription(legacyPrescription)
                 }
             val staleRowIdsToDelete = staleRows
                 .filterNot { it.id in staleProgramExerciseIdsToRetire }
                 .map { it.id }
             return ProgramExerciseRefreshPlan(plannedRows, staleRowsToRetire, staleRowIdsToDelete)
+        }
+
+        private fun ProgramExercise.withPrescription(
+            planExercise: ProgramSeeds.PlanExercise?
+        ): ProgramExercise {
+            if (planExercise == null) return this
+            return copy(
+                sets = planExercise.sets,
+                repsMin = planExercise.repsMin,
+                repsMax = planExercise.repsMax,
+                restSec = planExercise.restSec,
+                rpeTarget = planExercise.rpeTarget,
+                supersetGroupId = planExercise.supersetGroupId,
+                protocol = planExercise.protocol
+            )
         }
     }
 }

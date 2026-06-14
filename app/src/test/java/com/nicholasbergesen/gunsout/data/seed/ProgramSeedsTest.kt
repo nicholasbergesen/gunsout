@@ -449,7 +449,7 @@ class ProgramSeedsTest {
         assertEquals(listOf(203L, 204L), unreferencedStaleRefresh.staleRowIdsToDelete)
     }
 
-    @Test fun `already refreshed lower posterior core is repaired with new replacement identities`() {
+    @Test fun `already refreshed lower posterior core is repaired with new replacement identities and retired legacy prescriptions`() {
         val existing = listOf(
             pe(id = 301, orderIndex = 0, exerciseId = 10, sets = 3, repsMin = 10, repsMax = 12, restSec = 60),
             pe(id = 302, orderIndex = 1, exerciseId = 11, sets = 3, repsMin = 10, repsMax = 10, restSec = 90),
@@ -493,6 +493,10 @@ class ProgramSeedsTest {
         assertEquals(listOf(301L, 302L, 0L, 0L), refresh.plannedRows.map { it.id })
         assertEquals(listOf(10L, 11L, 20L, 21L), refresh.plannedRows.map { it.exerciseId })
         assertEquals(listOf(303L, 304L), refresh.staleRowsToRetire.map { it.id })
+        assertEquals(listOf(3, 3), refresh.staleRowsToRetire.map { it.sets })
+        assertEquals(listOf(12, 15), refresh.staleRowsToRetire.map { it.repsMin })
+        assertEquals(listOf(12, 15), refresh.staleRowsToRetire.map { it.repsMax })
+        assertEquals(listOf(90, 60), refresh.staleRowsToRetire.map { it.restSec })
         assertTrue(refresh.staleRowsToRetire.all { it.isRetired })
         assertTrue(refresh.staleRowIdsToDelete.isEmpty())
     }

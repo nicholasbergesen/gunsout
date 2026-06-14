@@ -36,7 +36,8 @@ data class PlannedExerciseUi(
     val sets: List<SetEntry>,
     val previousBest: SetEntry?,
     val recommendation: ExerciseRecommendation?,
-    val alternates: List<Exercise> = emptyList()
+    val alternates: List<Exercise> = emptyList(),
+    val prescription: ProgramExercise = programExercise
 )
 
 data class SessionUiState(
@@ -49,6 +50,50 @@ data class SessionUiState(
     val notes: String = "",
     val finished: Boolean = false
 )
+
+internal data class RestTimerRequest(val durationSec: Int, val exerciseName: String)
+
+internal fun sessionSetEntryForLog(
+    userId: String,
+    sessionId: Long,
+    programExercise: ProgramExercise,
+    exercise: Exercise,
+    setIndex: Int,
+    weightKg: Double?,
+    reps: Int?,
+    rpe: Int?,
+    isWarmup: Boolean,
+    completedAt: LocalDateTime
+) = SetEntry(
+    userId = userId,
+    sessionId = sessionId,
+    programExerciseId = programExercise.id,
+    exerciseIdSnapshot = exercise.id,
+    exerciseNameSnapshot = exercise.name,
+    setIndex = setIndex,
+    weightKg = weightKg,
+    reps = reps,
+    rpe = rpe,
+    isWarmup = isWarmup,
+    completedAt = completedAt
+)
+
+internal fun restTimerRequestForLoggedSet(
+    programExercise: ProgramExercise,
+    exercise: Exercise,
+    setIndex: Int,
+    itemIndex: Int,
+    itemCount: Int,
+    isWarmup: Boolean
+): RestTimerRequest? {
+    val isLastSet = setIndex >= programExercise.sets
+    val isLastExercise = itemIndex == itemCount - 1
+    return if (!isWarmup && !(isLastSet && isLastExercise)) {
+        RestTimerRequest(programExercise.restSec, exercise.name)
+    } else {
+        null
+    }
+}
 
 @HiltViewModel
 class SessionViewModel @Inject constructor(
@@ -108,6 +153,17 @@ class SessionViewModel @Inject constructor(
                     primaryMuscleGroup = com.nicholasbergesen.gunsout.data.entity.MuscleGroup.OTHER,
                     equipment = com.nicholasbergesen.gunsout.data.entity.Equipment.OTHER
                 )
+            val rowExerciseSeedKey = if (pe.exerciseId == ex.id) {
+                ex.seedKey
+            } else {
+                workouts.getExercise(pe.exerciseId)?.seedKey
+            }
+            val prescription = resolvedSessionExercisePrescription(
+                programExercise = pe,
+                identity = effective,
+                rowExerciseSeedKey = rowExerciseSeedKey,
+                snapshotExerciseSeedKey = ex.seedKey
+            )
             val recent = workouts.getPreviousSetsForExercise(userId, ex.id)
             // Group recent sets into prior-session batches and order them by the session date so
             // backup-restored IDs (which may be out of chronological order) still surface the
@@ -124,7 +180,7 @@ class SessionViewModel @Inject constructor(
                 ?.maxByOrNull { (it.weightKg ?: 0.0) * (it.reps ?: 0) }
             val priorSets = priorSessions.firstOrNull()?.third.orEmpty()
             val recommendation = engine.recommend(
-                prescription = pe,
+                prescription = prescription,
                 exercise = ex,
                 previousWorkingSets = priorSets,
                 baselineWeekActive = baseline,
@@ -133,7 +189,15 @@ class SessionViewModel @Inject constructor(
                 recentBodyLogs = recentBodyLogs
             )
             val alternates = workouts.getAlternates(ex.id)
-            PlannedExerciseUi(pe, ex, currentSets, priorBest, recommendation, alternates)
+            PlannedExerciseUi(
+                programExercise = pe,
+                exercise = ex,
+                sets = currentSets,
+                previousBest = priorBest,
+                recommendation = recommendation,
+                alternates = alternates,
+                prescription = prescription
+            )
         }
         _state.update {
             it.copy(
@@ -179,12 +243,11 @@ class SessionViewModel @Inject constructor(
             sessionWriteMutex.withLock {
                 val userId = currentUserIdProvider.requireUserId()
                 workouts.logSet(
-                    SetEntry(
+                    sessionSetEntryForLog(
                         userId = userId,
                         sessionId = sessionId,
-                        programExerciseId = programExercise.id,
-                        exerciseIdSnapshot = exercise.id,
-                        exerciseNameSnapshot = exercise.name,
+                        programExercise = programExercise,
+                        exercise = exercise,
                         setIndex = setIndex,
                         weightKg = weightKg,
                         reps = reps,
@@ -196,10 +259,16 @@ class SessionViewModel @Inject constructor(
                 // Skip rest timer on warmup sets and on the very last set of the last exercise.
                 val items = _state.value.items
                 val itemIndex = items.indexOfFirst { it.programExercise.id == programExercise.id }
-                val isLastSet = setIndex >= programExercise.sets
-                val isLastExercise = itemIndex == items.size - 1
-                if (!isWarmup && !(isLastSet && isLastExercise)) {
-                    RestTimerService.start(appContext, programExercise.restSec, exercise.name)
+                val timer = restTimerRequestForLoggedSet(
+                    programExercise = programExercise,
+                    exercise = exercise,
+                    setIndex = setIndex,
+                    itemIndex = itemIndex,
+                    itemCount = items.size,
+                    isWarmup = isWarmup
+                )
+                if (timer != null) {
+                    RestTimerService.start(appContext, timer.durationSec, timer.exerciseName)
                 }
                 load()
             }
