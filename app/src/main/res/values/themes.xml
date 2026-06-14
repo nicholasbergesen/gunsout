@@ -1,7 +1,7 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources>
     <style name="Theme.Gunsout" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor" tools:targetApi="l">@color/gunmetal_background</item>
+        <item name="android:statusBarColor">@color/gunmetal_background</item>
         <item name="android:windowBackground">@color/gunmetal_background</item>
     </style>
 

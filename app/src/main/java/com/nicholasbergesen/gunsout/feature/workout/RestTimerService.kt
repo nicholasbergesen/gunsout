@@ -85,25 +85,18 @@ class RestTimerService : Service() {
     }
 
     private fun ensureChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-                nm.createNotificationChannel(NotificationChannel(
-                    CHANNEL_ID, "Rest timer", NotificationManager.IMPORTANCE_LOW
-                ).apply {
-                    description = "Shows remaining rest between sets."
-                })
-            }
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (nm.getNotificationChannel(CHANNEL_ID) == null) {
+            nm.createNotificationChannel(NotificationChannel(
+                CHANNEL_ID, "Rest timer", NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Shows remaining rest between sets."
+            })
         }
     }
 
-    @Suppress("DEPRECATION")
     private fun stopForegroundCompat() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            stopForeground(true)
-        }
+        stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
     companion object {
