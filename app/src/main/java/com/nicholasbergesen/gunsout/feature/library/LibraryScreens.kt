@@ -38,6 +38,7 @@ import com.nicholasbergesen.gunsout.core.text.formatOneDecimalOrInt
 import com.nicholasbergesen.gunsout.data.entity.Equipment
 import com.nicholasbergesen.gunsout.data.entity.MuscleGroup
 import com.nicholasbergesen.gunsout.data.entity.MovementPattern
+import com.nicholasbergesen.gunsout.feature.exerciseguide.ExerciseVisualGuide
 import com.nicholasbergesen.gunsout.ui.components.ChipButton
 import com.nicholasbergesen.gunsout.ui.components.MockupScreenColumn
 import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
@@ -176,6 +177,13 @@ fun ExerciseEditScreen(
             label = { Text("Form notes") },
             modifier = Modifier.fillMaxWidth().height(58.dp)
         )
+
+        ThemedCard {
+            ExerciseVisualGuide(
+                muscleGroup = state.muscle,
+                movementPattern = state.movementPattern
+            )
+        }
 
         if (state.history.size >= 2) {
             ThemedCard {

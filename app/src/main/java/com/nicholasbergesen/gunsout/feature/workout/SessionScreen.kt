@@ -31,6 +31,7 @@ import com.nicholasbergesen.gunsout.core.text.normalizeDecimalInput
 import com.nicholasbergesen.gunsout.core.text.toNormalizedDoubleOrNull
 import com.nicholasbergesen.gunsout.data.entity.Protocol
 import com.nicholasbergesen.gunsout.domain.recommendation.RecommendationTarget
+import com.nicholasbergesen.gunsout.feature.exerciseguide.ExerciseVisualGuide
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
@@ -108,6 +109,12 @@ private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
             Protocol.STANDARD -> "${pe.sets} sets x ${pe.repsMin}-${pe.repsMax} reps. Rest ${pe.restSec}s"
         }
         Text(protocolLabel, style = MaterialTheme.typography.bodySmall)
+
+        ExerciseVisualGuide(
+            muscleGroup = item.exercise.primaryMuscleGroup,
+            movementPattern = item.exercise.movementPattern,
+            compact = true
+        )
 
         item.previousBest?.let { last ->
             Text(
