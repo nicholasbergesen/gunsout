@@ -193,4 +193,96 @@ class BackupModelMappingTest {
         assertEquals(supplementLog.copy(userId = targetUser), supplementLog.toBackup().toEntity(targetUser))
         assertEquals(bodyLog.copy(userId = targetUser), bodyLog.toBackup().toEntity(targetUser))
     }
+
+    @Test fun `legacy default movement patterns on seeded isolation exercises are backfilled on import mapping`() {
+        val legacySeededExercises = listOf(
+            exerciseBackup(
+                seedKey = "leg_extension",
+                primaryMuscleGroup = MuscleGroup.QUADS,
+                equipment = Equipment.MACHINE,
+                movementPattern = MovementPattern.SQUAT
+            ),
+            exerciseBackup(
+                seedKey = "leg_curl",
+                primaryMuscleGroup = MuscleGroup.HAMSTRINGS,
+                equipment = Equipment.MACHINE,
+                movementPattern = MovementPattern.HINGE
+            ),
+            exerciseBackup(
+                seedKey = "db_lying_leg_curl",
+                primaryMuscleGroup = MuscleGroup.HAMSTRINGS,
+                equipment = Equipment.DUMBBELL,
+                movementPattern = MovementPattern.HINGE
+            ),
+            exerciseBackup(
+                seedKey = "db_bicep_curl",
+                primaryMuscleGroup = MuscleGroup.BICEPS,
+                equipment = Equipment.DUMBBELL,
+                movementPattern = MovementPattern.PULL
+            )
+        )
+
+        legacySeededExercises.forEach { backup ->
+            assertEquals(
+                "${backup.seedKey} should import with its seeded movement pattern",
+                MovementPattern.ISOLATION,
+                backup.toEntity("target-user").movementPattern
+            )
+        }
+    }
+
+    @Test fun `missing movement pattern on seeded isolation exercise is backfilled after legacy fallback`() {
+        val restored = exerciseBackup(
+            seedKey = "leg_extension",
+            primaryMuscleGroup = MuscleGroup.QUADS,
+            equipment = Equipment.MACHINE,
+            movementPattern = null
+        ).toEntity("target-user")
+
+        assertEquals(MovementPattern.ISOLATION, restored.movementPattern)
+    }
+
+    @Test fun `seeded movement pattern backfill does not over-apply to adjacent imported exercises`() {
+        val customQuad = exerciseBackup(
+            seedKey = "custom_leg_extension",
+            primaryMuscleGroup = MuscleGroup.QUADS,
+            equipment = Equipment.MACHINE,
+            movementPattern = null
+        ).toEntity("target-user")
+        val mismatchedSeed = exerciseBackup(
+            seedKey = "leg_extension",
+            primaryMuscleGroup = MuscleGroup.QUADS,
+            equipment = Equipment.DUMBBELL,
+            movementPattern = MovementPattern.SQUAT
+        ).toEntity("target-user")
+        val intentionallyEditedSeed = exerciseBackup(
+            seedKey = "leg_extension",
+            primaryMuscleGroup = MuscleGroup.QUADS,
+            equipment = Equipment.MACHINE,
+            movementPattern = MovementPattern.PULL
+        ).toEntity("target-user")
+
+        assertEquals(MovementPattern.SQUAT, customQuad.movementPattern)
+        assertEquals(MovementPattern.SQUAT, mismatchedSeed.movementPattern)
+        assertEquals(MovementPattern.PULL, intentionallyEditedSeed.movementPattern)
+    }
+
+    private fun exerciseBackup(
+        seedKey: String?,
+        primaryMuscleGroup: MuscleGroup,
+        equipment: Equipment,
+        movementPattern: MovementPattern?
+    ) = ExerciseBackup(
+        id = 1,
+        name = seedKey ?: "Custom exercise",
+        primaryMuscleGroup = primaryMuscleGroup.name,
+        equipment = equipment.name,
+        movementPattern = movementPattern?.name,
+        formNotes = null,
+        defaultRestSec = 60,
+        baselineNote = null,
+        isUserCreated = seedKey == null,
+        isArchived = false,
+        seedKey = seedKey
+    )
 }

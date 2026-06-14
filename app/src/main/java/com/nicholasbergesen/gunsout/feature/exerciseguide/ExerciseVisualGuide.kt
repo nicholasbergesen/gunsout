@@ -220,6 +220,10 @@ private fun DrawScope.drawMotionTrace(
             drawLine(color, point(-35f, 103f), point(-29f, 76f), strokeWidth, StrokeCap.Round)
             drawLine(color, point(35f, 103f), point(29f, 76f), strokeWidth, StrokeCap.Round)
         }
+        ExerciseGuideMotion.LEG_ISOLATION -> {
+            drawLine(color, point(-17f, 118f), point(-27f, 140f), strokeWidth, StrokeCap.Round)
+            drawLine(color, point(17f, 118f), point(27f, 140f), strokeWidth, StrokeCap.Round)
+        }
         ExerciseGuideMotion.CALVES -> drawLine(color, point(0f, 118f), point(0f, 103f), strokeWidth, StrokeCap.Round)
         ExerciseGuideMotion.CORE -> drawLine(color, point(-39f, 118f), point(-12f, 90f), strokeWidth, StrokeCap.Round)
     }
@@ -260,6 +264,7 @@ private fun movingMarker(
     ExerciseGuideMotion.HINGE -> point(5f + progress * 28f, 46f + progress * 14f)
     ExerciseGuideMotion.LUNGE -> point(-29f - progress * 25f, 101f + progress * 35f)
     ExerciseGuideMotion.ISOLATION -> point(34f - progress * 8f, 104f - progress * 30f)
+    ExerciseGuideMotion.LEG_ISOLATION -> point(23f + progress * 9f, 140f - progress * 22f)
     ExerciseGuideMotion.CALVES -> point(0f, 118f - progress * 15f)
     ExerciseGuideMotion.CORE -> point(-39f + progress * 27f, 118f - progress * 28f)
 }
@@ -381,6 +386,12 @@ private fun legPointsFor(
         leftFoot = point(-35f, 142f - coreKnee),
         rightKnee = point(20f, 120f),
         rightFoot = point(28f, 142f)
+    )
+    ExerciseGuideMotion.LEG_ISOLATION -> ExerciseVisualGuideLegPoints(
+        leftKnee = point(-17f, 118f + lift),
+        leftFoot = point(-23f - progress * 9f, 142f - progress * 22f),
+        rightKnee = point(17f, 118f + lift),
+        rightFoot = point(23f + progress * 9f, 142f - progress * 22f)
     )
     else -> ExerciseVisualGuideLegPoints(
         leftKnee = point(-17f, 118f + lift),

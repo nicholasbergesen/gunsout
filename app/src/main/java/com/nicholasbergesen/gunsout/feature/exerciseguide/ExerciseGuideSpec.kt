@@ -23,6 +23,7 @@ internal enum class ExerciseGuideMotion {
     HINGE,
     LUNGE,
     ISOLATION,
+    LEG_ISOLATION,
     CALVES,
     CORE
 }
@@ -53,7 +54,7 @@ internal fun exerciseGuideSpecFor(
     movementPattern: MovementPattern
 ): ExerciseGuideSpec {
     val muscleGuide = muscleGuideFor(muscleGroup)
-    val movementGuide = movementGuideFor(movementPattern)
+    val movementGuide = movementGuideFor(muscleGroup, movementPattern)
     return ExerciseGuideSpec(
         targetLabel = muscleGuide.label,
         targetCue = muscleGuide.cue,
@@ -131,7 +132,10 @@ private fun generalMuscleGuide(): MuscleGuide = MuscleGuide(
     regions = BodyMuscleRegion.entries.toSet()
 )
 
-private fun movementGuideFor(movementPattern: MovementPattern): MovementGuide = when (movementPattern) {
+private fun movementGuideFor(
+    muscleGroup: MuscleGroup,
+    movementPattern: MovementPattern
+): MovementGuide = when (movementPattern) {
     MovementPattern.PUSH -> MovementGuide(
         label = "Push",
         cue = "Press away under control, pause briefly, then return slowly.",
@@ -160,7 +164,7 @@ private fun movementGuideFor(movementPattern: MovementPattern): MovementGuide = 
     MovementPattern.ISOLATION -> MovementGuide(
         label = "Isolation",
         cue = "Keep the body still and move only the working joint.",
-        motion = ExerciseGuideMotion.ISOLATION
+        motion = isolationMotionFor(muscleGroup)
     )
     MovementPattern.CALVES -> MovementGuide(
         label = "Calves",
@@ -172,4 +176,11 @@ private fun movementGuideFor(movementPattern: MovementPattern): MovementGuide = 
         cue = "Brace, move slowly, and keep the lower back from arching.",
         motion = ExerciseGuideMotion.CORE
     )
+}
+
+private fun isolationMotionFor(muscleGroup: MuscleGroup): ExerciseGuideMotion = when (muscleGroup) {
+    MuscleGroup.QUADS,
+    MuscleGroup.HAMSTRINGS,
+    MuscleGroup.GLUTES -> ExerciseGuideMotion.LEG_ISOLATION
+    else -> ExerciseGuideMotion.ISOLATION
 }

@@ -13,6 +13,7 @@ import com.nicholasbergesen.gunsout.data.entity.SetEntry
 import com.nicholasbergesen.gunsout.data.entity.Supplement
 import com.nicholasbergesen.gunsout.data.entity.SupplementLog
 import com.nicholasbergesen.gunsout.data.entity.WorkoutSession
+import com.nicholasbergesen.gunsout.data.seed.withSeededMovementPatternBackfill
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -92,16 +93,19 @@ fun ProgramDayBackup.toEntity(userId: String) = ProgramDay(
 )
 
 fun Exercise.toBackup() = ExerciseBackup(id, name, primaryMuscleGroup.name, equipment.name, movementPattern.name, formNotes, defaultRestSec, baselineNote, isUserCreated, isArchived, seedKey)
-fun ExerciseBackup.toEntity(userId: String) = Exercise(
-    id = id, userId = userId, name = name,
-    primaryMuscleGroup = com.nicholasbergesen.gunsout.data.entity.MuscleGroup.valueOf(primaryMuscleGroup),
-    equipment = com.nicholasbergesen.gunsout.data.entity.Equipment.valueOf(equipment),
-    movementPattern = movementPattern
-        ?.let { runCatching { com.nicholasbergesen.gunsout.data.entity.MovementPattern.valueOf(it) }.getOrNull() }
-        ?: defaultMovementPatternFor(com.nicholasbergesen.gunsout.data.entity.MuscleGroup.valueOf(primaryMuscleGroup)),
-    formNotes = formNotes, defaultRestSec = defaultRestSec, baselineNote = baselineNote,
-    isUserCreated = isUserCreated, isArchived = isArchived, seedKey = seedKey
-)
+fun ExerciseBackup.toEntity(userId: String): Exercise {
+    val muscleGroup = com.nicholasbergesen.gunsout.data.entity.MuscleGroup.valueOf(primaryMuscleGroup)
+    return Exercise(
+        id = id, userId = userId, name = name,
+        primaryMuscleGroup = muscleGroup,
+        equipment = com.nicholasbergesen.gunsout.data.entity.Equipment.valueOf(equipment),
+        movementPattern = movementPattern
+            ?.let { runCatching { com.nicholasbergesen.gunsout.data.entity.MovementPattern.valueOf(it) }.getOrNull() }
+            ?: defaultMovementPatternFor(muscleGroup),
+        formNotes = formNotes, defaultRestSec = defaultRestSec, baselineNote = baselineNote,
+        isUserCreated = isUserCreated, isArchived = isArchived, seedKey = seedKey
+    ).withSeededMovementPatternBackfill()
+}
 
 fun ExerciseAlternate.toBackup() = ExerciseAlternateBackup(exerciseId, alternateExerciseId, reason.name)
 fun ExerciseAlternateBackup.toEntity(userId: String) = ExerciseAlternate(

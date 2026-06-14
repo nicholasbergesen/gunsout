@@ -13,7 +13,6 @@ import com.nicholasbergesen.gunsout.data.entity.ProgramDay
 import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
 import com.nicholasbergesen.gunsout.data.entity.Supplement
 import com.nicholasbergesen.gunsout.data.entity.SupplementUnit
-import com.nicholasbergesen.gunsout.data.entity.defaultMovementPatternFor
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -87,13 +86,11 @@ class Seeder @Inject constructor(
             val existing = exerciseDao.getBySeedKey(userId, seedKey)
             if (existing == null) {
                 exerciseDao.insert(seed.exercise.copy(userId = userId))
-            } else if (
-                existing.primaryMuscleGroup == seed.exercise.primaryMuscleGroup &&
-                existing.equipment == seed.exercise.equipment &&
-                existing.movementPattern == defaultMovementPatternFor(existing.primaryMuscleGroup) &&
-                existing.movementPattern != seed.exercise.movementPattern
-            ) {
-                exerciseDao.update(existing.copy(movementPattern = seed.exercise.movementPattern))
+            } else {
+                val normalized = existing.withSeededMovementPatternBackfill()
+                if (normalized.movementPattern != existing.movementPattern) {
+                    exerciseDao.update(normalized)
+                }
             }
         }
     }
