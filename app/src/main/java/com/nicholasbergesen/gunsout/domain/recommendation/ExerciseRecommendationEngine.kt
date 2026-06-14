@@ -20,11 +20,15 @@ enum class RecommendationTarget { WEIGHT_KG, REPS }
 data class ExerciseRecommendation(
     val target: RecommendationTarget,
     val weightKg: Double? = null,
+    val setWeightKg: List<Double> = emptyList(),
     val reps: Int? = null,
     val displayText: String,
     val explanation: String,
     val confidence: RecommendationConfidence
-)
+) {
+    fun weightKgForSet(setIndex: Int): Double? =
+        setWeightKg.getOrNull(setIndex - 1) ?: weightKg
+}
 
 enum class RecommendationConfidence { HIGH, MEDIUM, LOW }
 
@@ -273,6 +277,16 @@ class ExerciseRecommendationEngine {
         return ExerciseRecommendation(
             target = RecommendationTarget.WEIGHT_KG,
             weightKg = target,
+            setWeightKg = if (formula.assistanceSetting) {
+                List(prescription.sets.coerceAtLeast(0)) { target }
+            } else {
+                rampedSetWeights(
+                    topWeightKg = target,
+                    setCount = prescription.sets,
+                    incrementKg = formula.roundingKg,
+                    minimumWeightKg = formula.minWeightKg
+                )
+            },
             displayText = "$label ${formatOneDecimalOrInt(target)} kg",
             explanation = "${exercise.name} target uses local formula, prior sets, and recent body metrics.",
             confidence = confidence
@@ -379,6 +393,37 @@ class ExerciseRecommendationEngine {
         if (increment <= 0.0) return value
         val rounded = floor(value / increment) * increment
         return (rounded * 10.0).roundToInt() / 10.0
+    }
+
+    private fun rampedSetWeights(
+        topWeightKg: Double,
+        setCount: Int,
+        incrementKg: Double,
+        minimumWeightKg: Double
+    ): List<Double> {
+        if (setCount <= 0) return emptyList()
+        if (setCount == 1) return listOf(topWeightKg)
+        val startFactor = when {
+            setCount >= 4 -> 0.80
+            setCount == 3 -> 0.85
+            else -> 0.90
+        }
+        val minimum = minOf(topWeightKg, minimumWeightKg)
+        var previous = minimum
+        return (1..setCount).map { setIndex ->
+            if (setIndex == setCount) {
+                topWeightKg
+            } else {
+                val progress = (setIndex - 1).toDouble() / (setCount - 1).toDouble()
+                val factor = startFactor + ((1.0 - startFactor) * progress)
+                val rounded = roundDown(topWeightKg * factor, incrementKg)
+                    .coerceAtLeast(minimum)
+                    .coerceAtMost(topWeightKg)
+                    .coerceAtLeast(previous)
+                previous = rounded
+                rounded
+            }
+        }
     }
 
 }

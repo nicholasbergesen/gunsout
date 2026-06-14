@@ -130,7 +130,7 @@ private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
                 prefillKey = "${item.exercise.id}:$setIndex:${recommendation?.target}:${recommendation?.weightKg}:${recommendation?.reps}",
                 prefillWeightKg = recommendation
                     ?.takeIf { it.target == RecommendationTarget.WEIGHT_KG && existing == null }
-                    ?.weightKg,
+                    ?.weightKgForSet(setIndex),
                 prefillReps = recommendation
                     ?.takeIf { it.target == RecommendationTarget.REPS && existing == null }
                     ?.reps,
