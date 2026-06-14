@@ -347,6 +347,107 @@ class ProgramSeedsTest {
         ))
     }
 
+    @Test fun `seeded exercise refresh inserts before unchanged rows without reusing shifted identities`() {
+        val existing = listOf(
+            pe(id = 101, orderIndex = 0, exerciseId = 10, sets = 3, repsMin = 8, repsMax = 10, restSec = 90),
+            pe(
+                id = 102,
+                orderIndex = 1,
+                exerciseId = 11,
+                sets = 5,
+                repsMin = 2,
+                repsMax = 3,
+                restSec = 120,
+                protocol = Protocol.PULL_UP_5X2_3
+            ),
+            pe(id = 103, orderIndex = 2, exerciseId = 12, sets = 3, repsMin = 10, repsMax = 10, restSec = 60),
+            pe(id = 104, orderIndex = 3, exerciseId = 13, sets = 3, repsMin = 15, repsMax = 15, restSec = 60)
+        )
+        val refresh = Seeder.SeededProgramRefresh.buildProgramExerciseRefreshPlan(
+            userId = "u",
+            programDayId = 1,
+            existingExercises = existing,
+            seedKeysByExerciseId = mapOf(
+                10L to "inc_db_bench",
+                11L to "pull_ups",
+                12L to "db_shoulder_press",
+                13L to "db_rear_delt_fly"
+            ),
+            exerciseIdsBySeedKey = mapOf(
+                "inc_db_bench" to 10L,
+                "pull_ups" to 11L,
+                "lat_pulldown" to 20L,
+                "db_shoulder_press" to 12L,
+                "db_rear_delt_fly" to 13L
+            ),
+            planExercises = ProgramSeeds.upperLower4Day.days
+                .single { it.orderIndex == Seeder.SeededProgramRefresh.upperPushPullOrder }
+                .exercises,
+            staleProgramExerciseIdsToKeep = emptySet()
+        ) ?: error("Expected refresh plan")
+
+        assertEquals(listOf(101L, 102L, 0L, 103L, 104L), refresh.plannedRows.map { it.id })
+        assertEquals(listOf(10L, 11L, 20L, 12L, 13L), refresh.plannedRows.map { it.exerciseId })
+        assertEquals(listOf(0, 1, 2, 3, 4), refresh.plannedRows.map { it.orderIndex })
+        assertFalse(refresh.plannedRows.single { it.exerciseId == 20L }.id in existing.map { it.id })
+        assertTrue(refresh.staleRowsToKeep.isEmpty())
+        assertTrue(refresh.staleRowIdsToDelete.isEmpty())
+    }
+
+    @Test fun `seeded exercise refresh inserts replacements without reusing replaced row identities`() {
+        val existing = listOf(
+            pe(id = 201, orderIndex = 0, exerciseId = 10, sets = 3, repsMin = 10, repsMax = 12, restSec = 60),
+            pe(id = 202, orderIndex = 1, exerciseId = 11, sets = 3, repsMin = 10, repsMax = 10, restSec = 90),
+            pe(id = 203, orderIndex = 2, exerciseId = 12, sets = 3, repsMin = 12, repsMax = 12, restSec = 90),
+            pe(id = 204, orderIndex = 3, exerciseId = 13, sets = 3, repsMin = 15, repsMax = 15, restSec = 60)
+        )
+        val seedKeysByExerciseId = mapOf(
+            10L to "leg_curl",
+            11L to "goblet_squat",
+            12L to "hip_thrust",
+            13L to "lying_leg_raise"
+        )
+        val exerciseIdsBySeedKey = mapOf(
+            "leg_curl" to 10L,
+            "goblet_squat" to 11L,
+            "trap_bar_deadlift" to 20L,
+            "machine_crunch" to 21L
+        )
+        val planExercises = ProgramSeeds.upperLower4Day.days
+            .single { it.orderIndex == Seeder.SeededProgramRefresh.lowerPosteriorCoreOrder }
+            .exercises
+        val keptStaleRefresh = Seeder.SeededProgramRefresh.buildProgramExerciseRefreshPlan(
+            userId = "u",
+            programDayId = 1,
+            existingExercises = existing,
+            seedKeysByExerciseId = seedKeysByExerciseId,
+            exerciseIdsBySeedKey = exerciseIdsBySeedKey,
+            planExercises = planExercises,
+            staleProgramExerciseIdsToKeep = setOf(203L, 204L)
+        ) ?: error("Expected refresh plan")
+
+        assertEquals(listOf(201L, 202L, 0L, 0L), keptStaleRefresh.plannedRows.map { it.id })
+        assertEquals(listOf(10L, 11L, 20L, 21L), keptStaleRefresh.plannedRows.map { it.exerciseId })
+        assertEquals(listOf(0, 1, 2, 3), keptStaleRefresh.plannedRows.map { it.orderIndex })
+        assertFalse(keptStaleRefresh.plannedRows.drop(2).any { it.id in setOf(203L, 204L) })
+        assertEquals(listOf(203L, 204L), keptStaleRefresh.staleRowsToKeep.map { it.id })
+        assertEquals(listOf(4, 5), keptStaleRefresh.staleRowsToKeep.map { it.orderIndex })
+        assertTrue(keptStaleRefresh.staleRowIdsToDelete.isEmpty())
+
+        val unreferencedStaleRefresh = Seeder.SeededProgramRefresh.buildProgramExerciseRefreshPlan(
+            userId = "u",
+            programDayId = 1,
+            existingExercises = existing,
+            seedKeysByExerciseId = seedKeysByExerciseId,
+            exerciseIdsBySeedKey = exerciseIdsBySeedKey,
+            planExercises = planExercises,
+            staleProgramExerciseIdsToKeep = emptySet()
+        ) ?: error("Expected refresh plan")
+
+        assertTrue(unreferencedStaleRefresh.staleRowsToKeep.isEmpty())
+        assertEquals(listOf(203L, 204L), unreferencedStaleRefresh.staleRowIdsToDelete)
+    }
+
     private fun day(label: String) = ProgramDay(
         userId = "u",
         programId = 1,
@@ -362,8 +463,10 @@ class ProgramSeedsTest {
         repsMax: Int,
         restSec: Int,
         protocol: Protocol = Protocol.STANDARD,
-        supersetGroupId: Int? = null
+        supersetGroupId: Int? = null,
+        id: Long = 0
     ) = ProgramExercise(
+        id = id,
         userId = "u",
         programDayId = 1,
         orderIndex = orderIndex,

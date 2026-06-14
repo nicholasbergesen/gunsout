@@ -75,6 +75,9 @@ interface SetEntryDao {
     """)
     suspend fun findExisting(sessionId: Long, programExerciseId: Long?, setIndex: Int, isWarmup: Boolean): SetEntry?
 
+    @Query("SELECT COUNT(*) FROM set_entry WHERE programExerciseId = :programExerciseId")
+    suspend fun countForProgramExercise(programExerciseId: Long): Int
+
     @androidx.room.Upsert
     suspend fun upsert(set: SetEntry): Long
 
