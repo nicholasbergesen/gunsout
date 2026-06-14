@@ -1,3 +1,8 @@
+import java.util.Properties
+import org.gradle.testing.jacoco.tasks.JacocoReport
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -6,11 +11,6 @@ plugins {
     alias(libs.plugins.hilt)
     jacoco
 }
-
-import java.util.Properties
-import org.gradle.testing.jacoco.tasks.JacocoReport
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 
 fun readBuildSecret(name: String): String {
     val fromEnv = System.getenv(name)?.takeIf { it.isNotBlank() }
