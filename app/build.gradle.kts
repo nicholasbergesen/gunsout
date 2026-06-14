@@ -1,4 +1,6 @@
+import java.math.BigDecimal
 import java.util.Properties
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.testing.jacoco.tasks.JacocoReport
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
@@ -136,6 +138,55 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+val generatedClassExclusions = listOf(
+    "**/BuildConfig.*",
+    "**/Manifest*.*",
+    "**/R.class",
+    "**/R$*.class",
+    "**/ComposableSingletons*.*",
+    "**/*\$\$inlined\$*.*",
+    "**/*_Factory*.*",
+    "**/*_MembersInjector.*",
+    "**/*_Impl*.*",
+    "**/*_GeneratedInjector.*",
+    "**/*_ComponentTreeDeps.*",
+    "**/*_Provide*Factory.*",
+    "**/_com_*.*",
+    "**/Dagger*.*",
+    "**/Hilt_*.*",
+    "**/*Hilt*.*"
+)
+
+val localJvmCoverageExclusions = listOf(
+    "**/MainActivity*.*",
+    "**/GunsoutApplication*.*",
+    "**/core/nav/**",
+    "**/di/**",
+    "**/ui/components/**",
+    "**/feature/**/*Screen*.*",
+    "**/feature/**/*Screens*.*",
+    "**/feature/**/*ViewModel*.*",
+    "**/feature/**/AuthGate*.*",
+    "**/feature/**/RestTimerService*.*",
+    "**/feature/supplements/SupplementReminder*.*",
+    "**/data/backup/BackupManager*.*",
+    "**/data/prefs/UserPreferences*.*",
+    "**/data/seed/Seeder*.*",
+    "**/auth/AuthRepository*.*",
+    "**/auth/AuthSessionStore*.*",
+    "**/auth/CurrentUserIdProvider*.*",
+    "**/auth/SeederController*.*"
+)
+
+val debugUnitTestCoverageClassDirectories = fileTree(layout.buildDirectory.dir("intermediates/classes/debug/transformDebugClassesWithAsm/dirs")) {
+    exclude(generatedClassExclusions + localJvmCoverageExclusions)
+}
+
+val debugUnitTestCoverageExecutionData = fileTree(layout.buildDirectory) {
+    include("jacoco/testDebugUnitTest.exec")
+    include("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
+}
+
 tasks.register<JacocoReport>("debugUnitTestCoverage") {
     dependsOn("testDebugUnitTest")
 
@@ -146,37 +197,32 @@ tasks.register<JacocoReport>("debugUnitTestCoverage") {
         csv.required.set(false)
     }
 
-    val generatedClassExclusions = listOf(
-        "**/BuildConfig.*",
-        "**/Manifest*.*",
-        "**/R.class",
-        "**/R$*.class",
-        "**/ComposableSingletons*.*",
-        "**/*\$\$inlined\$*.*",
-        "**/*_Factory*.*",
-        "**/*_MembersInjector.*",
-        "**/*_Impl*.*",
-        "**/*_GeneratedInjector.*",
-        "**/*_ComponentTreeDeps.*",
-        "**/*_Provide*Factory.*",
-        "**/_com_*.*",
-        "**/Dagger*.*",
-        "**/Hilt_*.*",
-        "**/*Hilt*.*"
-    )
-
     classDirectories.setFrom(
-        fileTree(layout.buildDirectory.dir("intermediates/classes/debug/transformDebugClassesWithAsm/dirs")) {
-            exclude(generatedClassExclusions)
-        }
+        debugUnitTestCoverageClassDirectories
     )
     sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
-    executionData.setFrom(
-        fileTree(layout.buildDirectory) {
-            include("jacoco/testDebugUnitTest.exec")
-            include("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
+    executionData.setFrom(debugUnitTestCoverageExecutionData)
+}
+
+tasks.register<JacocoCoverageVerification>("debugUnitTestCoverageVerification") {
+    dependsOn("testDebugUnitTest")
+    classDirectories.setFrom(debugUnitTestCoverageClassDirectories)
+    sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
+    executionData.setFrom(debugUnitTestCoverageExecutionData)
+
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.80")
+            }
         }
-    )
+    }
+}
+
+tasks.named("debugUnitTestCoverage") {
+    finalizedBy("debugUnitTestCoverageVerification")
 }
 
 // One-time helper: generate the shared debug keystore that every build (local and CI) signs with.
