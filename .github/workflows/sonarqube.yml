@@ -24,6 +24,8 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           packages: "platforms;android-36 build-tools;36.0.0"
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
       - name: Generate unit test coverage
         run: ./gradlew :app:debugUnitTestCoverage --no-daemon
       - uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6.0.0
