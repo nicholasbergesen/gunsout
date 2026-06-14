@@ -1,5 +1,6 @@
 package com.nicholasbergesen.gunsout.auth
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
@@ -58,6 +59,7 @@ class AuthRepository @Inject constructor(
      * @param activityContext must be an Activity context; Credential Manager
      *   needs it to attach the picker.
      */
+    @SuppressLint("CredentialManagerSignInWithGoogle")
     suspend fun signIn(activityContext: Context): SignInResult {
         val webClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID
         if (webClientId.isBlank()) {
@@ -160,4 +162,3 @@ class AuthRepository @Inject constructor(
         }
     }
 }
-
