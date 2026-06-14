@@ -94,12 +94,17 @@ class SessionViewModel @Inject constructor(
         val currentSetsByProgramExercise = workouts.getSetsForSession(sessionId)
             .groupBy { it.programExerciseId }
         val items = pds.map { pe ->
-            val effectiveId = sessionOverrides[pe.id] ?: pe.exerciseId
-            val ex = workouts.getExercise(effectiveId)
+            val currentSets = currentSetsByProgramExercise[pe.id].orEmpty()
+            val effective = resolvedSessionExerciseIdentity(
+                programExercise = pe,
+                currentSets = currentSets,
+                overrideExerciseId = sessionOverrides[pe.id]
+            )
+            val ex = workouts.getExercise(effective.exerciseId)
                 ?: Exercise(
-                    id = effectiveId,
+                    id = effective.exerciseId,
                     userId = userId,
-                    name = "(unknown)",
+                    name = effective.fallbackName ?: "(unknown)",
                     primaryMuscleGroup = com.nicholasbergesen.gunsout.data.entity.MuscleGroup.OTHER,
                     equipment = com.nicholasbergesen.gunsout.data.entity.Equipment.OTHER
                 )
@@ -127,7 +132,6 @@ class SessionViewModel @Inject constructor(
                 latestBodyLog = latestBodyLog,
                 recentBodyLogs = recentBodyLogs
             )
-            val currentSets = currentSetsByProgramExercise[pe.id].orEmpty()
             val alternates = workouts.getAlternates(ex.id)
             PlannedExerciseUi(pe, ex, currentSets, priorBest, recommendation, alternates)
         }
