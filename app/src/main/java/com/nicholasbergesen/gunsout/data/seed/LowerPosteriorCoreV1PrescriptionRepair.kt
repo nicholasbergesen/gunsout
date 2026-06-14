@@ -20,6 +20,15 @@ internal object LowerPosteriorCoreV1PrescriptionRepair {
         replacementSeedKey: String?,
         snapshotSeedKey: String?
     ): ProgramSeeds.PlanExercise? =
+        legacyPlanForRepair(replacementSeedKey, setOf(snapshotSeedKey))
+
+    fun legacyPlanForRepair(
+        replacementSeedKey: String?,
+        snapshotSeedKeys: Set<String?>
+    ): ProgramSeeds.PlanExercise? =
         legacyPlanForReplacement(replacementSeedKey)
-            ?.takeIf { it.exerciseSeedKey == snapshotSeedKey }
+            ?.takeIf { legacy ->
+                snapshotSeedKeys.isNotEmpty() &&
+                    snapshotSeedKeys.all { snapshotSeedKey -> snapshotSeedKey == legacy.exerciseSeedKey }
+            }
 }

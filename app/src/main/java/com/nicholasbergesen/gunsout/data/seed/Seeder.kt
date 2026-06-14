@@ -229,12 +229,13 @@ class Seeder @Inject constructor(
             if (refreshState == null) {
                 continue
             }
+            val snapshotSeedKeysByProgramExerciseId = snapshotSeedKeysByRowId(existingExercises)
             if (
                 refreshState.existingPlannedSeedKeysToReplace.isNotEmpty() &&
                 existingExercises
                     .filterNot { it.isRetired }
                     .filter { seedKeysByExerciseId[it.exerciseId] in refreshState.existingPlannedSeedKeysToReplace }
-                    .none { setEntryDao.countForProgramExercise(it.id) > 0 }
+                    .none { it.id in snapshotSeedKeysByProgramExerciseId }
             ) {
                 continue
             }
@@ -252,10 +253,7 @@ class Seeder @Inject constructor(
                 completed = false
                 continue
             }
-            val staleProgramExerciseIdsToRetire = existingExercises
-                .filter { setEntryDao.countForProgramExercise(it.id) > 0 }
-                .map { it.id }
-                .toSet()
+            val staleProgramExerciseIdsToRetire = snapshotSeedKeysByProgramExerciseId.keys
             val refreshPlan = SeededProgramRefresh.buildProgramExerciseRefreshPlan(
                 userId = userId,
                 programDayId = day.id,
@@ -264,7 +262,8 @@ class Seeder @Inject constructor(
                 exerciseIdsBySeedKey = exerciseIdsBySeedKey,
                 planExercises = planExercises,
                 staleProgramExerciseIdsToRetire = staleProgramExerciseIdsToRetire,
-                existingPlannedSeedKeysToReplace = refreshState.existingPlannedSeedKeysToReplace
+                existingPlannedSeedKeysToReplace = refreshState.existingPlannedSeedKeysToReplace,
+                snapshotSeedKeysByProgramExerciseId = snapshotSeedKeysByProgramExerciseId
             )
             if (refreshPlan == null) {
                 completed = false
@@ -282,6 +281,21 @@ class Seeder @Inject constructor(
             }
         }
         return completed
+    }
+
+    private suspend fun snapshotSeedKeysByRowId(
+        exercises: List<ProgramExercise>
+    ): Map<Long, Set<String?>> {
+        val result = mutableMapOf<Long, Set<String?>>()
+        for (exercise in exercises) {
+            val snapshotIds = setEntryDao.exerciseSnapshotIdsForProgramExercise(exercise.id)
+            if (snapshotIds.isNotEmpty()) {
+                result[exercise.id] = snapshotIds
+                    .map { snapshotId -> exerciseDao.getById(snapshotId)?.seedKey }
+                    .toSet()
+            }
+        }
+        return result
     }
 
     private suspend fun seedSupplements(userId: String) {
@@ -478,7 +492,8 @@ class Seeder @Inject constructor(
             exerciseIdsBySeedKey: Map<String, Long>,
             planExercises: List<ProgramSeeds.PlanExercise>,
             staleProgramExerciseIdsToRetire: Set<Long>,
-            existingPlannedSeedKeysToReplace: Set<String> = emptySet()
+            existingPlannedSeedKeysToReplace: Set<String> = emptySet(),
+            snapshotSeedKeysByProgramExerciseId: Map<Long, Set<String?>> = emptyMap()
         ): ProgramExerciseRefreshPlan? {
             val plannedSeedKeys = planExercises.map { it.exerciseSeedKey }.toSet()
             val existingBySeedKey = linkedMapOf<String, ProgramExercise>()
@@ -522,7 +537,12 @@ class Seeder @Inject constructor(
                     val replacementSeedKey = seedKeysByExerciseId[stale.exerciseId]
                     val legacyPrescription = replacementSeedKey
                         ?.takeIf { it in existingPlannedSeedKeysToReplace }
-                        ?.let(LowerPosteriorCoreV1PrescriptionRepair::legacyPlanForReplacement)
+                        ?.let {
+                            LowerPosteriorCoreV1PrescriptionRepair.legacyPlanForRepair(
+                                replacementSeedKey = it,
+                                snapshotSeedKeys = snapshotSeedKeysByProgramExerciseId[stale.id].orEmpty()
+                            )
+                        }
                     stale.copy(isRetired = true).withPrescription(legacyPrescription)
                 }
             val staleRowIdsToDelete = staleRows

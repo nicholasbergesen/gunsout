@@ -113,6 +113,133 @@ class SessionExerciseResolverTest {
     }
 
     @Test
+    fun `v1 repaired machine crunch row resolves legacy lying leg raise prescription`() {
+        val retiredMachineCrunchRow = programExercise(
+            id = retiredLyingLegRaiseRowId,
+            exerciseId = machineCrunchId,
+            sets = 3,
+            repsMin = 10,
+            repsMax = 15,
+            restSec = 60,
+            isRetired = true
+        )
+        val resolved = resolvedSessionExerciseIdentity(
+            retiredMachineCrunchRow,
+            listOf(
+                setEntry(
+                    programExerciseId = retiredLyingLegRaiseRowId,
+                    exerciseIdSnapshot = lyingLegRaiseId,
+                    exerciseNameSnapshot = "Lying Leg Raise"
+                )
+            )
+        )
+        val prescription = resolvedSessionExercisePrescription(
+            programExercise = retiredMachineCrunchRow,
+            identity = resolved,
+            rowExerciseSeedKey = "machine_crunch",
+            snapshotExerciseSeedKey = "lying_leg_raise"
+        )
+
+        assertEquals(retiredLyingLegRaiseRowId, prescription.id)
+        assertEquals(lyingLegRaiseId, prescription.exerciseId)
+        assertEquals(3, prescription.sets)
+        assertEquals(15, prescription.repsMin)
+        assertEquals(15, prescription.repsMax)
+        assertEquals(60, prescription.restSec)
+    }
+
+    @Test
+    fun `v1 repaired retired rows preserve replacement prescriptions for replacement snapshots`() {
+        val cases = listOf(
+            ReplacementSnapshotCase(
+                rowId = retiredHipThrustRowId,
+                exerciseId = trapBarDeadliftId,
+                exerciseName = "Trap Bar Deadlift",
+                seedKey = "trap_bar_deadlift",
+                sets = 3,
+                repsMin = 8,
+                repsMax = 10,
+                restSec = 150
+            ),
+            ReplacementSnapshotCase(
+                rowId = retiredLyingLegRaiseRowId,
+                exerciseId = machineCrunchId,
+                exerciseName = "Machine Crunch",
+                seedKey = "machine_crunch",
+                sets = 3,
+                repsMin = 10,
+                repsMax = 15,
+                restSec = 60
+            )
+        )
+
+        for (case in cases) {
+            val retiredReplacementRow = programExercise(
+                id = case.rowId,
+                exerciseId = case.exerciseId,
+                sets = case.sets,
+                repsMin = case.repsMin,
+                repsMax = case.repsMax,
+                restSec = case.restSec,
+                isRetired = true
+            )
+            val resolved = resolvedSessionExerciseIdentity(
+                retiredReplacementRow,
+                listOf(
+                    setEntry(
+                        programExerciseId = case.rowId,
+                        exerciseIdSnapshot = case.exerciseId,
+                        exerciseNameSnapshot = case.exerciseName
+                    )
+                )
+            )
+            val prescription = resolvedSessionExercisePrescription(
+                programExercise = retiredReplacementRow,
+                identity = resolved,
+                rowExerciseSeedKey = case.seedKey,
+                snapshotExerciseSeedKey = case.seedKey
+            )
+            val performedExercise = exercise(case.exerciseId, case.exerciseName, case.seedKey)
+
+            assertEquals(case.exerciseId, resolved.exerciseId)
+            assertEquals(case.exerciseName, resolved.fallbackName)
+            assertEquals(case.rowId, prescription.id)
+            assertEquals(case.exerciseId, prescription.exerciseId)
+            assertEquals(case.sets, prescription.sets)
+            assertEquals(case.repsMin, prescription.repsMin)
+            assertEquals(case.repsMax, prescription.repsMax)
+            assertEquals(case.restSec, prescription.restSec)
+
+            val logged = sessionSetEntryForLog(
+                userId = "user",
+                sessionId = 99,
+                programExercise = prescription,
+                exercise = performedExercise,
+                setIndex = 1,
+                weightKg = 100.0,
+                reps = case.repsMax,
+                rpe = null,
+                isWarmup = false,
+                completedAt = LocalDateTime.parse("2026-06-14T12:00:00")
+            )
+            assertEquals(case.rowId, logged.programExerciseId)
+            assertEquals(case.exerciseId, logged.exerciseIdSnapshot)
+            assertEquals(case.exerciseName, logged.exerciseNameSnapshot)
+
+            val timer = restTimerRequestForLoggedSet(
+                programExercise = prescription,
+                exercise = performedExercise,
+                setIndex = 1,
+                itemIndex = 0,
+                itemCount = 1,
+                isWarmup = false
+            )
+            assertEquals(case.restSec, timer?.durationSec)
+            assertEquals(case.exerciseName, timer?.exerciseName)
+        }
+    }
+
+    @Test
     fun `recommendation uses snapshot prescription rather than retired replacement prescription`() {
         val retiredTrapBarRow = programExercise(
             id = retiredHipThrustRowId,
@@ -305,8 +432,20 @@ class SessionExerciseResolverTest {
         seedKey = seedKey
     )
 
+    private data class ReplacementSnapshotCase(
+        val rowId: Long,
+        val exerciseId: Long,
+        val exerciseName: String,
+        val seedKey: String,
+        val sets: Int,
+        val repsMin: Int,
+        val repsMax: Int,
+        val restSec: Int
+    )
+
     private companion object {
         const val retiredHipThrustRowId = 303L
+        const val retiredLyingLegRaiseRowId = 304L
         const val hipThrustId = 12L
         const val lyingLegRaiseId = 13L
         const val trapBarDeadliftId = 20L

@@ -449,7 +449,7 @@ class ProgramSeedsTest {
         assertEquals(listOf(203L, 204L), unreferencedStaleRefresh.staleRowIdsToDelete)
     }
 
-    @Test fun `already refreshed lower posterior core is repaired with new replacement identities and retired legacy prescriptions`() {
+    @Test fun `already refreshed lower posterior core with legacy snapshots gets retired legacy prescriptions`() {
         val existing = listOf(
             pe(id = 301, orderIndex = 0, exerciseId = 10, sets = 3, repsMin = 10, repsMax = 12, restSec = 60),
             pe(id = 302, orderIndex = 1, exerciseId = 11, sets = 3, repsMin = 10, repsMax = 10, restSec = 90),
@@ -486,7 +486,11 @@ class ProgramSeedsTest {
             ),
             planExercises = planExercises,
             staleProgramExerciseIdsToRetire = setOf(303L, 304L),
-            existingPlannedSeedKeysToReplace = refreshState.existingPlannedSeedKeysToReplace
+            existingPlannedSeedKeysToReplace = refreshState.existingPlannedSeedKeysToReplace,
+            snapshotSeedKeysByProgramExerciseId = mapOf(
+                303L to setOf("hip_thrust"),
+                304L to setOf("lying_leg_raise")
+            )
         ) ?: error("Expected refresh plan")
 
         assertEquals(Seeder.SeededProgramRefresh.lowerPosteriorCoreV1ReplacedSeedKeys, refreshState.existingPlannedSeedKeysToReplace)
@@ -499,6 +503,100 @@ class ProgramSeedsTest {
         assertEquals(listOf(90, 60), refresh.staleRowsToRetire.map { it.restSec })
         assertTrue(refresh.staleRowsToRetire.all { it.isRetired })
         assertTrue(refresh.staleRowIdsToDelete.isEmpty())
+    }
+
+    @Test fun `already refreshed lower posterior core with replacement snapshots preserves replacement prescriptions`() {
+        val existing = listOf(
+            pe(id = 301, orderIndex = 0, exerciseId = 10, sets = 3, repsMin = 10, repsMax = 12, restSec = 60),
+            pe(id = 302, orderIndex = 1, exerciseId = 11, sets = 3, repsMin = 10, repsMax = 10, restSec = 90),
+            pe(id = 303, orderIndex = 2, exerciseId = 20, sets = 3, repsMin = 8, repsMax = 10, restSec = 150),
+            pe(id = 304, orderIndex = 3, exerciseId = 21, sets = 3, repsMin = 10, repsMax = 15, restSec = 60)
+        )
+        val seedKeysByExerciseId = mapOf(
+            10L to "leg_curl",
+            11L to "goblet_squat",
+            20L to "trap_bar_deadlift",
+            21L to "machine_crunch"
+        )
+        val refreshState = Seeder.SeededProgramRefresh.refreshStateForProgramDay(
+            order = Seeder.SeededProgramRefresh.lowerPosteriorCoreOrder,
+            exercises = existing,
+            seedKeysByExerciseId = seedKeysByExerciseId
+        ) ?: error("Expected v1 repair state")
+        val refresh = Seeder.SeededProgramRefresh.buildProgramExerciseRefreshPlan(
+            userId = "u",
+            programDayId = 1,
+            existingExercises = existing,
+            seedKeysByExerciseId = seedKeysByExerciseId,
+            exerciseIdsBySeedKey = mapOf(
+                "leg_curl" to 10L,
+                "goblet_squat" to 11L,
+                "trap_bar_deadlift" to 20L,
+                "machine_crunch" to 21L
+            ),
+            planExercises = ProgramSeeds.upperLower4Day.days
+                .single { it.orderIndex == Seeder.SeededProgramRefresh.lowerPosteriorCoreOrder }
+                .exercises,
+            staleProgramExerciseIdsToRetire = setOf(303L, 304L),
+            existingPlannedSeedKeysToReplace = refreshState.existingPlannedSeedKeysToReplace,
+            snapshotSeedKeysByProgramExerciseId = mapOf(
+                303L to setOf("trap_bar_deadlift"),
+                304L to setOf("machine_crunch")
+            )
+        ) ?: error("Expected refresh plan")
+
+        assertEquals(listOf(303L, 304L), refresh.staleRowsToRetire.map { it.id })
+        assertEquals(listOf(3, 3), refresh.staleRowsToRetire.map { it.sets })
+        assertEquals(listOf(8, 10), refresh.staleRowsToRetire.map { it.repsMin })
+        assertEquals(listOf(10, 15), refresh.staleRowsToRetire.map { it.repsMax })
+        assertEquals(listOf(150, 60), refresh.staleRowsToRetire.map { it.restSec })
+        assertTrue(refresh.staleRowsToRetire.all { it.isRetired })
+    }
+
+    @Test fun `mixed snapshots do not prove a v1 replacement row should use legacy prescription`() {
+        val existing = listOf(
+            pe(id = 301, orderIndex = 0, exerciseId = 10, sets = 3, repsMin = 10, repsMax = 12, restSec = 60),
+            pe(id = 302, orderIndex = 1, exerciseId = 11, sets = 3, repsMin = 10, repsMax = 10, restSec = 90),
+            pe(id = 303, orderIndex = 2, exerciseId = 20, sets = 3, repsMin = 8, repsMax = 10, restSec = 150),
+            pe(id = 304, orderIndex = 3, exerciseId = 21, sets = 3, repsMin = 10, repsMax = 15, restSec = 60)
+        )
+        val seedKeysByExerciseId = mapOf(
+            10L to "leg_curl",
+            11L to "goblet_squat",
+            20L to "trap_bar_deadlift",
+            21L to "machine_crunch"
+        )
+        val refreshState = Seeder.SeededProgramRefresh.refreshStateForProgramDay(
+            order = Seeder.SeededProgramRefresh.lowerPosteriorCoreOrder,
+            exercises = existing,
+            seedKeysByExerciseId = seedKeysByExerciseId
+        ) ?: error("Expected v1 repair state")
+        val refresh = Seeder.SeededProgramRefresh.buildProgramExerciseRefreshPlan(
+            userId = "u",
+            programDayId = 1,
+            existingExercises = existing,
+            seedKeysByExerciseId = seedKeysByExerciseId,
+            exerciseIdsBySeedKey = mapOf(
+                "leg_curl" to 10L,
+                "goblet_squat" to 11L,
+                "trap_bar_deadlift" to 20L,
+                "machine_crunch" to 21L
+            ),
+            planExercises = ProgramSeeds.upperLower4Day.days
+                .single { it.orderIndex == Seeder.SeededProgramRefresh.lowerPosteriorCoreOrder }
+                .exercises,
+            staleProgramExerciseIdsToRetire = setOf(303L, 304L),
+            existingPlannedSeedKeysToReplace = refreshState.existingPlannedSeedKeysToReplace,
+            snapshotSeedKeysByProgramExerciseId = mapOf(
+                303L to setOf("hip_thrust", "trap_bar_deadlift"),
+                304L to setOf("lying_leg_raise")
+            )
+        ) ?: error("Expected refresh plan")
+
+        assertEquals(listOf(303L, 304L), refresh.staleRowsToRetire.map { it.id })
+        assertEquals(listOf(8, 15), refresh.staleRowsToRetire.map { it.repsMin })
+        assertEquals(listOf(10, 15), refresh.staleRowsToRetire.map { it.repsMax })
+        assertEquals(listOf(150, 60), refresh.staleRowsToRetire.map { it.restSec })
     }
 
     private fun day(label: String) = ProgramDay(

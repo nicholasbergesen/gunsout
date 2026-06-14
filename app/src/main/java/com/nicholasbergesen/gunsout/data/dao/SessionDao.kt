@@ -78,6 +78,9 @@ interface SetEntryDao {
     @Query("SELECT COUNT(*) FROM set_entry WHERE programExerciseId = :programExerciseId")
     suspend fun countForProgramExercise(programExerciseId: Long): Int
 
+    @Query("SELECT DISTINCT exerciseIdSnapshot FROM set_entry WHERE programExerciseId = :programExerciseId")
+    suspend fun exerciseSnapshotIdsForProgramExercise(programExerciseId: Long): List<Long>
+
     @androidx.room.Upsert
     suspend fun upsert(set: SetEntry): Long
 

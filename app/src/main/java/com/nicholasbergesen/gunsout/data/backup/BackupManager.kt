@@ -8,6 +8,7 @@ import com.nicholasbergesen.gunsout.data.prefs.Sex
 import com.nicholasbergesen.gunsout.data.prefs.TrainingExperience
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
+import com.nicholasbergesen.gunsout.data.seed.Seeder
 import com.nicholasbergesen.gunsout.ui.theme.ThemeStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -20,7 +21,8 @@ import javax.inject.Singleton
 @Singleton
 class BackupManager @Inject constructor(
     private val db: GunsoutDatabase,
-    private val userPrefs: UserPreferences
+    private val userPrefs: UserPreferences,
+    private val seeder: Seeder
 ) {
     // ignoreUnknownKeys lets legacy v1/v2 files import cleanly: their dropped fields
     // (mealPlans, ingredients, mealTemplateIngredients, macroSource, mealPlanId) are skipped
@@ -291,12 +293,10 @@ class BackupManager @Inject constructor(
             }
         }
 
-        ImportResult.Success(
-            totalRows = parsed.programs.size + parsed.programDays.size + parsed.exercises.size +
-                parsed.programExercises.size + parsed.sessions.size + parsed.setEntries.size +
-                parsed.mealTemplates.size +
-                parsed.foodEntries.size + parsed.supplements.size + parsed.supplementLogs.size +
-                parsed.bodyMetricsLogs.size
+        completeSuccessfulImportAfterSeedRefresh(
+            userId = userId,
+            totalRows = parsed.importRowCount(),
+            refreshSeededProgram = seeder::seedIfNeeded
         )
     }
 }
@@ -305,6 +305,27 @@ sealed class ImportResult {
     data class Success(val totalRows: Int) : ImportResult()
     data class Error(val message: String) : ImportResult()
 }
+
+internal fun GunsoutBackup.importRowCount(): Int =
+    programs.size + programDays.size + exercises.size +
+        programExercises.size + sessions.size + setEntries.size +
+        mealTemplates.size + foodEntries.size + supplements.size + supplementLogs.size +
+        bodyMetricsLogs.size
+
+internal suspend fun completeSuccessfulImportAfterSeedRefresh(
+    userId: String,
+    totalRows: Int,
+    refreshSeededProgram: suspend (String) -> Unit
+): ImportResult =
+    runCatching { refreshSeededProgram(userId) }
+        .fold(
+            onSuccess = { ImportResult.Success(totalRows) },
+            onFailure = {
+                ImportResult.Error(
+                    "Import completed but seeded program refresh failed: ${it.message ?: it.javaClass.simpleName}"
+                )
+            }
+        )
 
 internal fun UserProfileBackup.toUserProfile(): UserProfile = UserProfile(
     currentBodyWeightKg = currentBodyWeightKg,
