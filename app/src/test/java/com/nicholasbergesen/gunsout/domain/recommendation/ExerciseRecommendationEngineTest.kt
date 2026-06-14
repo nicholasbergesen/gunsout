@@ -45,6 +45,43 @@ class ExerciseRecommendationEngineTest {
         assertEquals("Start with 16 kg", recommendation.displayText)
     }
 
+    @Test fun `weighted multi set recommendation ramps to the top target`() {
+        val recommendation = engine.recommend(
+            prescription = pe(repsMin = 8, repsMax = 10, sets = 4),
+            exercise = exercise(seedKey = "leg_press", equipment = Equipment.MACHINE, movementPattern = MovementPattern.SQUAT),
+            previousWorkingSets = listOf(
+                set(50.0, 10, 7),
+                set(50.0, 10, 7),
+                set(50.0, 10, 7),
+                set(50.0, 10, 7)
+            ),
+            baselineWeekActive = false,
+            profile = profile(),
+            latestBodyLog = null,
+            recentBodyLogs = emptyList()
+        )
+
+        assertEquals(55.0, recommendation!!.weightKg!!, 0.001)
+        assertEquals(listOf(40.0, 45.0, 50.0, 55.0), recommendation.setWeightKg)
+        assertEquals(40.0, recommendation.weightKgForSet(1)!!, 0.001)
+        assertEquals(55.0, recommendation.weightKgForSet(4)!!, 0.001)
+    }
+
+    @Test fun `single set weighted recommendation does not invent a ramp`() {
+        val recommendation = engine.recommend(
+            prescription = pe(sets = 1),
+            exercise = exercise(seedKey = "flat_db_bench", equipment = Equipment.DUMBBELL),
+            previousWorkingSets = emptyList(),
+            baselineWeekActive = false,
+            profile = profile(),
+            latestBodyLog = BodyMetricsLog(userId = "u", date = LocalDate.now(), weightKg = 100.0, muscleMassKg = 70.0),
+            recentBodyLogs = emptyList()
+        )
+
+        assertEquals(listOf(16.0), recommendation!!.setWeightKg)
+        assertEquals(16.0, recommendation.weightKgForSet(1)!!, 0.001)
+    }
+
     @Test fun `kg display uses dot decimal regardless of default locale`() {
         val originalLocale = Locale.getDefault()
         try {
@@ -78,6 +115,7 @@ class ExerciseRecommendationEngineTest {
 
         assertEquals(RecommendationTarget.REPS, recommendation!!.target)
         assertEquals(2, recommendation.reps)
+        assertEquals(emptyList<Double>(), recommendation.setWeightKg)
         assertEquals("Target 2 reps per set", recommendation.displayText)
     }
 
@@ -192,6 +230,7 @@ class ExerciseRecommendationEngineTest {
         )
 
         assertEquals(35.0, recommendation!!.weightKg!!, 0.001)
+        assertEquals(listOf(35.0, 35.0, 35.0), recommendation.setWeightKg)
     }
 
     @Test fun `assisted pull up anchors progression to lowest assistance set`() {
