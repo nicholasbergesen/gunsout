@@ -129,8 +129,8 @@ fun ThemedCard(
 @Composable
 fun StatusChip(
     text: String,
-    selected: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    selected: Boolean = false
 ) {
     Surface(
         modifier = modifier,
@@ -153,9 +153,9 @@ fun StatusChip(
 @Composable
 fun ChipButton(
     text: String,
-    selected: Boolean = false,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    selected: Boolean = false
 ) {
     Surface(
         onClick = onClick,
@@ -264,9 +264,9 @@ data class ListRow(
 
 @Composable
 fun ThemedListGroup(
-    title: String? = null,
     rows: List<ListRow>,
     modifier: Modifier = Modifier,
+    title: String? = null,
     onRowClick: ((Int) -> Unit)? = null
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {

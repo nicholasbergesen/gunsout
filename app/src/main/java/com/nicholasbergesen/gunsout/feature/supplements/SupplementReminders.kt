@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.nicholasbergesen.gunsout.MainActivity
 import com.nicholasbergesen.gunsout.auth.AuthSessionStore
@@ -90,15 +89,13 @@ class SupplementReminderScheduler @Inject constructor(
         }
 
     fun ensureChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-                nm.createNotificationChannel(NotificationChannel(
-                    CHANNEL_ID, "Supplement reminders", NotificationManager.IMPORTANCE_DEFAULT
-                ).apply {
-                    description = "Daily reminder for active supplements."
-                })
-            }
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (nm.getNotificationChannel(CHANNEL_ID) == null) {
+            nm.createNotificationChannel(NotificationChannel(
+                CHANNEL_ID, "Supplement reminders", NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Daily reminder for active supplements."
+            })
         }
     }
 
