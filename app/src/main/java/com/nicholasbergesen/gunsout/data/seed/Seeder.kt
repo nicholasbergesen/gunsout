@@ -342,6 +342,7 @@ class Seeder @Inject constructor(
         private fun shouldRefreshProgramNotes(program: Program, planProgram: ProgramSeeds.PlanProgram): Boolean =
             planProgram.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
                 program.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
+                shouldRefreshProgramName(program, planProgram) &&
                 program.notes == legacyUpperLower4DayNotes
 
         fun matchesLegacyUpperPushPull(

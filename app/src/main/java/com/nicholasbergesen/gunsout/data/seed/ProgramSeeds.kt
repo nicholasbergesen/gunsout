@@ -38,7 +38,7 @@ object ProgramSeeds {
         seedKey = "upper_lower_4day",
         name = "Upper / Lower 4-Day",
         programType = ProgramType.UPPER_LOWER,
-        notes = "Balanced strength and hypertrophy across four weekly lifting days, with cable and dumbbell accessories.",
+        notes = "Balanced strength and hypertrophy across four weekly lifting days.",
         days = listOf(
             PlanDay(0, "Upper Push/Pull", DayHint.MON, exercises = listOf(
                 PlanExercise("inc_db_bench", 3, 8, 10, 90),

@@ -120,6 +120,25 @@ class ProgramSeedsTest {
         assertEquals("Keep this note", backfilled.notes)
     }
 
+    @Test fun `seeded template metadata backfill preserves legacy notes on renamed upper lower template`() {
+        val renamedProgram = Program(
+            userId = "u",
+            name = "My upper lower plan",
+            type = ProgramType.CUSTOM,
+            notes = "Balanced free-weight strength and hypertrophy across four weekly lifting days.",
+            isTemplate = true,
+            seedKey = ProgramSeeds.upperLower4Day.seedKey
+        )
+
+        val backfilled = Seeder.SeededProgramRefresh.backfillSeededTemplateMetadata(
+            renamedProgram,
+            ProgramSeeds.upperLower4Day
+        )
+
+        assertEquals("My upper lower plan", backfilled.name)
+        assertEquals("Balanced free-weight strength and hypertrophy across four weekly lifting days.", backfilled.notes)
+    }
+
     @Test fun `seeded content refresh is limited to catalog named upper lower template`() {
         val catalogNamedProgram = Program(
             userId = "u",
