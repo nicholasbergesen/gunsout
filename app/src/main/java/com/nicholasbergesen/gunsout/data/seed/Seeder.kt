@@ -11,6 +11,7 @@ import com.nicholasbergesen.gunsout.data.entity.ExerciseAlternate
 import com.nicholasbergesen.gunsout.data.entity.Program
 import com.nicholasbergesen.gunsout.data.entity.ProgramDay
 import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
+import com.nicholasbergesen.gunsout.data.entity.Protocol
 import com.nicholasbergesen.gunsout.data.entity.Supplement
 import com.nicholasbergesen.gunsout.data.entity.SupplementUnit
 import com.nicholasbergesen.gunsout.data.entity.defaultMovementPatternFor
@@ -194,6 +195,7 @@ class Seeder @Inject constructor(
         program: Program,
         planProgram: ProgramSeeds.PlanProgram
     ) {
+        if (!SeededProgramRefresh.shouldRefreshSeededProgramContents(program, planProgram)) return
         val daysByOrder = programDayDao.getForProgram(program.id).associateBy { it.orderIndex }
         for (planDay in planProgram.days) {
             val day = daysByOrder[planDay.orderIndex] ?: continue
@@ -202,32 +204,41 @@ class Seeder @Inject constructor(
             }
         }
 
-        val lowerDay = daysByOrder[SeededProgramRefresh.lowerPosteriorCoreOrder] ?: return
-        val existingExercises = programExerciseDao.getForDay(lowerDay.id).sortedBy { it.orderIndex }
-        val seedKeysByExerciseId = existingExercises.associate {
-            it.exerciseId to exerciseDao.getById(it.exerciseId)?.seedKey
-        }
-        if (!SeededProgramRefresh.matchesLegacyLowerPosteriorCore(existingExercises, seedKeysByExerciseId)) {
-            return
-        }
-
-        val planExercises = planProgram.days
-            .single { it.orderIndex == SeededProgramRefresh.lowerPosteriorCoreOrder }
-            .exercises
-        for ((index, planExercise) in planExercises.withIndex()) {
-            val current = existingExercises.getOrNull(index) ?: return
-            val exercise = exerciseDao.getBySeedKey(userId, planExercise.exerciseSeedKey) ?: return
-            programExerciseDao.update(current.copy(
-                orderIndex = index,
-                exerciseId = exercise.id,
-                sets = planExercise.sets,
-                repsMin = planExercise.repsMin,
-                repsMax = planExercise.repsMax,
-                restSec = planExercise.restSec,
-                rpeTarget = planExercise.rpeTarget,
-                supersetGroupId = planExercise.supersetGroupId,
-                protocol = planExercise.protocol
-            ))
+        for ((order, legacyExercises) in SeededProgramRefresh.refreshExercisePrescriptionsByOrder) {
+            val day = daysByOrder[order] ?: continue
+            val planExercises = planProgram.days.singleOrNull { it.orderIndex == order }?.exercises ?: continue
+            val existingExercises = programExerciseDao.getForDay(day.id).sortedBy { it.orderIndex }
+            val seedKeysByExerciseId = existingExercises.associate {
+                it.exerciseId to exerciseDao.getById(it.exerciseId)?.seedKey
+            }
+            if (!SeededProgramRefresh.matchesLegacyProgramDay(existingExercises, seedKeysByExerciseId, legacyExercises)) {
+                continue
+            }
+            val exercisesByPlanIndex = planExercises.map { planExercise ->
+                exerciseDao.getBySeedKey(userId, planExercise.exerciseSeedKey) ?: return@map null
+            }
+            if (exercisesByPlanIndex.any { it == null }) continue
+            for ((index, planExercise) in planExercises.withIndex()) {
+                val current = existingExercises.getOrNull(index)
+                    ?: ProgramExercise(userId = userId, programDayId = day.id, orderIndex = index, exerciseId = 0)
+                val exercise = exercisesByPlanIndex[index] ?: continue
+                val refreshed = current.copy(
+                    orderIndex = index,
+                    exerciseId = exercise.id,
+                    sets = planExercise.sets,
+                    repsMin = planExercise.repsMin,
+                    repsMax = planExercise.repsMax,
+                    restSec = planExercise.restSec,
+                    rpeTarget = planExercise.rpeTarget,
+                    supersetGroupId = planExercise.supersetGroupId,
+                    protocol = planExercise.protocol
+                )
+                if (current.id == 0L) {
+                    programExerciseDao.insert(refreshed)
+                } else {
+                    programExerciseDao.update(refreshed)
+                }
+            }
         }
     }
 
@@ -250,17 +261,38 @@ class Seeder @Inject constructor(
     }
 
     private companion object {
-        const val defaultProgramRefreshVersion = 1
+        const val defaultProgramRefreshVersion = 2
     }
 
     object SeededProgramRefresh {
+        const val upperPushPullOrder = 0
+        const val upperHypertrophyOrder = 3
         const val lowerPosteriorCoreOrder = 4
+
+        private const val legacyUpperLower4DayName = "Upper / Lower 4-Day (Free Weights)"
+        private const val legacyUpperLower4DayNotes =
+            "Balanced free-weight strength and hypertrophy across four weekly lifting days."
 
         private val legacyDayLabelsByOrder = mapOf(
             0 to "Upper A",
             1 to "Lower A",
             3 to "Upper B",
             4 to "Lower B"
+        )
+
+        private val legacyUpperPushPullExercises = listOf(
+            ProgramSeeds.PlanExercise("inc_db_bench", 3, 8, 10, 90),
+            ProgramSeeds.PlanExercise("pull_ups", 5, 2, 3, 120, protocol = Protocol.PULL_UP_5X2_3),
+            ProgramSeeds.PlanExercise("db_shoulder_press", 3, 10, 10, 60),
+            ProgramSeeds.PlanExercise("db_rear_delt_fly", 3, 15, 15, 60)
+        )
+
+        private val legacyUpperHypertrophyExercises = listOf(
+            ProgramSeeds.PlanExercise("chest_supported_row", 3, 8, 10, 90),
+            ProgramSeeds.PlanExercise("flat_db_bench", 3, 10, 10, 90),
+            ProgramSeeds.PlanExercise("db_lateral_raise", 4, 12, 15, 60),
+            ProgramSeeds.PlanExercise("db_bicep_curl", 3, 10, 10, 60, supersetGroupId = 1),
+            ProgramSeeds.PlanExercise("db_overhead_tricep", 3, 12, 12, 60, supersetGroupId = 1)
         )
 
         private val legacyLowerPosteriorCoreExercises = listOf(
@@ -270,10 +302,22 @@ class Seeder @Inject constructor(
             ProgramSeeds.PlanExercise("lying_leg_raise", 3, 15, 15, 60)
         )
 
+        val refreshExercisePrescriptionsByOrder = mapOf(
+            upperPushPullOrder to legacyUpperPushPullExercises,
+            upperHypertrophyOrder to legacyUpperHypertrophyExercises,
+            lowerPosteriorCoreOrder to legacyLowerPosteriorCoreExercises
+        )
+
         fun shouldRefreshLabel(day: ProgramDay, planDay: ProgramSeeds.PlanDay): Boolean =
             day.orderIndex == planDay.orderIndex &&
                 day.label == legacyDayLabelsByOrder[day.orderIndex] &&
                 day.label != planDay.label
+
+        fun shouldRefreshSeededProgramContents(program: Program, planProgram: ProgramSeeds.PlanProgram): Boolean =
+            program.isTemplate &&
+                program.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
+                planProgram.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
+                program.name == planProgram.name
 
         fun backfillSeededTemplateMetadata(
             program: Program,
@@ -281,18 +325,48 @@ class Seeder @Inject constructor(
         ): Program {
             if (!program.isTemplate) return program
             return program.copy(
+                name = if (shouldRefreshProgramName(program, planProgram)) planProgram.name else program.name,
                 type = planProgram.programType,
-                notes = program.notes ?: planProgram.notes
+                notes = when {
+                    shouldRefreshProgramNotes(program, planProgram) -> planProgram.notes
+                    else -> program.notes ?: planProgram.notes
+                }
             )
         }
+
+        private fun shouldRefreshProgramName(program: Program, planProgram: ProgramSeeds.PlanProgram): Boolean =
+            planProgram.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
+                program.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
+                program.name == legacyUpperLower4DayName
+
+        private fun shouldRefreshProgramNotes(program: Program, planProgram: ProgramSeeds.PlanProgram): Boolean =
+            planProgram.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
+                program.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
+                program.notes == legacyUpperLower4DayNotes
+
+        fun matchesLegacyUpperPushPull(
+            exercises: List<ProgramExercise>,
+            seedKeysByExerciseId: Map<Long, String?>
+        ): Boolean = matchesLegacyProgramDay(exercises, seedKeysByExerciseId, legacyUpperPushPullExercises)
+
+        fun matchesLegacyUpperHypertrophy(
+            exercises: List<ProgramExercise>,
+            seedKeysByExerciseId: Map<Long, String?>
+        ): Boolean = matchesLegacyProgramDay(exercises, seedKeysByExerciseId, legacyUpperHypertrophyExercises)
 
         fun matchesLegacyLowerPosteriorCore(
             exercises: List<ProgramExercise>,
             seedKeysByExerciseId: Map<Long, String?>
+        ): Boolean = matchesLegacyProgramDay(exercises, seedKeysByExerciseId, legacyLowerPosteriorCoreExercises)
+
+        fun matchesLegacyProgramDay(
+            exercises: List<ProgramExercise>,
+            seedKeysByExerciseId: Map<Long, String?>,
+            legacyExercises: List<ProgramSeeds.PlanExercise>
         ): Boolean {
             val sorted = exercises.sortedBy { it.orderIndex }
-            if (sorted.size != legacyLowerPosteriorCoreExercises.size) return false
-            return sorted.zip(legacyLowerPosteriorCoreExercises).withIndex().all { (index, pair) ->
+            if (sorted.size != legacyExercises.size) return false
+            return sorted.zip(legacyExercises).withIndex().all { (index, pair) ->
                 val (existing, legacy) = pair
                 existing.orderIndex == index &&
                     seedKeysByExerciseId[existing.exerciseId] == legacy.exerciseSeedKey &&

@@ -204,6 +204,26 @@ object ExerciseSeeds {
             defaultRestSec = 60,
             seedKey = "db_overhead_tricep"
         )),
+        Seed("db_wrist_curl", Exercise(
+            userId = "",
+            name = "Dumbbell Wrist Curl",
+            primaryMuscleGroup = MuscleGroup.FOREARMS,
+            equipment = Equipment.DUMBBELL,
+            movementPattern = MovementPattern.ISOLATION,
+            formNotes = "Forearms supported on thighs or bench, palms up. Curl wrists through a controlled range without moving the elbows.",
+            defaultRestSec = 45,
+            seedKey = "db_wrist_curl"
+        )),
+        Seed("db_reverse_wrist_curl", Exercise(
+            userId = "",
+            name = "Dumbbell Reverse Wrist Curl",
+            primaryMuscleGroup = MuscleGroup.FOREARMS,
+            equipment = Equipment.DUMBBELL,
+            movementPattern = MovementPattern.ISOLATION,
+            formNotes = "Forearms supported, palms down. Lift the backs of the hands toward the forearms, then lower slowly.",
+            defaultRestSec = 45,
+            seedKey = "db_reverse_wrist_curl"
+        )),
 
         // Lower Posterior/Core
         Seed("leg_curl", Exercise(
