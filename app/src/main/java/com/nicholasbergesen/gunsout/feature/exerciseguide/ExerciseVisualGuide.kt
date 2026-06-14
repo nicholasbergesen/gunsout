@@ -303,7 +303,7 @@ private fun DrawScope.drawBody(
     drawLine(bodyColor, legs.rightKnee, legs.rightFoot, stroke, StrokeCap.Round)
 }
 
-private data class ArmPoints(
+private data class ExerciseVisualGuideArmPoints(
     val leftElbow: Offset,
     val leftHand: Offset,
     val rightElbow: Offset,
@@ -317,32 +317,32 @@ private fun armPointsFor(
     squatDrop: Float,
     hingeLean: Float,
     point: (Float, Float) -> Offset
-): ArmPoints = when (motion) {
-    ExerciseGuideMotion.PUSH -> ArmPoints(
+): ExerciseVisualGuideArmPoints = when (motion) {
+    ExerciseGuideMotion.PUSH -> ExerciseVisualGuideArmPoints(
         leftElbow = point(-37f - progress * 8f, 60f + lift),
         leftHand = point(-34f - progress * 27f, 76f + lift),
         rightElbow = point(37f + progress * 8f, 60f + lift),
         rightHand = point(34f + progress * 27f, 76f + lift)
     )
-    ExerciseGuideMotion.PULL -> ArmPoints(
+    ExerciseGuideMotion.PULL -> ExerciseVisualGuideArmPoints(
         leftElbow = point(-40f + progress * 7f, 44f + progress * 15f + lift),
         leftHand = point(-55f + progress * 25f, 25f + progress * 39f + lift),
         rightElbow = point(40f - progress * 7f, 44f + progress * 15f + lift),
         rightHand = point(55f - progress * 25f, 25f + progress * 39f + lift)
     )
-    ExerciseGuideMotion.ISOLATION -> ArmPoints(
+    ExerciseGuideMotion.ISOLATION -> ExerciseVisualGuideArmPoints(
         leftElbow = point(-36f, 74f + lift),
         leftHand = point(-39f + progress * 10f, 106f - progress * 31f + lift),
         rightElbow = point(36f, 74f + lift),
         rightHand = point(39f - progress * 10f, 106f - progress * 31f + lift)
     )
-    ExerciseGuideMotion.HINGE -> ArmPoints(
+    ExerciseGuideMotion.HINGE -> ExerciseVisualGuideArmPoints(
         leftElbow = point(-32f + hingeLean, 75f),
         leftHand = point(-27f + hingeLean, 105f),
         rightElbow = point(32f + hingeLean, 75f),
         rightHand = point(27f + hingeLean, 105f)
     )
-    else -> ArmPoints(
+    else -> ExerciseVisualGuideArmPoints(
         leftElbow = point(-35f, 68f + lift + squatDrop * 0.25f),
         leftHand = point(-27f, 92f + lift + squatDrop * 0.25f),
         rightElbow = point(35f, 68f + lift + squatDrop * 0.25f),
@@ -350,7 +350,7 @@ private fun armPointsFor(
     )
 }
 
-private data class LegPoints(
+private data class ExerciseVisualGuideLegPoints(
     val leftKnee: Offset,
     val leftFoot: Offset,
     val rightKnee: Offset,
@@ -363,26 +363,26 @@ private fun legPointsFor(
     lift: Float,
     coreKnee: Float,
     point: (Float, Float) -> Offset
-): LegPoints = when (motion) {
-    ExerciseGuideMotion.SQUAT -> LegPoints(
+): ExerciseVisualGuideLegPoints = when (motion) {
+    ExerciseGuideMotion.SQUAT -> ExerciseVisualGuideLegPoints(
         leftKnee = point(-21f - progress * 12f, 113f + progress * 8f),
         leftFoot = point(-30f, 142f),
         rightKnee = point(21f + progress * 12f, 113f + progress * 8f),
         rightFoot = point(30f, 142f)
     )
-    ExerciseGuideMotion.LUNGE -> LegPoints(
+    ExerciseGuideMotion.LUNGE -> ExerciseVisualGuideLegPoints(
         leftKnee = point(-34f - progress * 7f, 111f + progress * 12f),
         leftFoot = point(-58f, 142f),
         rightKnee = point(24f + progress * 8f, 114f + progress * 13f),
         rightFoot = point(56f, 142f)
     )
-    ExerciseGuideMotion.CORE -> LegPoints(
+    ExerciseGuideMotion.CORE -> ExerciseVisualGuideLegPoints(
         leftKnee = point(-22f, 118f - coreKnee),
         leftFoot = point(-35f, 142f - coreKnee),
         rightKnee = point(20f, 120f),
         rightFoot = point(28f, 142f)
     )
-    else -> LegPoints(
+    else -> ExerciseVisualGuideLegPoints(
         leftKnee = point(-17f, 118f + lift),
         leftFoot = point(-23f, 142f),
         rightKnee = point(17f, 118f + lift),
