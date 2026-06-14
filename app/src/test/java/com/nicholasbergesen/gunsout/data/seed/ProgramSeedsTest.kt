@@ -383,18 +383,18 @@ class ProgramSeedsTest {
             planExercises = ProgramSeeds.upperLower4Day.days
                 .single { it.orderIndex == Seeder.SeededProgramRefresh.upperPushPullOrder }
                 .exercises,
-            staleProgramExerciseIdsToKeep = emptySet()
+            staleProgramExerciseIdsToRetire = emptySet()
         ) ?: error("Expected refresh plan")
 
         assertEquals(listOf(101L, 102L, 0L, 103L, 104L), refresh.plannedRows.map { it.id })
         assertEquals(listOf(10L, 11L, 20L, 12L, 13L), refresh.plannedRows.map { it.exerciseId })
         assertEquals(listOf(0, 1, 2, 3, 4), refresh.plannedRows.map { it.orderIndex })
         assertFalse(refresh.plannedRows.single { it.exerciseId == 20L }.id in existing.map { it.id })
-        assertTrue(refresh.staleRowsToKeep.isEmpty())
+        assertTrue(refresh.staleRowsToRetire.isEmpty())
         assertTrue(refresh.staleRowIdsToDelete.isEmpty())
     }
 
-    @Test fun `seeded exercise refresh inserts replacements without reusing replaced row identities`() {
+    @Test fun `seeded exercise refresh retires completed-history and in-progress stale rows instead of leaving them active`() {
         val existing = listOf(
             pe(id = 201, orderIndex = 0, exerciseId = 10, sets = 3, repsMin = 10, repsMax = 12, restSec = 60),
             pe(id = 202, orderIndex = 1, exerciseId = 11, sets = 3, repsMin = 10, repsMax = 10, restSec = 90),
@@ -423,15 +423,16 @@ class ProgramSeedsTest {
             seedKeysByExerciseId = seedKeysByExerciseId,
             exerciseIdsBySeedKey = exerciseIdsBySeedKey,
             planExercises = planExercises,
-            staleProgramExerciseIdsToKeep = setOf(203L, 204L)
+            staleProgramExerciseIdsToRetire = setOf(203L, 204L)
         ) ?: error("Expected refresh plan")
 
         assertEquals(listOf(201L, 202L, 0L, 0L), keptStaleRefresh.plannedRows.map { it.id })
         assertEquals(listOf(10L, 11L, 20L, 21L), keptStaleRefresh.plannedRows.map { it.exerciseId })
         assertEquals(listOf(0, 1, 2, 3), keptStaleRefresh.plannedRows.map { it.orderIndex })
         assertFalse(keptStaleRefresh.plannedRows.drop(2).any { it.id in setOf(203L, 204L) })
-        assertEquals(listOf(203L, 204L), keptStaleRefresh.staleRowsToKeep.map { it.id })
-        assertEquals(listOf(4, 5), keptStaleRefresh.staleRowsToKeep.map { it.orderIndex })
+        assertEquals(listOf(203L, 204L), keptStaleRefresh.staleRowsToRetire.map { it.id })
+        assertEquals(listOf(2, 3), keptStaleRefresh.staleRowsToRetire.map { it.orderIndex })
+        assertTrue(keptStaleRefresh.staleRowsToRetire.all { it.isRetired })
         assertTrue(keptStaleRefresh.staleRowIdsToDelete.isEmpty())
 
         val unreferencedStaleRefresh = Seeder.SeededProgramRefresh.buildProgramExerciseRefreshPlan(
@@ -441,11 +442,59 @@ class ProgramSeedsTest {
             seedKeysByExerciseId = seedKeysByExerciseId,
             exerciseIdsBySeedKey = exerciseIdsBySeedKey,
             planExercises = planExercises,
-            staleProgramExerciseIdsToKeep = emptySet()
+            staleProgramExerciseIdsToRetire = emptySet()
         ) ?: error("Expected refresh plan")
 
-        assertTrue(unreferencedStaleRefresh.staleRowsToKeep.isEmpty())
+        assertTrue(unreferencedStaleRefresh.staleRowsToRetire.isEmpty())
         assertEquals(listOf(203L, 204L), unreferencedStaleRefresh.staleRowIdsToDelete)
+    }
+
+    @Test fun `already refreshed lower posterior core is repaired with new replacement identities`() {
+        val existing = listOf(
+            pe(id = 301, orderIndex = 0, exerciseId = 10, sets = 3, repsMin = 10, repsMax = 12, restSec = 60),
+            pe(id = 302, orderIndex = 1, exerciseId = 11, sets = 3, repsMin = 10, repsMax = 10, restSec = 90),
+            pe(id = 303, orderIndex = 2, exerciseId = 20, sets = 3, repsMin = 8, repsMax = 10, restSec = 150),
+            pe(id = 304, orderIndex = 3, exerciseId = 21, sets = 3, repsMin = 10, repsMax = 15, restSec = 60)
+        )
+        val seedKeysByExerciseId = mapOf(
+            10L to "leg_curl",
+            11L to "goblet_squat",
+            20L to "trap_bar_deadlift",
+            21L to "machine_crunch"
+        )
+        val planExercises = ProgramSeeds.upperLower4Day.days
+            .single { it.orderIndex == Seeder.SeededProgramRefresh.lowerPosteriorCoreOrder }
+            .exercises
+
+        assertFalse(Seeder.SeededProgramRefresh.matchesLegacyLowerPosteriorCore(existing, seedKeysByExerciseId))
+        assertTrue(Seeder.SeededProgramRefresh.matchesV1RefreshedLowerPosteriorCore(existing, seedKeysByExerciseId))
+        val refreshState = Seeder.SeededProgramRefresh.refreshStateForProgramDay(
+            order = Seeder.SeededProgramRefresh.lowerPosteriorCoreOrder,
+            exercises = existing,
+            seedKeysByExerciseId = seedKeysByExerciseId
+        ) ?: error("Expected v1 repair state")
+        val refresh = Seeder.SeededProgramRefresh.buildProgramExerciseRefreshPlan(
+            userId = "u",
+            programDayId = 1,
+            existingExercises = existing,
+            seedKeysByExerciseId = seedKeysByExerciseId,
+            exerciseIdsBySeedKey = mapOf(
+                "leg_curl" to 10L,
+                "goblet_squat" to 11L,
+                "trap_bar_deadlift" to 20L,
+                "machine_crunch" to 21L
+            ),
+            planExercises = planExercises,
+            staleProgramExerciseIdsToRetire = setOf(303L, 304L),
+            existingPlannedSeedKeysToReplace = refreshState.existingPlannedSeedKeysToReplace
+        ) ?: error("Expected refresh plan")
+
+        assertEquals(Seeder.SeededProgramRefresh.lowerPosteriorCoreV1ReplacedSeedKeys, refreshState.existingPlannedSeedKeysToReplace)
+        assertEquals(listOf(301L, 302L, 0L, 0L), refresh.plannedRows.map { it.id })
+        assertEquals(listOf(10L, 11L, 20L, 21L), refresh.plannedRows.map { it.exerciseId })
+        assertEquals(listOf(303L, 304L), refresh.staleRowsToRetire.map { it.id })
+        assertTrue(refresh.staleRowsToRetire.all { it.isRetired })
+        assertTrue(refresh.staleRowIdsToDelete.isEmpty())
     }
 
     private fun day(label: String) = ProgramDay(

@@ -39,7 +39,7 @@ class BackupManager @Inject constructor(
         // Full list of alternate links for this user, including the reason, for lossless round-trip.
         val alternates = db.exerciseAlternateDao().getAll(userId).map { it.toBackup() }
 
-        val programExercises = days.flatMap { day -> db.programExerciseDao().getForDay(day.id).map { it.toBackup() } }
+        val programExercises = days.flatMap { day -> db.programExerciseDao().getAllForDay(day.id).map { it.toBackup() } }
 
         val sessions = db.workoutSessionDao().observeAll(userId).first().map { it.toBackup() }
         val setEntries = sessions.flatMap { db.setEntryDao().getForSession(it.id).map { it.toBackup() } }
@@ -83,7 +83,7 @@ class BackupManager @Inject constructor(
         )
 
         val backup = GunsoutBackup(
-            schemaVersion = 6,
+            schemaVersion = 7,
             exportedAtIso = LocalDateTime.now().toString(),
             programs = programs,
             programDays = days,
@@ -118,13 +118,13 @@ class BackupManager @Inject constructor(
      *
      * Accepts schemaVersion 1 (no userProfile), 2 (single-user profile, no macro overrides),
      * 3 (per-user profile fields plus macro overrides), 4 (themeStyle), 5 (water liters),
-     * and 6 (strength profile setup and movement pattern).
+     * 6 (strength profile setup and movement pattern), and 7 (retired program exercises).
      */
     suspend fun importFromJson(userId: String, jsonText: String): ImportResult = withContext(Dispatchers.IO) {
         val parsed = runCatching { json.decodeFromString(GunsoutBackup.serializer(), jsonText) }
             .getOrElse { return@withContext ImportResult.Error(it.message ?: "Parse failed") }
 
-        if (parsed.schemaVersion !in 1..6) {
+        if (parsed.schemaVersion !in 1..7) {
             return@withContext ImportResult.Error("Unsupported backup schema v${parsed.schemaVersion}")
         }
 

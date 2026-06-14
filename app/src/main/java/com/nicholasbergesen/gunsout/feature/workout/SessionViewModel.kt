@@ -90,7 +90,7 @@ class SessionViewModel @Inject constructor(
             programCreatedAt = activeProgram?.createdAt,
             forcedFlag = profile.baselineWeekActive
         )
-        val pds = workouts.getProgramExercises(pdId)
+        val pds = workouts.getProgramExercisesForSession(pdId, sessionId)
         val currentSetsByProgramExercise = workouts.getSetsForSession(sessionId)
             .groupBy { it.programExerciseId }
         val items = pds.map { pe ->

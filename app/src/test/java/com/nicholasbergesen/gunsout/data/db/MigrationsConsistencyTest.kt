@@ -33,23 +33,23 @@ class MigrationsConsistencyTest {
     }
 
     @Test
-    fun `latest schema has v5 to v6 migration registered`() {
-        assertTrue(Migrations.allMigrations.any { it.startVersion == 5 && it.endVersion == 6 })
+    fun `latest schema has v6 to v7 migration registered`() {
+        assertTrue(Migrations.allMigrations.any { it.startVersion == 6 && it.endVersion == 7 })
     }
 
     @Test
-    fun `v6 movement pattern schema default matches v5 to v6 migration`() {
+    fun `v7 retired program exercise schema default matches v6 to v7 migration`() {
         val schema = listOf(
-            File("schemas/com.nicholasbergesen.gunsout.data.db.GunsoutDatabase/6.json"),
-            File("app/schemas/com.nicholasbergesen.gunsout.data.db.GunsoutDatabase/6.json")
+            File("schemas/com.nicholasbergesen.gunsout.data.db.GunsoutDatabase/7.json"),
+            File("app/schemas/com.nicholasbergesen.gunsout.data.db.GunsoutDatabase/7.json")
         ).firstOrNull { it.exists() }
 
-        assertTrue("Could not find exported v6 Room schema", schema != null)
+        assertTrue("Could not find exported v7 Room schema", schema != null)
         val text = schema!!.readText()
         assertTrue(
-            "v6 schema must include the same movementPattern default as MIGRATION_5_6",
-            text.contains("\"columnName\": \"movementPattern\"") &&
-                text.contains("\"defaultValue\": \"'ISOLATION'\"")
+            "v7 schema must include the same isRetired default as MIGRATION_6_7",
+            text.contains("\"columnName\": \"isRetired\"") &&
+                text.contains("\"defaultValue\": \"0\"")
         )
     }
 }

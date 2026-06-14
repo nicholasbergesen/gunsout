@@ -55,6 +55,9 @@ class WorkoutRepository @Inject constructor(
     suspend fun getProgramExercises(programDayId: Long): List<ProgramExercise> =
         programExerciseDao.getForDay(programDayId)
 
+    suspend fun getProgramExercisesForSession(programDayId: Long, sessionId: Long): List<ProgramExercise> =
+        programExerciseDao.getForDayIncludingSessionRetired(programDayId, sessionId)
+
     suspend fun getExercise(id: Long): Exercise? = exerciseDao.getById(id)
 
     fun observeAllExercises(userId: String): Flow<List<Exercise>> = exerciseDao.observeAll(userId)
