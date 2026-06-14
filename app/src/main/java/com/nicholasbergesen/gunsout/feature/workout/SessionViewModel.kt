@@ -57,7 +57,7 @@ class SessionViewModel @Inject constructor(
     private val bodyRepository: BodyRepository,
     private val userPrefs: UserPreferences,
     private val currentUserIdProvider: CurrentUserIdProvider,
-    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
+    @param:dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
     private val engine = ExerciseRecommendationEngine()

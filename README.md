@@ -51,7 +51,7 @@ Theme selection replaces the old light/dark/system toggle. Each signed-in accoun
 
 ## Tech
 
-- Kotlin 2.x, Jetpack Compose, Material 3, MVVM with Hilt, Room 2.6.x (with versioned migrations and a checked-in schema export), DataStore, OkHttp + kotlinx-serialization, Navigation-Compose. AGP 8.x. minSdk 26, target 36.
+- Kotlin 2.x, Jetpack Compose, Material 3, MVVM with Hilt, Room 2.8.x (with versioned migrations and a checked-in schema export), DataStore, OkHttp + kotlinx-serialization, Navigation-Compose. AGP 9.x. minSdk 26, compileSdk 37, target 36.
 - Pure-Kotlin domain modules under `com.nicholasbergesen.gunsout.domain`: `ScheduleResolver`, `MacroTargetCalculator`, `ProgressionEngine`, `KcalTrendAnalyzer`. Fully unit-tested.
 - Foreground service `RestTimerService` (SPECIAL_USE foreground service type) for the rest timer between sets so it survives screen sleep.
 - Credential Manager + Google Identity for sign-in.

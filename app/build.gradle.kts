@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
@@ -10,6 +9,8 @@ plugins {
 
 import java.util.Properties
 import org.gradle.testing.jacoco.tasks.JacocoReport
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 
 fun readBuildSecret(name: String): String {
     val fromEnv = System.getenv(name)?.takeIf { it.isNotBlank() }
@@ -56,7 +57,7 @@ val sharedDebugKeystore = rootProject.file("app/gunsout-debug.keystore")
 
 android {
     namespace = "com.nicholasbergesen.gunsout"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.nicholasbergesen.gunsout"
@@ -107,23 +108,25 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
     }
 
     sourceSets {
-        getByName("androidTest").assets.srcDirs("$projectDir/schemas")
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
     }
 
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+extensions.configure<KotlinAndroidProjectExtension>("kotlin") {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
@@ -157,14 +160,9 @@ tasks.register<JacocoReport>("debugUnitTestCoverage") {
     )
 
     classDirectories.setFrom(
-        files(
-            fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
-                exclude(generatedClassExclusions)
-            },
-            fileTree(layout.buildDirectory.dir("intermediates/javac/debug/classes")) {
-                exclude(generatedClassExclusions)
-            }
-        )
+        fileTree(layout.buildDirectory.dir("intermediates/classes/debug/transformDebugClassesWithAsm/dirs")) {
+            exclude(generatedClassExclusions)
+        }
     )
     sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
     executionData.setFrom(
