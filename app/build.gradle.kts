@@ -150,8 +150,6 @@ tasks.register<JacocoReport>("debugUnitTestCoverage") {
         "**/R$*.class",
         "**/*_Factory.*",
         "**/*_MembersInjector.*",
-        "**/*Component*.*",
-        "**/*Module*.*",
         "**/Dagger*.*",
         "**/Hilt_*.*",
         "**/*Hilt*.*"
