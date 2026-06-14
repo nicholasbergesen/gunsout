@@ -182,5 +182,7 @@ private fun isolationMotionFor(muscleGroup: MuscleGroup): ExerciseGuideMotion = 
     MuscleGroup.QUADS,
     MuscleGroup.HAMSTRINGS,
     MuscleGroup.GLUTES -> ExerciseGuideMotion.LEG_ISOLATION
+    MuscleGroup.CALVES -> ExerciseGuideMotion.CALVES
+    MuscleGroup.CORE -> ExerciseGuideMotion.CORE
     else -> ExerciseGuideMotion.ISOLATION
 }

@@ -76,6 +76,14 @@ class ExerciseGuideSpecTest {
         assertEquals(ExerciseGuideMotion.LEG_ISOLATION, hamstrings.motion)
     }
 
+    @Test fun `calf and core isolation select their available motions`() {
+        val calves = exerciseGuideSpecFor(MuscleGroup.CALVES, MovementPattern.ISOLATION)
+        val core = exerciseGuideSpecFor(MuscleGroup.CORE, MovementPattern.ISOLATION)
+
+        assertEquals(ExerciseGuideMotion.CALVES, calves.motion)
+        assertEquals(ExerciseGuideMotion.CORE, core.motion)
+    }
+
     @Test fun `upper-body isolation remains arm-focused`() {
         val biceps = exerciseGuideSpecFor(MuscleGroup.BICEPS, MovementPattern.ISOLATION)
         val triceps = exerciseGuideSpecFor(MuscleGroup.TRICEPS, MovementPattern.ISOLATION)
