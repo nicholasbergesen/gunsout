@@ -283,7 +283,8 @@ class ExerciseRecommendationEngine {
                 rampedSetWeights(
                     topWeightKg = target,
                     setCount = prescription.sets,
-                    incrementKg = formula.roundingKg
+                    incrementKg = formula.roundingKg,
+                    minimumWeightKg = formula.minWeightKg
                 )
             },
             displayText = "$label ${formatOneDecimalOrInt(target)} kg",
@@ -397,7 +398,8 @@ class ExerciseRecommendationEngine {
     private fun rampedSetWeights(
         topWeightKg: Double,
         setCount: Int,
-        incrementKg: Double
+        incrementKg: Double,
+        minimumWeightKg: Double
     ): List<Double> {
         if (setCount <= 0) return emptyList()
         if (setCount == 1) return listOf(topWeightKg)
@@ -406,7 +408,7 @@ class ExerciseRecommendationEngine {
             setCount == 3 -> 0.85
             else -> 0.90
         }
-        val minimum = minOf(topWeightKg, incrementKg.takeIf { it > 0.0 } ?: topWeightKg)
+        val minimum = minOf(topWeightKg, minimumWeightKg)
         var previous = minimum
         return (1..setCount).map { setIndex ->
             if (setIndex == setCount) {

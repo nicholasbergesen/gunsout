@@ -67,6 +67,21 @@ class ExerciseRecommendationEngineTest {
         assertEquals(55.0, recommendation.weightKgForSet(4)!!, 0.001)
     }
 
+    @Test fun `weighted ramp never drops below exercise minimum`() {
+        val recommendation = engine.recommend(
+            prescription = pe(sets = 3),
+            exercise = exercise(seedKey = "back_squat", equipment = Equipment.BARBELL, movementPattern = MovementPattern.SQUAT),
+            previousWorkingSets = emptyList(),
+            baselineWeekActive = false,
+            profile = profile(trainingExperience = TrainingExperience.BEGINNER).copy(currentBodyWeightKg = 40.0),
+            latestBodyLog = BodyMetricsLog(userId = "u", date = LocalDate.now(), weightKg = 40.0),
+            recentBodyLogs = emptyList()
+        )
+
+        assertEquals(20.0, recommendation!!.weightKg!!, 0.001)
+        assertEquals(listOf(20.0, 20.0, 20.0), recommendation.setWeightKg)
+    }
+
     @Test fun `single set weighted recommendation does not invent a ramp`() {
         val recommendation = engine.recommend(
             prescription = pe(sets = 1),
