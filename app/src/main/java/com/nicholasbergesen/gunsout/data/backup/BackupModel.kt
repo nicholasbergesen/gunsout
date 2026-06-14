@@ -109,7 +109,7 @@ fun ExerciseBackup.toEntity(
         formNotes = formNotes, defaultRestSec = defaultRestSec, baselineNote = baselineNote,
         isUserCreated = isUserCreated, isArchived = isArchived, seedKey = seedKey
     ).withSeededMovementPatternBackfill(
-        enabled = backfillLegacySeededMovementPattern && movementPattern == null
+        enabled = backfillLegacySeededMovementPattern
     )
 }
 

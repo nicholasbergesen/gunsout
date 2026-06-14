@@ -130,6 +130,8 @@ class BackupManager @Inject constructor(
             return@withContext ImportResult.Error("Unsupported backup schema v${parsed.schemaVersion}")
         }
 
+        val backfillImportedSeededMovementPatterns =
+            parsed.needsImportedSeededMovementPatternBackfill()
         db.withTransaction {
             val helper = db.openHelper.writableDatabase
             // Child-first delete order so FK constraints (when enabled) do not block the wipe.
@@ -171,7 +173,7 @@ class BackupManager @Inject constructor(
                 val newId = db.exerciseDao().insert(
                     b.toEntity(
                         userId = userId,
-                        backfillLegacySeededMovementPattern = parsed.schemaVersion < 6
+                        backfillLegacySeededMovementPattern = backfillImportedSeededMovementPatterns
                     ).copy(id = 0)
                 )
                 exerciseIdMap[b.id] = newId
@@ -280,10 +282,8 @@ class BackupManager @Inject constructor(
             userPrefs.update(userId) {
                 val imported = p.toUserProfile()
                 imported.copy(
-                    seededMovementPatternBackfillVersion = maxOf(
-                        imported.seededMovementPatternBackfillVersion,
-                        SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
-                    )
+                    seededMovementPatternBackfillVersion =
+                        parsed.seededMovementPatternBackfillVersionAfterImport()
                 )
             }
         } ?: userPrefs.update(userId) {
@@ -291,7 +291,7 @@ class BackupManager @Inject constructor(
                 defaultProgramRefreshVersion = 0,
                 seededMovementPatternBackfillVersion = maxOf(
                     it.seededMovementPatternBackfillVersion,
-                    SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
+                    parsed.seededMovementPatternBackfillVersionAfterImport()
                 )
             )
         }
@@ -346,3 +346,15 @@ internal fun UserProfileBackup.toUserProfile(): UserProfile = UserProfile(
     defaultProgramRefreshVersion = defaultProgramRefreshVersion,
     seededMovementPatternBackfillVersion = seededMovementPatternBackfillVersion
 )
+
+private val GunsoutBackup.importedSeededMovementPatternBackfillVersion: Int
+    get() = userProfile?.seededMovementPatternBackfillVersion ?: 0
+
+internal fun GunsoutBackup.needsImportedSeededMovementPatternBackfill(): Boolean =
+    importedSeededMovementPatternBackfillVersion < SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
+
+internal fun GunsoutBackup.seededMovementPatternBackfillVersionAfterImport(): Int =
+    maxOf(
+        importedSeededMovementPatternBackfillVersion,
+        SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
+    )

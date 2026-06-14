@@ -14,9 +14,29 @@ import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
 import com.nicholasbergesen.gunsout.data.entity.Supplement
 import com.nicholasbergesen.gunsout.data.entity.SupplementUnit
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
+import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
+
+internal const val DEFAULT_PROGRAM_REFRESH_VERSION = 1
+
+internal data class SeederMaintenancePlan(
+    val firstRun: Boolean,
+    val needsDefaultProgramRefresh: Boolean,
+    val needsSeededMovementPatternBackfill: Boolean
+) {
+    val shouldUpdateProfile: Boolean
+        get() = firstRun || needsDefaultProgramRefresh || needsSeededMovementPatternBackfill
+}
+
+internal fun UserProfile.seederMaintenancePlan() =
+    SeederMaintenancePlan(
+        firstRun = !firstRunDone,
+        needsDefaultProgramRefresh = defaultProgramRefreshVersion < DEFAULT_PROGRAM_REFRESH_VERSION,
+        needsSeededMovementPatternBackfill =
+            seededMovementPatternBackfillVersion < SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
+    )
 
 /**
  * Seeds the database with default programs, exercises, alternates and supplements for a single
@@ -47,34 +67,31 @@ class Seeder @Inject constructor(
 
     suspend fun seedIfNeeded(userId: String) {
         val profile = userPrefs.profile(userId).first()
-        val firstRun = !profile.firstRunDone
-        val needsDefaultProgramRefresh = profile.defaultProgramRefreshVersion < defaultProgramRefreshVersion
-        val needsSeededMovementPatternBackfill =
-            profile.seededMovementPatternBackfillVersion < SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION &&
-                needsDefaultProgramRefresh
+        val maintenancePlan = profile.seederMaintenancePlan()
         db.withTransaction {
             seedExercises(
                 userId = userId,
-                backfillLegacySeededMovementPatterns = needsSeededMovementPatternBackfill
+                backfillLegacySeededMovementPatterns =
+                    maintenancePlan.needsSeededMovementPatternBackfill
             )
             seedAlternates(userId)
             seedPrograms(
                 userId = userId,
-                activateDefaultOnFirstRun = firstRun,
-                refreshExistingSeededProgram = needsDefaultProgramRefresh
+                activateDefaultOnFirstRun = maintenancePlan.firstRun,
+                refreshExistingSeededProgram = maintenancePlan.needsDefaultProgramRefresh
             )
             seedSupplements(userId)
         }
         // Re-arm any supplement reminders saved in the DB (e.g. after install on a new device or
         // after a backup-import). Boot is handled separately by SupplementBootReceiver.
         rearmReminders(userId)
-        if (firstRun || needsDefaultProgramRefresh || needsSeededMovementPatternBackfill) {
+        if (maintenancePlan.shouldUpdateProfile) {
             userPrefs.update(userId) {
                 it.copy(
-                    firstRunDone = it.firstRunDone || firstRun,
+                    firstRunDone = it.firstRunDone || maintenancePlan.firstRun,
                     defaultProgramRefreshVersion = maxOf(
                         it.defaultProgramRefreshVersion,
-                        defaultProgramRefreshVersion
+                        DEFAULT_PROGRAM_REFRESH_VERSION
                     ),
                     seededMovementPatternBackfillVersion = maxOf(
                         it.seededMovementPatternBackfillVersion,
@@ -259,10 +276,6 @@ class Seeder @Inject constructor(
                 seedKey = key
             ))
         }
-    }
-
-    private companion object {
-        const val defaultProgramRefreshVersion = 1
     }
 
     object SeededProgramRefresh {

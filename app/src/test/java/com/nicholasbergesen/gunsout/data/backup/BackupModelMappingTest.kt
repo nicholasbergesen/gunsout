@@ -22,13 +22,20 @@ import com.nicholasbergesen.gunsout.data.entity.Supplement
 import com.nicholasbergesen.gunsout.data.entity.SupplementLog
 import com.nicholasbergesen.gunsout.data.entity.SupplementUnit
 import com.nicholasbergesen.gunsout.data.entity.WorkoutSession
+import com.nicholasbergesen.gunsout.data.seed.SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 
 class BackupModelMappingTest {
+
+    private val json = Json { ignoreUnknownKeys = true }
 
     @Test fun `room entities round trip through backup models for the target user`() {
         val sourceUser = "source-user"
@@ -194,7 +201,7 @@ class BackupModelMappingTest {
         assertEquals(bodyLog.copy(userId = targetUser), bodyLog.toBackup().toEntity(targetUser))
     }
 
-    @Test fun `explicit default movement patterns on seeded exercises are preserved on import mapping`() {
+    @Test fun `explicit default movement patterns from backfilled backups are preserved on import mapping`() {
         val editedSeededExercises = listOf(
             exerciseBackup(
                 seedKey = "leg_extension",
@@ -229,15 +236,103 @@ class BackupModelMappingTest {
         )
 
         editedSeededExercises.forEach { backup ->
+            val sourceBackup = backupWithExercise(
+                exercise = backup,
+                seededMovementPatternBackfillVersion = SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
+            )
+            assertFalse(sourceBackup.needsImportedSeededMovementPatternBackfill())
             assertEquals(
                 "${backup.seedKey} should preserve the explicitly exported movement pattern",
                 MovementPattern.valueOf(backup.movementPattern!!),
                 backup.toEntity(
                     userId = "target-user",
-                    backfillLegacySeededMovementPattern = true
+                    backfillLegacySeededMovementPattern =
+                        sourceBackup.needsImportedSeededMovementPatternBackfill()
                 ).movementPattern
             )
         }
+    }
+
+    @Test fun `schema 6 pre-marker backup repairs serialized legacy seeded isolation pattern`() {
+        val backup = json.decodeFromString<GunsoutBackup>(
+            """
+            {
+              "schemaVersion": 6,
+              "exportedAtIso": "2026-06-14T00:00:00",
+              "programs": [],
+              "programDays": [],
+              "exercises": [
+                {
+                  "id": 1,
+                  "name": "Leg Extensions",
+                  "primaryMuscleGroup": "QUADS",
+                  "equipment": "MACHINE",
+                  "movementPattern": "SQUAT",
+                  "defaultRestSec": 60,
+                  "isUserCreated": false,
+                  "isArchived": false,
+                  "seedKey": "leg_extension"
+                }
+              ],
+              "exerciseAlternates": [],
+              "programExercises": [],
+              "sessions": [],
+              "setEntries": [],
+              "mealTemplates": [],
+              "foodEntries": [],
+              "supplements": [],
+              "supplementLogs": [],
+              "bodyMetricsLogs": [],
+              "userProfile": {
+                "currentBodyWeightKg": 100.0,
+                "goalBodyWeightKg": 80.0,
+                "kneeInjuryFlag": true,
+                "baselineWeekActive": true,
+                "firstRunDone": true
+              }
+            }
+            """.trimIndent()
+        )
+
+        assertTrue(backup.needsImportedSeededMovementPatternBackfill())
+        assertEquals(
+            SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION,
+            backup.seededMovementPatternBackfillVersionAfterImport()
+        )
+        assertEquals(
+            MovementPattern.ISOLATION,
+            backup.exercises.single().toEntity(
+                userId = "target-user",
+                backfillLegacySeededMovementPattern =
+                    backup.needsImportedSeededMovementPatternBackfill()
+            ).movementPattern
+        )
+    }
+
+    @Test fun `schema 6 backfilled backup preserves explicit default-valued seeded edit`() {
+        val backup = backupWithExercise(
+            seededMovementPatternBackfillVersion = SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION,
+            exercise = exerciseBackup(
+                seedKey = "leg_extension",
+                primaryMuscleGroup = MuscleGroup.QUADS,
+                equipment = Equipment.MACHINE,
+                movementPattern = MovementPattern.SQUAT
+            )
+        )
+
+        assertFalse(backup.needsImportedSeededMovementPatternBackfill())
+        assertEquals(
+            SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION,
+            backup.seededMovementPatternBackfillVersionAfterImport()
+        )
+        assertEquals(
+            MovementPattern.SQUAT,
+            backup.exercises.single().toEntity(
+                userId = "target-user",
+                backfillLegacySeededMovementPattern =
+                    backup.needsImportedSeededMovementPatternBackfill()
+            ).movementPattern
+        )
     }
 
     @Test fun `missing movement pattern on legacy seeded isolation exercises is backfilled after fallback`() {
@@ -316,5 +411,40 @@ class BackupModelMappingTest {
         isUserCreated = seedKey == null,
         isArchived = false,
         seedKey = seedKey
+    )
+
+    private fun backupWithExercise(
+        exercise: ExerciseBackup,
+        seededMovementPatternBackfillVersion: Int
+    ) = GunsoutBackup(
+        schemaVersion = 6,
+        exportedAtIso = "2026-06-14T00:00:00",
+        programs = emptyList(),
+        programDays = emptyList(),
+        exercises = listOf(exercise),
+        exerciseAlternates = emptyList(),
+        programExercises = emptyList(),
+        sessions = emptyList(),
+        setEntries = emptyList(),
+        mealTemplates = emptyList(),
+        foodEntries = emptyList(),
+        supplements = emptyList(),
+        supplementLogs = emptyList(),
+        bodyMetricsLogs = emptyList(),
+        userProfile = profileBackup(
+            seededMovementPatternBackfillVersion = seededMovementPatternBackfillVersion
+        )
+    )
+
+    private fun profileBackup(
+        seededMovementPatternBackfillVersion: Int
+    ) = UserProfileBackup(
+        currentBodyWeightKg = 100.0,
+        goalBodyWeightKg = 80.0,
+        kneeInjuryFlag = true,
+        baselineWeekActive = true,
+        firstRunDone = true,
+        defaultProgramRefreshVersion = 1,
+        seededMovementPatternBackfillVersion = seededMovementPatternBackfillVersion
     )
 }
