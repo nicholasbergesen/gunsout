@@ -381,13 +381,13 @@ class BackupModelMappingTest {
             primaryMuscleGroup = MuscleGroup.QUADS,
             equipment = Equipment.DUMBBELL,
             movementPattern = MovementPattern.SQUAT
-        ).toEntity("target-user")
+        ).toEntity("target-user", backfillLegacySeededMovementPattern = true)
         val intentionallyEditedSeed = exerciseBackup(
             seedKey = "leg_extension",
             primaryMuscleGroup = MuscleGroup.QUADS,
             equipment = Equipment.MACHINE,
             movementPattern = MovementPattern.PULL
-        ).toEntity("target-user")
+        ).toEntity("target-user", backfillLegacySeededMovementPattern = true)
 
         assertEquals(MovementPattern.SQUAT, customQuad.movementPattern)
         assertEquals(MovementPattern.SQUAT, mismatchedSeed.movementPattern)
