@@ -32,6 +32,7 @@ import com.nicholasbergesen.gunsout.core.text.toNormalizedDoubleOrNull
 import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
 import com.nicholasbergesen.gunsout.data.entity.Protocol
 import com.nicholasbergesen.gunsout.domain.recommendation.RecommendationTarget
+import com.nicholasbergesen.gunsout.feature.exerciseguide.ExerciseVisualGuide
 import com.nicholasbergesen.gunsout.ui.components.SectionLabel
 import com.nicholasbergesen.gunsout.ui.components.StatusChip
 import com.nicholasbergesen.gunsout.ui.components.ThemedCard
@@ -104,6 +105,12 @@ private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
         }
         val prescription = item.prescription
         Text(sessionProtocolLabel(prescription), style = MaterialTheme.typography.bodySmall)
+
+        ExerciseVisualGuide(
+            muscleGroup = item.exercise.primaryMuscleGroup,
+            movementPattern = item.exercise.movementPattern,
+            compact = true
+        )
 
         item.previousBest?.let { last ->
             Text(

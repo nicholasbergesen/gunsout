@@ -1,10 +1,10 @@
 package com.nicholasbergesen.gunsout.data.seed
 
+import com.nicholasbergesen.gunsout.data.entity.MovementPattern
 import com.nicholasbergesen.gunsout.data.entity.Program
 import com.nicholasbergesen.gunsout.data.entity.ProgramDay
 import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
 import com.nicholasbergesen.gunsout.data.entity.ProgramType
-import com.nicholasbergesen.gunsout.data.entity.MovementPattern
 import com.nicholasbergesen.gunsout.data.entity.MuscleGroup
 import com.nicholasbergesen.gunsout.data.entity.Protocol
 import org.junit.Assert.assertEquals
@@ -56,6 +56,37 @@ class ProgramSeedsTest {
             .map { "${it.key} != ${it.exercise.seedKey}" }
 
         assertTrue("Mismatched seed keys: $mismatches", mismatches.isEmpty())
+    }
+
+    @Test fun `seeded isolation guide exercises use isolation movement pattern`() {
+        val isolationGuideSeedKeys = listOf(
+            "db_rear_delt_fly",
+            "leg_extension",
+            "db_lateral_raise",
+            "db_bicep_curl",
+            "db_overhead_tricep",
+            "leg_curl",
+            "db_lying_leg_curl",
+            "pec_deck_fly",
+            "cable_chest_fly",
+            "face_pull",
+            "triceps_pressdown",
+            "rope_overhead_triceps",
+            "preacher_curl",
+            "machine_biceps_curl"
+        )
+        val seedsByKey = ExerciseSeeds.all.associateBy { it.key }
+        val missingKeys = isolationGuideSeedKeys.filterNot { it in seedsByKey }
+
+        assertTrue("Missing isolation guide seed keys: $missingKeys", missingKeys.isEmpty())
+
+        val incorrectPatterns = isolationGuideSeedKeys
+            .mapNotNull { key ->
+                val pattern = seedsByKey.getValue(key).exercise.movementPattern
+                if (pattern == MovementPattern.ISOLATION) null else "$key=$pattern"
+            }
+
+        assertTrue("Expected isolation movement patterns: $incorrectPatterns", incorrectPatterns.isEmpty())
     }
 
     @Test fun `upper lower template name and notes do not claim free weights only`() {
@@ -155,6 +186,59 @@ class ProgramSeedsTest {
         assertFalse(Seeder.SeededProgramRefresh.shouldRefreshSeededProgramContents(
             renamedProgram,
             ProgramSeeds.upperLower4Day
+        ))
+    }
+
+    @Test fun `first run activates existing inactive default template`() {
+        val inactiveDefault = Program(
+            userId = "u",
+            name = ProgramSeeds.upperLower4Day.name,
+            isActive = false,
+            isTemplate = true,
+            seedKey = ProgramSeeds.upperLower4Day.seedKey
+        )
+
+        assertTrue(Seeder.SeededProgramRefresh.shouldActivateExistingSeededDefaultOnFirstRun(
+            program = inactiveDefault,
+            planProgram = ProgramSeeds.upperLower4Day,
+            activateOnFirstRun = true
+        ))
+    }
+
+    @Test fun `first run activation does not over apply to adjacent templates`() {
+        val inactiveDefault = Program(
+            userId = "u",
+            name = ProgramSeeds.upperLower4Day.name,
+            isActive = false,
+            isTemplate = true,
+            seedKey = ProgramSeeds.upperLower4Day.seedKey
+        )
+        val activeDefault = inactiveDefault.copy(isActive = true)
+        val customDefault = inactiveDefault.copy(isTemplate = false)
+        val otherTemplate = inactiveDefault.copy(
+            name = ProgramSeeds.runnerStrength2Day.name,
+            seedKey = ProgramSeeds.runnerStrength2Day.seedKey
+        )
+
+        assertFalse(Seeder.SeededProgramRefresh.shouldActivateExistingSeededDefaultOnFirstRun(
+            program = activeDefault,
+            planProgram = ProgramSeeds.upperLower4Day,
+            activateOnFirstRun = true
+        ))
+        assertFalse(Seeder.SeededProgramRefresh.shouldActivateExistingSeededDefaultOnFirstRun(
+            program = customDefault,
+            planProgram = ProgramSeeds.upperLower4Day,
+            activateOnFirstRun = true
+        ))
+        assertFalse(Seeder.SeededProgramRefresh.shouldActivateExistingSeededDefaultOnFirstRun(
+            program = otherTemplate,
+            planProgram = ProgramSeeds.runnerStrength2Day,
+            activateOnFirstRun = true
+        ))
+        assertFalse(Seeder.SeededProgramRefresh.shouldActivateExistingSeededDefaultOnFirstRun(
+            program = inactiveDefault,
+            planProgram = ProgramSeeds.upperLower4Day,
+            activateOnFirstRun = false
         ))
     }
 

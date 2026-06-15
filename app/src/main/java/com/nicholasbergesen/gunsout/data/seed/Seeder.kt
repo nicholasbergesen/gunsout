@@ -15,11 +15,30 @@ import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
 import com.nicholasbergesen.gunsout.data.entity.Protocol
 import com.nicholasbergesen.gunsout.data.entity.Supplement
 import com.nicholasbergesen.gunsout.data.entity.SupplementUnit
-import com.nicholasbergesen.gunsout.data.entity.defaultMovementPatternFor
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
+import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
+
+internal const val DEFAULT_PROGRAM_REFRESH_VERSION = 2
+
+internal data class SeederMaintenancePlan(
+    val firstRun: Boolean,
+    val needsDefaultProgramRefresh: Boolean,
+    val needsSeededMovementPatternBackfill: Boolean
+) {
+    val shouldUpdateProfile: Boolean
+        get() = firstRun || needsDefaultProgramRefresh || needsSeededMovementPatternBackfill
+}
+
+internal fun UserProfile.seederMaintenancePlan() =
+    SeederMaintenancePlan(
+        firstRun = !firstRunDone,
+        needsDefaultProgramRefresh = defaultProgramRefreshVersion < DEFAULT_PROGRAM_REFRESH_VERSION,
+        needsSeededMovementPatternBackfill =
+            seededMovementPatternBackfillVersion < SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
+    )
 
 /**
  * Seeds the database with default programs, exercises, alternates and supplements for a single
@@ -51,31 +70,44 @@ class Seeder @Inject constructor(
 
     suspend fun seedIfNeeded(userId: String) {
         val profile = userPrefs.profile(userId).first()
-        val firstRun = !profile.firstRunDone
-        val needsDefaultProgramRefresh = profile.defaultProgramRefreshVersion < defaultProgramRefreshVersion
+        val maintenancePlan = profile.seederMaintenancePlan()
         var defaultProgramRefreshCompleted = true
         db.withTransaction {
-            seedExercises(userId)
+            seedExercises(
+                userId = userId,
+                backfillLegacySeededMovementPatterns =
+                    maintenancePlan.needsSeededMovementPatternBackfill
+            )
             seedAlternates(userId)
             defaultProgramRefreshCompleted = seedPrograms(
                 userId = userId,
-                activateDefaultOnFirstRun = firstRun,
-                refreshExistingSeededProgram = needsDefaultProgramRefresh
+                activateDefaultOnFirstRun = maintenancePlan.firstRun,
+                refreshExistingSeededProgram = maintenancePlan.needsDefaultProgramRefresh
             )
             seedSupplements(userId)
         }
         // Re-arm any supplement reminders saved in the DB (e.g. after install on a new device or
         // after a backup-import). Boot is handled separately by SupplementBootReceiver.
         rearmReminders(userId)
-        val shouldMarkDefaultProgramRefresh = needsDefaultProgramRefresh && defaultProgramRefreshCompleted
-        if (firstRun || shouldMarkDefaultProgramRefresh) {
+        val shouldMarkDefaultProgramRefresh =
+            maintenancePlan.needsDefaultProgramRefresh && defaultProgramRefreshCompleted
+        val shouldMarkSeededMovementPatternBackfill = maintenancePlan.needsSeededMovementPatternBackfill
+        if (maintenancePlan.firstRun || shouldMarkDefaultProgramRefresh || shouldMarkSeededMovementPatternBackfill) {
             userPrefs.update(userId) {
                 it.copy(
-                    firstRunDone = it.firstRunDone || firstRun,
+                    firstRunDone = it.firstRunDone || maintenancePlan.firstRun,
                     defaultProgramRefreshVersion = if (shouldMarkDefaultProgramRefresh) {
-                        maxOf(it.defaultProgramRefreshVersion, defaultProgramRefreshVersion)
+                        maxOf(it.defaultProgramRefreshVersion, DEFAULT_PROGRAM_REFRESH_VERSION)
                     } else {
                         it.defaultProgramRefreshVersion
+                    },
+                    seededMovementPatternBackfillVersion = if (shouldMarkSeededMovementPatternBackfill) {
+                        maxOf(
+                            it.seededMovementPatternBackfillVersion,
+                            SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
+                        )
+                    } else {
+                        it.seededMovementPatternBackfillVersion
                     }
                 )
             }
@@ -87,19 +119,22 @@ class Seeder @Inject constructor(
         reminderScheduler.ensureChannel()
     }
 
-    private suspend fun seedExercises(userId: String) {
+    private suspend fun seedExercises(
+        userId: String,
+        backfillLegacySeededMovementPatterns: Boolean
+    ) {
         for (seed in ExerciseSeeds.all) {
             val seedKey = seed.exercise.seedKey!!
             val existing = exerciseDao.getBySeedKey(userId, seedKey)
             if (existing == null) {
                 exerciseDao.insert(seed.exercise.copy(userId = userId))
-            } else if (
-                existing.primaryMuscleGroup == seed.exercise.primaryMuscleGroup &&
-                existing.equipment == seed.exercise.equipment &&
-                existing.movementPattern == defaultMovementPatternFor(existing.primaryMuscleGroup) &&
-                existing.movementPattern != seed.exercise.movementPattern
-            ) {
-                exerciseDao.update(existing.copy(movementPattern = seed.exercise.movementPattern))
+            } else {
+                val normalized = existing.withSeededMovementPatternBackfill(
+                    enabled = backfillLegacySeededMovementPatterns
+                )
+                if (normalized.movementPattern != existing.movementPattern) {
+                    exerciseDao.update(normalized)
+                }
             }
         }
     }
@@ -189,13 +224,31 @@ class Seeder @Inject constructor(
             if (backfilled != program) {
                 programDao.update(backfilled)
             }
+            activateExistingDefaultOnFirstRun(userId, backfilled, planProgram, activateOnFirstRun)
             return refreshSeededProgram(userId, backfilled, planProgram)
         } else {
             val backfilled = SeededProgramRefresh.backfillSeededTemplateMetadata(program, planProgram)
             if (backfilled != program) {
                 programDao.update(backfilled)
             }
+            activateExistingDefaultOnFirstRun(userId, backfilled, planProgram, activateOnFirstRun)
             return true
+        }
+    }
+
+    private suspend fun activateExistingDefaultOnFirstRun(
+        userId: String,
+        program: Program,
+        planProgram: ProgramSeeds.PlanProgram,
+        activateOnFirstRun: Boolean
+    ) {
+        if (SeededProgramRefresh.shouldActivateExistingSeededDefaultOnFirstRun(
+                program = program,
+                planProgram = planProgram,
+                activateOnFirstRun = activateOnFirstRun
+            )
+        ) {
+            programDao.setActive(userId, program.id)
         }
     }
 
@@ -316,10 +369,6 @@ class Seeder @Inject constructor(
         }
     }
 
-    private companion object {
-        const val defaultProgramRefreshVersion = 2
-    }
-
     object SeededProgramRefresh {
         const val upperPushPullOrder = 0
         const val upperHypertrophyOrder = 3
@@ -383,6 +432,17 @@ class Seeder @Inject constructor(
                 program.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
                 planProgram.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
                 program.name == planProgram.name
+
+        fun shouldActivateExistingSeededDefaultOnFirstRun(
+            program: Program,
+            planProgram: ProgramSeeds.PlanProgram,
+            activateOnFirstRun: Boolean
+        ): Boolean =
+            activateOnFirstRun &&
+                !program.isActive &&
+                program.isTemplate &&
+                program.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
+                planProgram.seedKey == ProgramSeeds.upperLower4Day.seedKey
 
         fun backfillSeededTemplateMetadata(
             program: Program,

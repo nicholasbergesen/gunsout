@@ -105,6 +105,28 @@ class BackupThemeStyleTest {
         assertEquals(MovementPattern.PULL, decoded.toEntity("u").movementPattern)
     }
 
+    @Test fun legacySeededIsolationExerciseWithoutMovementPatternBackfillsSeedPattern() {
+        val decoded = json.decodeFromString<ExerciseBackup>(
+            """
+            {
+              "id": 1,
+              "name": "Leg Extensions",
+              "primaryMuscleGroup": "QUADS",
+              "equipment": "MACHINE",
+              "defaultRestSec": 60,
+              "isUserCreated": false,
+              "isArchived": false,
+              "seedKey": "leg_extension"
+            }
+            """.trimIndent()
+        )
+
+        assertEquals(
+            MovementPattern.ISOLATION,
+            decoded.toEntity("u", backfillLegacySeededMovementPattern = true).movementPattern
+        )
+    }
+
     @Test fun legacyProgramExerciseDefaultsToActive() {
         val decoded = json.decodeFromString<ProgramExerciseBackup>(
             """

@@ -163,6 +163,7 @@ val localJvmCoverageExclusions = listOf(
     "**/core/nav/**",
     "**/di/**",
     "**/ui/components/**",
+    "**/feature/exerciseguide/ExerciseVisualGuide*.*",
     "**/feature/**/*Screen*.*",
     "**/feature/**/*Screens*.*",
     "**/feature/**/*ViewModel*.*",
