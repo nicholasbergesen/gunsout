@@ -1,10 +1,13 @@
 package com.nicholasbergesen.gunsout.data.backup
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class BackupImportCompletionTest {
@@ -63,5 +66,22 @@ class BackupImportCompletionTest {
             "Import completed but seeded program refresh failed: refresh failed",
             (result as ImportResult.Error).message
         )
+    }
+
+    @Test
+    fun `post import refresh cancellation propagates`() = runTest {
+        val cancellation = CancellationException("import screen left")
+
+        try {
+            completeSuccessfulImportAfterSeedRefresh(
+                userId = "current-user",
+                totalRows = 1
+            ) {
+                throw cancellation
+            }
+            fail("Expected refresh cancellation to propagate")
+        } catch (error: CancellationException) {
+            assertSame(cancellation, error)
+        }
     }
 }

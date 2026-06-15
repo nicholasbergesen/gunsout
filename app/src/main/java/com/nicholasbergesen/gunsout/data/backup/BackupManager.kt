@@ -10,6 +10,7 @@ import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import com.nicholasbergesen.gunsout.data.seed.Seeder
 import com.nicholasbergesen.gunsout.ui.theme.ThemeStyle
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -316,16 +317,18 @@ internal suspend fun completeSuccessfulImportAfterSeedRefresh(
     userId: String,
     totalRows: Int,
     refreshSeededProgram: suspend (String) -> Unit
-): ImportResult =
-    runCatching { refreshSeededProgram(userId) }
-        .fold(
-            onSuccess = { ImportResult.Success(totalRows) },
-            onFailure = {
-                ImportResult.Error(
-                    "Import completed but seeded program refresh failed: ${it.message ?: it.javaClass.simpleName}"
-                )
-            }
+): ImportResult {
+    return try {
+        refreshSeededProgram(userId)
+        ImportResult.Success(totalRows)
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        ImportResult.Error(
+            "Import completed but seeded program refresh failed: ${error.message ?: error.javaClass.simpleName}"
         )
+    }
+}
 
 internal fun UserProfileBackup.toUserProfile(): UserProfile = UserProfile(
     currentBodyWeightKg = currentBodyWeightKg,
