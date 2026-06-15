@@ -108,11 +108,38 @@ interface ExerciseAlternateDao {
 
 @Dao
 interface ProgramExerciseDao {
-    @Query("SELECT * FROM program_exercise WHERE programDayId = :programDayId ORDER BY orderIndex ASC")
+    @Query("SELECT * FROM program_exercise WHERE programDayId = :programDayId AND isRetired = 0 ORDER BY orderIndex ASC")
     fun observeForDay(programDayId: Long): Flow<List<ProgramExercise>>
 
-    @Query("SELECT * FROM program_exercise WHERE programDayId = :programDayId ORDER BY orderIndex ASC")
+    @Query("SELECT * FROM program_exercise WHERE programDayId = :programDayId AND isRetired = 0 ORDER BY orderIndex ASC")
     suspend fun getForDay(programDayId: Long): List<ProgramExercise>
+
+    @Query("SELECT * FROM program_exercise WHERE programDayId = :programDayId ORDER BY orderIndex ASC")
+    suspend fun getAllForDay(programDayId: Long): List<ProgramExercise>
+
+    @Query("""
+        SELECT pe.* FROM program_exercise pe
+        WHERE pe.programDayId = :programDayId
+          AND (
+            (
+                pe.isRetired = 0 AND NOT EXISTS (
+                    SELECT 1 FROM program_exercise retired
+                    WHERE retired.programDayId = pe.programDayId
+                      AND retired.isRetired = 1
+                      AND retired.orderIndex = pe.orderIndex
+                      AND EXISTS (
+                        SELECT 1 FROM set_entry se
+                        WHERE se.sessionId = :sessionId AND se.programExerciseId = retired.id
+                      )
+                )
+            ) OR EXISTS (
+                SELECT 1 FROM set_entry se
+                WHERE se.sessionId = :sessionId AND se.programExerciseId = pe.id
+            )
+          )
+        ORDER BY pe.orderIndex ASC, pe.id ASC
+    """)
+    suspend fun getForDayIncludingSessionRetired(programDayId: Long, sessionId: Long): List<ProgramExercise>
 
     @Query("SELECT * FROM program_exercise WHERE id = :id")
     suspend fun getById(id: Long): ProgramExercise?

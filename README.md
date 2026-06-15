@@ -43,7 +43,7 @@ Identity uses the Google account `sub` (`GoogleIdTokenCredential.uniqueId`). The
 - Appearance card with six per-account visual themes: Gunmetal Crimson, Clean Light Minimal, Neo-Brutalist, Glassmorphism, Soft Pastel, and Vibrant Gradient.
 - Body weight, goal weight, height, age, sex, activity level, goal type, knee-injury caution, baseline-week override.
 - Daily Targets card with the four suggestion fields, override editing, and Reset to suggested.
-- JSON backup: export and import all of the signed-in user's data (including the DataStore profile, selected theme, and any macro overrides) via the system file picker (SAF). Import is destructive for the current user only, wrapped in a transaction, and gated by a confirmation dialog. Schema version is 6; the importer also accepts schemaVersion 1 through 5 (those legacy files are folded into the current user's data).
+- JSON backup: export and import all of the signed-in user's data (including the DataStore profile, selected theme, and any macro overrides) via the system file picker (SAF). Import is destructive for the current user only, wrapped in a transaction, and gated by a confirmation dialog. Schema version is 7; the importer also accepts schemaVersion 1 through 6 (those legacy files are folded into the current user's data).
 
 ## Visual design
 

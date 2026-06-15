@@ -22,6 +22,7 @@ import com.nicholasbergesen.gunsout.data.entity.Supplement
 import com.nicholasbergesen.gunsout.data.entity.SupplementLog
 import com.nicholasbergesen.gunsout.data.entity.SupplementUnit
 import com.nicholasbergesen.gunsout.data.entity.WorkoutSession
+import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import com.nicholasbergesen.gunsout.data.seed.SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -335,6 +336,51 @@ class BackupModelMappingTest {
         )
     }
 
+    @Test fun `active imported program marks first run done before seed refresh`() {
+        val backup = backupWithPrograms(
+            programs = listOf(programBackup(isActive = true)),
+            userProfile = profileBackup(
+                seededMovementPatternBackfillVersion = SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION,
+                firstRunDone = false
+            )
+        )
+
+        val profile = backup.userProfile!!.toUserProfile().withImportSeedState(backup)
+
+        assertEquals(1, backup.importedActiveProgramCount())
+        assertTrue(profile.firstRunDone)
+    }
+
+    @Test fun `legacy active program import without profile suppresses default activation`() {
+        val backup = backupWithPrograms(
+            programs = listOf(programBackup(isActive = true)),
+            userProfile = null
+        )
+
+        val profile = UserProfile(firstRunDone = false)
+            .copy(defaultProgramRefreshVersion = 0)
+            .withImportSeedState(backup)
+
+        assertEquals(1, backup.importedActiveProgramCount())
+        assertTrue(profile.firstRunDone)
+        assertEquals(0, profile.defaultProgramRefreshVersion)
+    }
+
+    @Test fun `inactive program import does not mark first run done`() {
+        val backup = backupWithPrograms(
+            programs = listOf(programBackup(isActive = false)),
+            userProfile = profileBackup(
+                seededMovementPatternBackfillVersion = SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION,
+                firstRunDone = false
+            )
+        )
+
+        val profile = backup.userProfile!!.toUserProfile().withImportSeedState(backup)
+
+        assertEquals(0, backup.importedActiveProgramCount())
+        assertFalse(profile.firstRunDone)
+    }
+
     @Test fun `missing movement pattern on legacy seeded isolation exercises is backfilled after fallback`() {
         val legacySeededExercises = listOf(
             exerciseBackup(
@@ -413,6 +459,38 @@ class BackupModelMappingTest {
         seedKey = seedKey
     )
 
+    private fun backupWithPrograms(
+        programs: List<ProgramBackup>,
+        userProfile: UserProfileBackup?
+    ) = GunsoutBackup(
+        schemaVersion = 6,
+        exportedAtIso = "2026-06-14T00:00:00",
+        programs = programs,
+        programDays = emptyList(),
+        exercises = emptyList(),
+        exerciseAlternates = emptyList(),
+        programExercises = emptyList(),
+        sessions = emptyList(),
+        setEntries = emptyList(),
+        mealTemplates = emptyList(),
+        foodEntries = emptyList(),
+        supplements = emptyList(),
+        supplementLogs = emptyList(),
+        bodyMetricsLogs = emptyList(),
+        userProfile = userProfile
+    )
+
+    private fun programBackup(isActive: Boolean) = ProgramBackup(
+        id = 1,
+        name = "Imported active plan",
+        type = ProgramType.CUSTOM.name,
+        notes = null,
+        isActive = isActive,
+        isTemplate = false,
+        seedKey = null,
+        createdAt = 1L
+    )
+
     private fun backupWithExercise(
         exercise: ExerciseBackup,
         seededMovementPatternBackfillVersion: Int
@@ -437,13 +515,14 @@ class BackupModelMappingTest {
     )
 
     private fun profileBackup(
-        seededMovementPatternBackfillVersion: Int
+        seededMovementPatternBackfillVersion: Int,
+        firstRunDone: Boolean = true
     ) = UserProfileBackup(
         currentBodyWeightKg = 100.0,
         goalBodyWeightKg = 80.0,
         kneeInjuryFlag = true,
         baselineWeekActive = true,
-        firstRunDone = true,
+        firstRunDone = firstRunDone,
         defaultProgramRefreshVersion = 1,
         seededMovementPatternBackfillVersion = seededMovementPatternBackfillVersion
     )

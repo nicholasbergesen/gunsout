@@ -9,6 +9,7 @@ internal enum class BodyMuscleRegion {
     SHOULDERS,
     BICEPS,
     TRICEPS,
+    FOREARMS,
     QUADS,
     HAMSTRINGS,
     GLUTES,
@@ -91,6 +92,11 @@ private fun muscleGuideFor(muscleGroup: MuscleGroup): MuscleGuide = when (muscle
         label = "Triceps",
         cue = "Lock the upper arms in place and extend through the elbow.",
         regions = setOf(BodyMuscleRegion.TRICEPS)
+    )
+    MuscleGroup.FOREARMS -> MuscleGuide(
+        label = "Forearms",
+        cue = "Keep wrists controlled and squeeze the handle without letting the elbows drift.",
+        regions = setOf(BodyMuscleRegion.FOREARMS)
     )
     MuscleGroup.QUADS -> MuscleGuide(
         label = "Quads",

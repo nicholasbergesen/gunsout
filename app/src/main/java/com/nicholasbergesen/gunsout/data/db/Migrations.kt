@@ -57,7 +57,13 @@ object Migrations {
         }
     }
 
-    val allMigrations: Array<Migration> = arrayOf(MIGRATION_4_5, MIGRATION_5_6)
+    private val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE program_exercise ADD COLUMN isRetired INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+    val allMigrations: Array<Migration> = arrayOf(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
 
     val destructiveFallbackFromVersions: IntArray = intArrayOf(1, 2, 3)
 }

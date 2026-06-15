@@ -36,6 +36,15 @@ class ExerciseGuideSpecTest {
         assertEquals(BodyMuscleRegion.entries.toSet(), other.highlightedRegions)
     }
 
+    @Test fun `forearms use dedicated target region instead of broad fallback`() {
+        val forearms = exerciseGuideSpecFor(MuscleGroup.FOREARMS, MovementPattern.ISOLATION)
+
+        assertEquals("Forearms", forearms.targetLabel)
+        assertEquals(setOf(BodyMuscleRegion.FOREARMS), forearms.highlightedRegions)
+        assertFalse(BodyMuscleRegion.entries.toSet() == forearms.highlightedRegions)
+        assertEquals(ExerciseGuideMotion.ISOLATION, forearms.motion)
+    }
+
     @Test fun `adjacent arm and leg groups do not share target regions`() {
         val biceps = exerciseGuideSpecFor(MuscleGroup.BICEPS, MovementPattern.ISOLATION)
         val triceps = exerciseGuideSpecFor(MuscleGroup.TRICEPS, MovementPattern.ISOLATION)

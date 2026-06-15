@@ -36,13 +36,14 @@ object ProgramSeeds {
 
     val upperLower4Day = PlanProgram(
         seedKey = "upper_lower_4day",
-        name = "Upper / Lower 4-Day (Free Weights)",
+        name = "Upper / Lower 4-Day",
         programType = ProgramType.UPPER_LOWER,
-        notes = "Balanced free-weight strength and hypertrophy across four weekly lifting days.",
+        notes = "Balanced strength and hypertrophy across four weekly lifting days.",
         days = listOf(
             PlanDay(0, "Upper Push/Pull", DayHint.MON, exercises = listOf(
                 PlanExercise("inc_db_bench", 3, 8, 10, 90),
                 PlanExercise("pull_ups", 5, 2, 3, 120, protocol = Protocol.PULL_UP_5X2_3),
+                PlanExercise("lat_pulldown", 3, 8, 10, 90),
                 PlanExercise("db_shoulder_press", 3, 10, 10, 60),
                 PlanExercise("db_rear_delt_fly", 3, 15, 15, 60)
             )),
@@ -58,7 +59,9 @@ object ProgramSeeds {
                 PlanExercise("flat_db_bench", 3, 10, 10, 90),
                 PlanExercise("db_lateral_raise", 4, 12, 15, 60),
                 PlanExercise("db_bicep_curl", 3, 10, 10, 60, supersetGroupId = 1),
-                PlanExercise("db_overhead_tricep", 3, 12, 12, 60, supersetGroupId = 1)
+                PlanExercise("db_overhead_tricep", 3, 12, 12, 60, supersetGroupId = 1),
+                PlanExercise("db_wrist_curl", 2, 12, 15, 45),
+                PlanExercise("db_reverse_wrist_curl", 2, 12, 15, 45)
             )),
             PlanDay(4, "Lower Posterior/Core", DayHint.FRI, exercises = listOf(
                 PlanExercise("leg_curl", 3, 10, 12, 60),

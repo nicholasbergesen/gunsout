@@ -176,6 +176,10 @@ private fun DrawScope.drawHighlights(
         thickLine(-21f, 58f, -29f, 80f)
         thickLine(21f, 58f, 29f, 80f)
     }
+    if (BodyMuscleRegion.FOREARMS in regions) {
+        thickLine(-33f, 78f, -27f, 96f)
+        thickLine(33f, 78f, 27f, 96f)
+    }
     if (BodyMuscleRegion.CORE in regions) rounded(0f, 71f, 31f, 31f)
     if (BodyMuscleRegion.GLUTES in regions) {
         oval(-9f, 91f, 22f, 17f)

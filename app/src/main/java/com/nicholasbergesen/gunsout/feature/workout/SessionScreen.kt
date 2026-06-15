@@ -29,6 +29,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.nicholasbergesen.gunsout.core.text.formatOneDecimalOrInt
 import com.nicholasbergesen.gunsout.core.text.normalizeDecimalInput
 import com.nicholasbergesen.gunsout.core.text.toNormalizedDoubleOrNull
+import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
 import com.nicholasbergesen.gunsout.data.entity.Protocol
 import com.nicholasbergesen.gunsout.domain.recommendation.RecommendationTarget
 import com.nicholasbergesen.gunsout.feature.exerciseguide.ExerciseVisualGuide
@@ -102,13 +103,8 @@ private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
                 androidx.compose.material3.TextButton(onClick = { swapOpen = true }) { Text("Swap") }
             }
         }
-        val pe = item.programExercise
-        val protocolLabel = when (pe.protocol) {
-            Protocol.PULL_UP_5X2_3 -> "5 sets x 2-3 reps (with 1 rep in reserve)"
-            Protocol.AMRAP -> "${pe.sets} sets x AMRAP"
-            Protocol.STANDARD -> "${pe.sets} sets x ${pe.repsMin}-${pe.repsMax} reps. Rest ${pe.restSec}s"
-        }
-        Text(protocolLabel, style = MaterialTheme.typography.bodySmall)
+        val prescription = item.prescription
+        Text(sessionProtocolLabel(prescription), style = MaterialTheme.typography.bodySmall)
 
         ExerciseVisualGuide(
             muscleGroup = item.exercise.primaryMuscleGroup,
@@ -128,7 +124,7 @@ private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
             Text(rec.explanation, style = MaterialTheme.typography.bodySmall)
         }
 
-        for (setIndex in 1..item.programExercise.sets) {
+        for (setIndex in sessionSetIndices(prescription)) {
             val existing = item.sets.firstOrNull { it.setIndex == setIndex }
             val recommendation = item.recommendation
             SetRow(
@@ -142,7 +138,7 @@ private fun ExerciseCard(item: PlannedExerciseUi, vm: SessionViewModel) {
                     ?.takeIf { it.target == RecommendationTarget.REPS && existing == null }
                     ?.reps,
                 onLog = { weight, reps, rpe, isWarmup ->
-                    vm.logSet(item.programExercise, item.exercise, setIndex, weight, reps, rpe, isWarmup)
+                    vm.logSet(prescription, item.exercise, setIndex, weight, reps, rpe, isWarmup)
                 }
             )
         }
@@ -206,6 +202,17 @@ private fun SwapAlternateDialog(
         dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
+
+internal fun sessionProtocolLabel(programExercise: ProgramExercise): String =
+    when (programExercise.protocol) {
+        Protocol.PULL_UP_5X2_3 -> "5 sets x 2-3 reps (with 1 rep in reserve)"
+        Protocol.AMRAP -> "${programExercise.sets} sets x AMRAP"
+        Protocol.STANDARD ->
+            "${programExercise.sets} sets x ${programExercise.repsMin}-${programExercise.repsMax} reps. Rest ${programExercise.restSec}s"
+    }
+
+internal fun sessionSetIndices(programExercise: ProgramExercise): IntRange =
+    1..programExercise.sets
 
 @Composable
 private fun SetRow(
