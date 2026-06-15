@@ -286,7 +286,7 @@ class BackupManager @Inject constructor(
                 p.toUserProfile().withImportSeedState(parsed)
             }
         } ?: userPrefs.update(userId) {
-            it.copy(defaultProgramRefreshVersion = 0).withImportSeedState(parsed)
+            it.withProfilelessImportSeedState(parsed)
         }
 
         // Reset overrides first so an old v1/v2 import (with no macroOverrides field) clears any
@@ -369,6 +369,12 @@ internal fun UserProfile.withImportSeedState(backup: GunsoutBackup): UserProfile
             backup.seededMovementPatternBackfillVersionAfterImport()
         )
     )
+
+internal fun UserProfile.withProfilelessImportSeedState(backup: GunsoutBackup): UserProfile =
+    copy(
+        firstRunDone = backup.importedActiveProgramCount() > 0,
+        defaultProgramRefreshVersion = 0
+    ).withImportSeedState(backup)
 
 internal fun GunsoutBackup.importedActiveProgramCount(): Int =
     programs.count { it.isActive }

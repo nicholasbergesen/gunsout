@@ -224,13 +224,31 @@ class Seeder @Inject constructor(
             if (backfilled != program) {
                 programDao.update(backfilled)
             }
+            activateExistingDefaultOnFirstRun(userId, backfilled, planProgram, activateOnFirstRun)
             return refreshSeededProgram(userId, backfilled, planProgram)
         } else {
             val backfilled = SeededProgramRefresh.backfillSeededTemplateMetadata(program, planProgram)
             if (backfilled != program) {
                 programDao.update(backfilled)
             }
+            activateExistingDefaultOnFirstRun(userId, backfilled, planProgram, activateOnFirstRun)
             return true
+        }
+    }
+
+    private suspend fun activateExistingDefaultOnFirstRun(
+        userId: String,
+        program: Program,
+        planProgram: ProgramSeeds.PlanProgram,
+        activateOnFirstRun: Boolean
+    ) {
+        if (SeededProgramRefresh.shouldActivateExistingSeededDefaultOnFirstRun(
+                program = program,
+                planProgram = planProgram,
+                activateOnFirstRun = activateOnFirstRun
+            )
+        ) {
+            programDao.setActive(userId, program.id)
         }
     }
 
@@ -414,6 +432,17 @@ class Seeder @Inject constructor(
                 program.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
                 planProgram.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
                 program.name == planProgram.name
+
+        fun shouldActivateExistingSeededDefaultOnFirstRun(
+            program: Program,
+            planProgram: ProgramSeeds.PlanProgram,
+            activateOnFirstRun: Boolean
+        ): Boolean =
+            activateOnFirstRun &&
+                !program.isActive &&
+                program.isTemplate &&
+                program.seedKey == ProgramSeeds.upperLower4Day.seedKey &&
+                planProgram.seedKey == ProgramSeeds.upperLower4Day.seedKey
 
         fun backfillSeededTemplateMetadata(
             program: Program,

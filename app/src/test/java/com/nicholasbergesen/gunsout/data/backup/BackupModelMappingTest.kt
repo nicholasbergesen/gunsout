@@ -358,11 +358,24 @@ class BackupModelMappingTest {
         )
 
         val profile = UserProfile(firstRunDone = false)
-            .copy(defaultProgramRefreshVersion = 0)
-            .withImportSeedState(backup)
+            .withProfilelessImportSeedState(backup)
 
         assertEquals(1, backup.importedActiveProgramCount())
         assertTrue(profile.firstRunDone)
+        assertEquals(0, profile.defaultProgramRefreshVersion)
+    }
+
+    @Test fun `legacy inactive program import without profile resets stale first run state`() {
+        val backup = backupWithPrograms(
+            programs = listOf(programBackup(isActive = false)),
+            userProfile = null
+        )
+
+        val profile = UserProfile(firstRunDone = true, defaultProgramRefreshVersion = 2)
+            .withProfilelessImportSeedState(backup)
+
+        assertEquals(0, backup.importedActiveProgramCount())
+        assertFalse(profile.firstRunDone)
         assertEquals(0, profile.defaultProgramRefreshVersion)
     }
 

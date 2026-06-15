@@ -189,6 +189,59 @@ class ProgramSeedsTest {
         ))
     }
 
+    @Test fun `first run activates existing inactive default template`() {
+        val inactiveDefault = Program(
+            userId = "u",
+            name = ProgramSeeds.upperLower4Day.name,
+            isActive = false,
+            isTemplate = true,
+            seedKey = ProgramSeeds.upperLower4Day.seedKey
+        )
+
+        assertTrue(Seeder.SeededProgramRefresh.shouldActivateExistingSeededDefaultOnFirstRun(
+            program = inactiveDefault,
+            planProgram = ProgramSeeds.upperLower4Day,
+            activateOnFirstRun = true
+        ))
+    }
+
+    @Test fun `first run activation does not over apply to adjacent templates`() {
+        val inactiveDefault = Program(
+            userId = "u",
+            name = ProgramSeeds.upperLower4Day.name,
+            isActive = false,
+            isTemplate = true,
+            seedKey = ProgramSeeds.upperLower4Day.seedKey
+        )
+        val activeDefault = inactiveDefault.copy(isActive = true)
+        val customDefault = inactiveDefault.copy(isTemplate = false)
+        val otherTemplate = inactiveDefault.copy(
+            name = ProgramSeeds.runnerStrength2Day.name,
+            seedKey = ProgramSeeds.runnerStrength2Day.seedKey
+        )
+
+        assertFalse(Seeder.SeededProgramRefresh.shouldActivateExistingSeededDefaultOnFirstRun(
+            program = activeDefault,
+            planProgram = ProgramSeeds.upperLower4Day,
+            activateOnFirstRun = true
+        ))
+        assertFalse(Seeder.SeededProgramRefresh.shouldActivateExistingSeededDefaultOnFirstRun(
+            program = customDefault,
+            planProgram = ProgramSeeds.upperLower4Day,
+            activateOnFirstRun = true
+        ))
+        assertFalse(Seeder.SeededProgramRefresh.shouldActivateExistingSeededDefaultOnFirstRun(
+            program = otherTemplate,
+            planProgram = ProgramSeeds.runnerStrength2Day,
+            activateOnFirstRun = true
+        ))
+        assertFalse(Seeder.SeededProgramRefresh.shouldActivateExistingSeededDefaultOnFirstRun(
+            program = inactiveDefault,
+            planProgram = ProgramSeeds.upperLower4Day,
+            activateOnFirstRun = false
+        ))
+    }
+
     @Test fun `seeded template metadata backfill preserves existing notes`() {
         val legacyProgram = Program(
             userId = "u",
