@@ -8,7 +8,9 @@ import com.nicholasbergesen.gunsout.data.prefs.Sex
 import com.nicholasbergesen.gunsout.data.prefs.TrainingExperience
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
+import com.nicholasbergesen.gunsout.data.seed.Seeder
 import com.nicholasbergesen.gunsout.ui.theme.ThemeStyle
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -20,7 +22,8 @@ import javax.inject.Singleton
 @Singleton
 class BackupManager @Inject constructor(
     private val db: GunsoutDatabase,
-    private val userPrefs: UserPreferences
+    private val userPrefs: UserPreferences,
+    private val seeder: Seeder
 ) {
     // ignoreUnknownKeys lets legacy v1/v2 files import cleanly: their dropped fields
     // (mealPlans, ingredients, mealTemplateIngredients, macroSource, mealPlanId) are skipped
@@ -39,7 +42,7 @@ class BackupManager @Inject constructor(
         // Full list of alternate links for this user, including the reason, for lossless round-trip.
         val alternates = db.exerciseAlternateDao().getAll(userId).map { it.toBackup() }
 
-        val programExercises = days.flatMap { day -> db.programExerciseDao().getForDay(day.id).map { it.toBackup() } }
+        val programExercises = days.flatMap { day -> db.programExerciseDao().getAllForDay(day.id).map { it.toBackup() } }
 
         val sessions = db.workoutSessionDao().observeAll(userId).first().map { it.toBackup() }
         val setEntries = sessions.flatMap { db.setEntryDao().getForSession(it.id).map { it.toBackup() } }
@@ -83,7 +86,7 @@ class BackupManager @Inject constructor(
         )
 
         val backup = GunsoutBackup(
-            schemaVersion = 6,
+            schemaVersion = 7,
             exportedAtIso = LocalDateTime.now().toString(),
             programs = programs,
             programDays = days,
@@ -118,13 +121,13 @@ class BackupManager @Inject constructor(
      *
      * Accepts schemaVersion 1 (no userProfile), 2 (single-user profile, no macro overrides),
      * 3 (per-user profile fields plus macro overrides), 4 (themeStyle), 5 (water liters),
-     * and 6 (strength profile setup and movement pattern).
+     * 6 (strength profile setup and movement pattern), and 7 (retired program exercises).
      */
     suspend fun importFromJson(userId: String, jsonText: String): ImportResult = withContext(Dispatchers.IO) {
         val parsed = runCatching { json.decodeFromString(GunsoutBackup.serializer(), jsonText) }
             .getOrElse { return@withContext ImportResult.Error(it.message ?: "Parse failed") }
 
-        if (parsed.schemaVersion !in 1..6) {
+        if (parsed.schemaVersion !in 1..7) {
             return@withContext ImportResult.Error("Unsupported backup schema v${parsed.schemaVersion}")
         }
 
@@ -291,12 +294,10 @@ class BackupManager @Inject constructor(
             }
         }
 
-        ImportResult.Success(
-            totalRows = parsed.programs.size + parsed.programDays.size + parsed.exercises.size +
-                parsed.programExercises.size + parsed.sessions.size + parsed.setEntries.size +
-                parsed.mealTemplates.size +
-                parsed.foodEntries.size + parsed.supplements.size + parsed.supplementLogs.size +
-                parsed.bodyMetricsLogs.size
+        completeSuccessfulImportAfterSeedRefresh(
+            userId = userId,
+            totalRows = parsed.importRowCount(),
+            refreshSeededProgram = seeder::seedIfNeeded
         )
     }
 }
@@ -304,6 +305,29 @@ class BackupManager @Inject constructor(
 sealed class ImportResult {
     data class Success(val totalRows: Int) : ImportResult()
     data class Error(val message: String) : ImportResult()
+}
+
+internal fun GunsoutBackup.importRowCount(): Int =
+    programs.size + programDays.size + exercises.size +
+        programExercises.size + sessions.size + setEntries.size +
+        mealTemplates.size + foodEntries.size + supplements.size + supplementLogs.size +
+        bodyMetricsLogs.size
+
+internal suspend fun completeSuccessfulImportAfterSeedRefresh(
+    userId: String,
+    totalRows: Int,
+    refreshSeededProgram: suspend (String) -> Unit
+): ImportResult {
+    return try {
+        refreshSeededProgram(userId)
+        ImportResult.Success(totalRows)
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        ImportResult.Error(
+            "Import completed but seeded program refresh failed: ${error.message ?: error.javaClass.simpleName}"
+        )
+    }
 }
 
 internal fun UserProfileBackup.toUserProfile(): UserProfile = UserProfile(

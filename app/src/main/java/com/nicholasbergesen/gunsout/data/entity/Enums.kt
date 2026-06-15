@@ -2,13 +2,14 @@ package com.nicholasbergesen.gunsout.data.entity
 
 enum class Equipment { DUMBBELL, BARBELL, MACHINE, BODYWEIGHT, BENCH, CABLE, OTHER }
 
-enum class MuscleGroup { CHEST, BACK, SHOULDERS, BICEPS, TRICEPS, QUADS, HAMSTRINGS, GLUTES, CALVES, CORE, FULL_BODY, OTHER }
+enum class MuscleGroup { CHEST, BACK, SHOULDERS, BICEPS, TRICEPS, FOREARMS, QUADS, HAMSTRINGS, GLUTES, CALVES, CORE, FULL_BODY, OTHER }
 
 enum class MovementPattern { PUSH, PULL, SQUAT, HINGE, LUNGE, ISOLATION, CALVES, CORE }
 
 fun defaultMovementPatternFor(muscleGroup: MuscleGroup): MovementPattern = when (muscleGroup) {
     MuscleGroup.CHEST, MuscleGroup.SHOULDERS, MuscleGroup.TRICEPS -> MovementPattern.PUSH
     MuscleGroup.BACK, MuscleGroup.BICEPS -> MovementPattern.PULL
+    MuscleGroup.FOREARMS -> MovementPattern.ISOLATION
     MuscleGroup.QUADS -> MovementPattern.SQUAT
     MuscleGroup.HAMSTRINGS, MuscleGroup.GLUTES -> MovementPattern.HINGE
     MuscleGroup.CALVES -> MovementPattern.CALVES

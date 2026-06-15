@@ -70,7 +70,7 @@ data class MacroOverridesBackup(
 @Serializable data class ProgramDayBackup(val id: Long, val programId: Long, val orderIndex: Int, val label: String, val preferredDayOfWeek: String? = null, val isRest: Boolean)
 @Serializable data class ExerciseBackup(val id: Long, val name: String, val primaryMuscleGroup: String, val equipment: String, val movementPattern: String? = null, val formNotes: String? = null, val defaultRestSec: Int, val baselineNote: String? = null, val isUserCreated: Boolean, val isArchived: Boolean, val seedKey: String? = null)
 @Serializable data class ExerciseAlternateBackup(val exerciseId: Long, val alternateExerciseId: Long, val reason: String)
-@Serializable data class ProgramExerciseBackup(val id: Long, val programDayId: Long, val orderIndex: Int, val exerciseId: Long, val sets: Int, val repsMin: Int, val repsMax: Int, val restSec: Int, val rpeTarget: Int? = null, val supersetGroupId: Int? = null, val protocol: String)
+@Serializable data class ProgramExerciseBackup(val id: Long, val programDayId: Long, val orderIndex: Int, val exerciseId: Long, val sets: Int, val repsMin: Int, val repsMax: Int, val restSec: Int, val rpeTarget: Int? = null, val supersetGroupId: Int? = null, val protocol: String, val isRetired: Boolean = false)
 @Serializable data class WorkoutSessionBackup(val id: Long, val date: String, val programDayId: Long? = null, val programDayLabelSnapshot: String, val status: String, val notes: String? = null, val kneeFeel: Int? = null, val startedAt: String, val completedAt: String? = null)
 @Serializable data class SetEntryBackup(val id: Long, val sessionId: Long, val programExerciseId: Long? = null, val exerciseIdSnapshot: Long, val exerciseNameSnapshot: String, val setIndex: Int, val weightKg: Double? = null, val reps: Int? = null, val rpe: Int? = null, val isWarmup: Boolean, val completedAt: String? = null)
 @Serializable data class MealTemplateBackup(val id: Long, val name: String, val mealType: String, val kcal: Int, val proteinG: Double, val carbsG: Double, val fatG: Double, val notes: String? = null, val seedKey: String? = null)
@@ -109,11 +109,12 @@ fun ExerciseAlternateBackup.toEntity(userId: String) = ExerciseAlternate(
     reason = com.nicholasbergesen.gunsout.data.entity.AlternateReason.valueOf(reason)
 )
 
-fun ProgramExercise.toBackup() = ProgramExerciseBackup(id, programDayId, orderIndex, exerciseId, sets, repsMin, repsMax, restSec, rpeTarget, supersetGroupId, protocol.name)
+fun ProgramExercise.toBackup() = ProgramExerciseBackup(id, programDayId, orderIndex, exerciseId, sets, repsMin, repsMax, restSec, rpeTarget, supersetGroupId, protocol.name, isRetired)
 fun ProgramExerciseBackup.toEntity(userId: String) = ProgramExercise(
     id = id, userId = userId, programDayId = programDayId, orderIndex = orderIndex, exerciseId = exerciseId,
     sets = sets, repsMin = repsMin, repsMax = repsMax, restSec = restSec, rpeTarget = rpeTarget,
-    supersetGroupId = supersetGroupId, protocol = com.nicholasbergesen.gunsout.data.entity.Protocol.valueOf(protocol)
+    supersetGroupId = supersetGroupId, protocol = com.nicholasbergesen.gunsout.data.entity.Protocol.valueOf(protocol),
+    isRetired = isRetired
 )
 
 fun WorkoutSession.toBackup() = WorkoutSessionBackup(id, date.toString(), programDayId, programDayLabelSnapshot, status.name, notes, kneeFeel, startedAt.toString(), completedAt?.toString())

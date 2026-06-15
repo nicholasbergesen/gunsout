@@ -67,6 +67,8 @@ object ExerciseFormulaCatalog {
         weighted("db_lateral_raise", 0.05, 2.0, 1.0, progressionStepKg = 1.0),
         weighted("db_bicep_curl", 0.08, 3.0, 1.0, progressionStepKg = 1.0),
         weighted("db_overhead_tricep", 0.12, 5.0, 1.0),
+        weighted("db_wrist_curl", 0.04, 2.0, 1.0, progressionStepKg = 1.0),
+        weighted("db_reverse_wrist_curl", 0.03, 1.0, 1.0, progressionStepKg = 1.0),
         weighted("leg_curl", 0.22, 10.0, 5.0),
         weighted("db_lying_leg_curl", 0.07, 3.0, 1.0, progressionStepKg = 1.0),
         weighted("goblet_squat", 0.18, 6.0, 2.0),

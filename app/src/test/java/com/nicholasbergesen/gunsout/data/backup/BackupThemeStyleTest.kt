@@ -37,7 +37,7 @@ class BackupThemeStyleTest {
     @Test fun backupJson_encodesSchemaVersionAndThemeStyle() {
         val encoded = json.encodeToString(emptyBackup(ThemeStyle.SOFT_PASTEL))
 
-        assertTrue(encoded.contains("\"schemaVersion\":6"))
+        assertTrue(encoded.contains("\"schemaVersion\":7"))
         assertTrue(encoded.contains("\"themeStyle\":\"SOFT_PASTEL\""))
         assertFalse(encoded.contains("\"themeMode\""))
     }
@@ -105,6 +105,26 @@ class BackupThemeStyleTest {
         assertEquals(MovementPattern.PULL, decoded.toEntity("u").movementPattern)
     }
 
+    @Test fun legacyProgramExerciseDefaultsToActive() {
+        val decoded = json.decodeFromString<ProgramExerciseBackup>(
+            """
+            {
+              "id": 1,
+              "programDayId": 2,
+              "orderIndex": 0,
+              "exerciseId": 3,
+              "sets": 3,
+              "repsMin": 8,
+              "repsMax": 10,
+              "restSec": 90,
+              "protocol": "STANDARD"
+            }
+            """.trimIndent()
+        )
+
+        assertFalse(decoded.toEntity("u").isRetired)
+    }
+
     @Test fun legacyBodyMetricsWaterPercentRestoresAsLiters() {
         val restored = BodyMetricsLogBackup(
             id = 1,
@@ -117,7 +137,7 @@ class BackupThemeStyleTest {
     }
 
     private fun emptyBackup(themeStyle: ThemeStyle) = GunsoutBackup(
-        schemaVersion = 6,
+        schemaVersion = 7,
         exportedAtIso = "2026-05-30T00:00:00Z",
         programs = emptyList(),
         programDays = emptyList(),

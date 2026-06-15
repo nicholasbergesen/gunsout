@@ -118,5 +118,7 @@ data class ProgramExercise(
     val restSec: Int = 90,
     val rpeTarget: Int? = null,
     val supersetGroupId: Int? = null,
-    val protocol: Protocol = Protocol.STANDARD
+    val protocol: Protocol = Protocol.STANDARD,
+    @ColumnInfo(defaultValue = "0")
+    val isRetired: Boolean = false
 )
