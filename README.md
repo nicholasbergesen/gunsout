@@ -119,7 +119,7 @@ The keystore is a debug keystore (not a release signing key), uses the conventio
 ./gradlew :app:testDebugUnitTest
 ```
 
-Unit tests cover the progression engine, schedule resolver (including the marked-rest-day rotation edge case), independent calorie/protein target calculations, protein history ranges and missing-data semantics, protein and creatine repositories, kcal-trend analysis, baseline-week resolution, theme token mapping, and backup compatibility. `Migration7To8Test` validates the Room nutrition conversion as an Android instrumentation test.
+Unit tests cover the progression engine, schedule resolver (including the marked-rest-day rotation edge case), independent calorie/protein target calculations, protein history ranges and missing-data semantics, protein and creatine repositories, kcal-trend analysis, baseline-week resolution, theme token mapping, and backup compatibility. `Migration7To8Test` runs under Robolectric with AndroidX's bundled SQLite driver, executes the real migration, and validates the result against Room's exported v8 schema without requiring an emulator.
 
 ## Notes
 
