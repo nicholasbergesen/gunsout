@@ -1,10 +1,10 @@
 # Gunsout
 
-Personal Android app for diet, workout, and body tracking. Now multi-user via Google Sign-In, with each Google account on the device getting its own fully isolated local data set. No cloud sync. Built for body-recomposition programs (Nicholas: ~100 kg towards ~80 kg, preserving muscle, recovering from a right knee injury, climbing background).
+Personal Android app for workout, nutrition, creatine, and body tracking. Now multi-user via Google Sign-In, with each Google account on the device getting its own fully isolated local data set. No cloud sync. Built for body-recomposition programs (Nicholas: ~100 kg towards ~80 kg, preserving muscle, recovering from a right knee injury, climbing background).
 
 ## Multi-user offline
 
-Each Google account that signs in on the device gets its own copy of the program, exercise library, supplements, body log, food entries, and DataStore profile. Signing in as another Google account on the same phone starts fresh and never sees the previous user's rows. There is no cloud component and no cross-user sharing. Reminders are scoped to the currently signed-in user, cancelled on sign-out, and re-armed after sign-in or boot.
+Each Google account that signs in on the device gets its own copy of the program, exercise library, protein log, creatine settings and checks, body log, and DataStore profile. Signing in as another Google account on the same phone starts fresh and never sees the previous user's rows. There is no cloud component and no cross-user sharing. Reminders are scoped to the currently signed-in user, cancelled on sign-out, and re-armed after sign-in or boot.
 
 Identity uses the Google account `sub` (`GoogleIdTokenCredential.uniqueId`). The auth flow uses Android's Credential Manager; the bottom of `SettingsScreen` carries the signed-in user's email/display name plus a Sign out button.
 
@@ -18,17 +18,13 @@ Identity uses the Google account `sub` (`GoogleIdTokenCredential.uniqueId`). The
 - Exercise library: browse by muscle group, create custom exercises, edit form notes and default rest. Each exercise edit screen also shows a top-working-set weight history chart.
 - Session history: dedicated screen listing completed sessions chronologically; tap through for a per-set summary. Settings can export completed workout and rest sessions as lightweight JSON for external analysis.
 
-**Diet (simplified)**
-- Meals are entered directly as name + macros + kcal (e.g. "burger, 30P / 40C / 25F / 500 kcal"). The ingredient catalog and CalorieNinjas lookup are gone; nothing is composed from raw ingredients anymore.
-- Daily targets are computed locally from the user profile using Mifflin-St Jeor BMR + an activity multiplier + a goal delta (CUT / MAINTAIN / BULK). The Settings screen lets you edit age, sex, height, activity level, and goal, then either accept the suggested daily targets or override any of kcal / protein / carbs / fat. A "Reset to suggested" button clears all four overrides.
-- Quick-log templates with a long-press fraction picker (0.5x / 1x / 1.5x / 2x).
-- An "Add meal" bottom sheet logs a one-off meal in five fields with an optional "Save as template" checkbox (defaults off).
-- Editable food entries with confirmation-gated delete and Snackbar undo.
+**Nutrition**
+- Today's protein card tracks positive whole grams against a recommended target of 2.0 g/kg goal body weight. A protein-only manual override remains available in Settings.
+- Protein entries require grams and accept an optional meal label. Today's entries are newest-first, editable, and immediately deletable with Snackbar undo.
+- A rolling history chart offers 1-week, 1-month, and 1-year ranges. Daily bars keep missing days as gaps; yearly bars show average grams across logged days. Per-day target snapshots keep old results tied to the target that applied at the time.
+- Creatine is a reversible daily check with a configurable whole-gram dose (5 g default) and reminder time. The reminder persists across reboot and is suppressed if today's check already exists.
+- Calorie guidance remains separate from intake logging: Settings and Body retain the Mifflin-St Jeor target and trend-based adjustment, but Nutrition does not ask for or total consumed calories.
 - Date rolls over at midnight automatically and on app resume.
-
-**Supplements**
-- Creatine monohydrate 5 g/day seeded per user and active. One-tap "Mark taken" on the Diet dashboard, daily idempotency, taken-state visible.
-- Daily reminder time per supplement (Material 3 time picker) backed by `AlarmManager.setInexactRepeating`. Reminders persist across reboot via a boot receiver and are scoped to the currently signed-in user.
 
 **Body**
 - Composition log with weight required; body fat %, muscle mass kg, water liters, and visceral fat rating all optional. Upsert by date so a same-day update merges rather than duplicating.
@@ -42,8 +38,8 @@ Identity uses the Google account `sub` (`GoogleIdTokenCredential.uniqueId`). The
 - Account card (email + display name + Sign out) at the top.
 - Appearance card with six per-account visual themes: Gunmetal Crimson, Clean Light Minimal, Neo-Brutalist, Glassmorphism, Soft Pastel, and Vibrant Gradient.
 - Body weight, goal weight, height, age, sex, activity level, goal type, knee-injury caution, baseline-week override.
-- Daily Targets card with the four suggestion fields, override editing, and Reset to suggested.
-- JSON backup: export and import all of the signed-in user's data (including the DataStore profile, selected theme, and any macro overrides) via the system file picker (SAF). Import is destructive for the current user only, wrapped in a transaction, and gated by a confirmation dialog. Schema version is 7; the importer also accepts schemaVersion 1 through 6 (those legacy files are folded into the current user's data).
+- Guidance Targets card with independent kcal and protein suggestions, override editing, and Reset to suggested.
+- JSON backup: export and import all of the signed-in user's data (including protein history, historical targets, creatine, profile, theme, and kcal/protein overrides) via the system file picker (SAF). Import is destructive for the current user only, wrapped in a transaction, and gated by a confirmation dialog. Schema version is 8; the importer also accepts schemaVersion 1 through 7.
 
 ## Visual design
 
@@ -52,7 +48,7 @@ Theme selection replaces the old light/dark/system toggle. Each signed-in accoun
 ## Tech
 
 - Kotlin 2.x, Jetpack Compose, Material 3, MVVM with Hilt, Room 2.8.x (with versioned migrations and a checked-in schema export), DataStore, OkHttp + kotlinx-serialization, Navigation-Compose. AGP 9.x. minSdk 26, compileSdk 37, target 36.
-- Pure-Kotlin domain modules under `com.nicholasbergesen.gunsout.domain`: `ScheduleResolver`, `MacroTargetCalculator`, `ProgressionEngine`, `KcalTrendAnalyzer`. Fully unit-tested.
+- Pure-Kotlin domain modules under `com.nicholasbergesen.gunsout.domain`: `ScheduleResolver`, `CalorieTargetCalculator`, `ProteinTargetCalculator`, `ProteinHistory`, `ProgressionEngine`, and `KcalTrendAnalyzer`. Fully unit-tested.
 - Foreground service `RestTimerService` (SPECIAL_USE foreground service type) for the rest timer between sets so it survives screen sleep.
 - Credential Manager + Google Identity for sign-in.
 
@@ -86,7 +82,13 @@ Every push to `main` builds a debug-signed APK and publishes it to the [`latest`
 
 The upgrade from any v1 or v2 single-user build wipes the on-device Room database and re-seeds defaults under the first Google account that signs in. The pre-multi-user build had no concept of user identity, so it was not possible to assign legacy rows to a meaningful account. Export your data via Settings -> Export JSON before upgrading if you want to keep it; you can re-import the file after signing in. The destructive fallback is gated to versions 1, 2, and 3 only, so any later v4 -> v5 schema bump will fail loudly if a migration is missing instead of silently wiping again.
 
-The ingredient catalog and `MealPlan` entity are gone. Legacy backup files (schemaVersion 1 or 2) import cleanly because the dropped fields (`mealPlans`, `ingredients`, `mealTemplateIngredients`, `macroSource`, `mealPlanId`) are skipped silently. Meal-plan-based daily targets do not carry forward into the new manual-override fields; users who relied on a meal plan need to set kcal and macro overrides manually in Settings after importing. `FROM_INGREDIENTS` template macros are not recomputed from their (now-gone) ingredient joins; they import as whatever kcal/macros were already written to the template row at export time.
+The ingredient catalog and `MealPlan` entity are gone. Legacy backup files (schemaVersion 1 or 2) import cleanly because dropped fields (`mealPlans`, `ingredients`, `mealTemplateIngredients`, `macroSource`, `mealPlanId`) are skipped. Meal-plan targets do not carry forward; set kcal or protein guidance overrides manually after importing. Legacy food rows use the protein value already serialized in each row rather than recomputing anything from removed ingredient joins.
+
+### Upgrading to protein-first nutrition
+
+Room v7 upgrades non-destructively to v8. Existing food entries with positive protein become whole-gram protein entries while preserving date, name, and logged time. Meal templates and non-creatine supplements are discarded. The seeded `creatine_mono` dose, reminder, and checks migrate; historical protein targets remain unknown because earlier versions did not store target snapshots.
+
+Backup imports use the same conversion for schemaVersion 1 through 7. Kcal and protein overrides carry forward independently; legacy carb and fat overrides are ignored.
 
 ### Sideload-friendly updates
 
@@ -117,7 +119,7 @@ The keystore is a debug keystore (not a release signing key), uses the conventio
 ./gradlew :app:testDebugUnitTest
 ```
 
-Unit tests cover the progression engine, schedule resolver (including the marked-rest-day rotation edge case), the new `MacroTargetCalculator` (canonical profiles, null and out-of-range inputs, activity and goal deltas, kcal floor at 1200, override-merge semantics), kcal-trend analyzer (linear regression robust to a single noisy weigh-in), baseline-week resolver (first 7 days from program activation), theme token mapping, and backup theme-style compatibility.
+Unit tests cover the progression engine, schedule resolver (including the marked-rest-day rotation edge case), independent calorie/protein target calculations, protein history ranges and missing-data semantics, protein and creatine repositories, kcal-trend analysis, baseline-week resolution, theme token mapping, and backup compatibility. `Migration7To8Test` validates the Room nutrition conversion as an Android instrumentation test.
 
 ## Notes
 

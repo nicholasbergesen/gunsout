@@ -89,9 +89,7 @@ fun NutritionScreen(
             TodayProteinCard(
                 state = state,
                 onAdd = { grams, label ->
-                    scope.launch {
-                        vm.addProtein(grams, label)
-                    }
+                    vm.addProtein(grams, label)
                 },
                 onEdit = { editingEntry = it },
                 onOpenSettings = onOpenSettings
@@ -121,14 +119,20 @@ fun NutritionScreen(
             onDismiss = { editingEntry = null },
             onSave = { grams, label ->
                 scope.launch {
-                    vm.updateEntry(entry.id, grams, label)
-                    editingEntry = null
+                    if (vm.updateEntry(entry.id, grams, label)) {
+                        editingEntry = null
+                    } else {
+                        snackbarHostState.showSnackbar("Protein entry no longer exists.")
+                    }
                 }
             },
             onDelete = {
                 editingEntry = null
                 scope.launch {
-                    if (!vm.deleteEntry(entry.id)) return@launch
+                    if (!vm.deleteEntry(entry.id)) {
+                        snackbarHostState.showSnackbar("Protein entry no longer exists.")
+                        return@launch
+                    }
                     val result = snackbarHostState.showSnackbar(
                         message = "Deleted ${entry.label ?: "protein entry"}",
                         actionLabel = "Undo",
@@ -161,10 +165,11 @@ fun NutritionScreen(
 @Composable
 private fun TodayProteinCard(
     state: NutritionUiState,
-    onAdd: (Int, String?) -> Unit,
+    onAdd: suspend (Int, String?) -> Unit,
     onEdit: (ProteinEntry) -> Unit,
     onOpenSettings: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
     var gramsInput by remember(state.today) { mutableStateOf("") }
     var labelInput by remember(state.today) { mutableStateOf("") }
     val parsedGrams = gramsInput.toIntOrNull()
@@ -234,9 +239,11 @@ private fun TodayProteinCard(
         Button(
             enabled = parsedGrams != null && parsedGrams > 0,
             onClick = {
-                onAdd(parsedGrams!!, labelInput)
-                gramsInput = ""
-                labelInput = ""
+                scope.launch {
+                    onAdd(parsedGrams!!, labelInput)
+                    gramsInput = ""
+                    labelInput = ""
+                }
             },
             modifier = Modifier.fillMaxWidth()
         ) {

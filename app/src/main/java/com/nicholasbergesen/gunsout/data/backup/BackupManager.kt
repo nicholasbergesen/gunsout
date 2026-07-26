@@ -135,6 +135,9 @@ class BackupManager @Inject constructor(
         if (parsed.schemaVersion !in 1..8) {
             return@withContext ImportResult.Error("Unsupported backup schema v${parsed.schemaVersion}")
         }
+        parsed.nutritionValidationError()?.let { message ->
+            return@withContext ImportResult.Error("Invalid nutrition backup: $message")
+        }
 
         val backfillImportedSeededMovementPatterns =
             parsed.needsImportedSeededMovementPatternBackfill()
@@ -310,12 +313,65 @@ private fun GunsoutBackup.retainedNutritionRowCount(): Int {
         return proteinEntries.size + proteinTargetSnapshots.size +
             (if (creatineSettings == null) 0 else 1) + creatineChecks.size
     }
+
     val creatineIds = supplements
         .filter { it.seedKey == LEGACY_CREATINE_SEED_KEY && it.unit == "G" }
         .mapTo(mutableSetOf(), SupplementBackup::id)
     return foodEntries.count { it.proteinG.isFinite() && it.proteinG > 0.0 } +
         (if (creatineIds.isEmpty()) 0 else 1) +
         supplementLogs.count { it.supplementId in creatineIds && it.unit == "G" }
+}
+
+internal fun GunsoutBackup.nutritionValidationError(): String? {
+    if (schemaVersion < 8) return null
+    if (proteinEntries.any { it.grams <= 0 }) return "protein grams must be positive"
+    if (proteinEntries.any { runCatching { java.time.LocalDate.parse(it.date) }.isFailure }) {
+        return "protein entry date is invalid"
+    }
+    if (proteinTargetSnapshots.any { it.targetGrams <= 0 }) {
+        return "protein targets must be positive"
+    }
+    if (
+        proteinTargetSnapshots.any {
+            runCatching { java.time.LocalDate.parse(it.date) }.isFailure
+        }
+    ) {
+        return "protein target date is invalid"
+    }
+    if (proteinTargetSnapshots.map { it.date }.distinct().size != proteinTargetSnapshots.size) {
+        return "protein target dates must be unique"
+    }
+    creatineSettings?.let { settings ->
+        if (settings.doseGrams <= 0) return "creatine dose must be positive"
+        if (
+            settings.reminderTime != null &&
+            runCatching { java.time.LocalTime.parse(settings.reminderTime) }.isFailure
+        ) {
+            return "creatine reminder time is invalid"
+        }
+    }
+    if (creatineChecks.any { it.doseGrams <= 0 }) return "creatine check doses must be positive"
+    if (creatineChecks.map { it.date }.distinct().size != creatineChecks.size) {
+        return "creatine check dates must be unique"
+    }
+    if (
+        creatineChecks.any {
+            runCatching {
+                java.time.LocalDate.parse(it.date)
+                java.time.LocalDateTime.parse(it.takenAt)
+            }.isFailure
+        }
+    ) {
+        return "creatine check date or time is invalid"
+    }
+    val overrides = targetOverrides
+    if (overrides?.kcal != null && overrides.kcal <= 0) {
+        return "kcal override must be positive"
+    }
+    if (overrides?.proteinG != null && overrides.proteinG <= 0) {
+        return "protein override must be positive"
+    }
+    return null
 }
 
 internal fun GunsoutBackup.proteinEntriesForImport(userId: String) =
@@ -327,7 +383,11 @@ internal fun GunsoutBackup.proteinEntriesForImport(userId: String) =
 
 internal fun GunsoutBackup.proteinTargetSnapshotsForImport(userId: String) =
     if (schemaVersion >= 8) {
-        proteinTargetSnapshots.map { it.toEntity(userId) }
+        proteinTargetSnapshots.map { it.toEntity(userId) }.also { snapshots ->
+            require(snapshots.map { it.date }.distinct().size == snapshots.size) {
+                "Backup contains duplicate protein target snapshot dates"
+            }
+        }
     } else {
         emptyList()
     }
@@ -343,7 +403,11 @@ internal fun GunsoutBackup.creatineSettingsForImport(userId: String): CreatineSe
 
 internal fun GunsoutBackup.creatineChecksForImport(userId: String) =
     if (schemaVersion >= 8) {
-        creatineChecks.map { it.toEntity(userId) }
+        creatineChecks.map { it.toEntity(userId) }.also { checks ->
+            require(checks.map { it.date }.distinct().size == checks.size) {
+                "Backup contains duplicate creatine check dates"
+            }
+        }
     } else {
         val creatineIds = supplements
             .filter { it.seedKey == LEGACY_CREATINE_SEED_KEY && it.unit == "G" }

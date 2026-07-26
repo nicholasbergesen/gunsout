@@ -267,6 +267,13 @@ fun SettingsScreen(
     var overrideProtein by remember(guidanceTargets.overrides) {
         mutableStateOf(guidanceTargets.overrides.proteinG?.toString() ?: "")
     }
+    val overrideKcalValue = overrideKcal.toIntOrNull()
+    val overrideProteinValue = overrideProtein.toIntOrNull()
+    val overrideKcalInvalid =
+        overrideKcal.isNotEmpty() && (overrideKcalValue == null || overrideKcalValue <= 0)
+    val overrideProteinInvalid =
+        overrideProtein.isNotEmpty() &&
+            (overrideProteinValue == null || overrideProteinValue <= 0)
 
     var confirmSignOut by remember { mutableStateOf(false) }
 
@@ -375,6 +382,12 @@ fun SettingsScreen(
                     value = overrideKcal,
                     onValueChange = { overrideKcal = it.filter(Char::isDigit) },
                     label = { Text("kcal") },
+                    isError = overrideKcalInvalid,
+                    supportingText = if (overrideKcalInvalid) {
+                        { Text("Enter a positive value") }
+                    } else {
+                        null
+                    },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f)
@@ -383,6 +396,12 @@ fun SettingsScreen(
                     value = overrideProtein,
                     onValueChange = { overrideProtein = it.filter(Char::isDigit) },
                     label = { Text("P g") },
+                    isError = overrideProteinInvalid,
+                    supportingText = if (overrideProteinInvalid) {
+                        { Text("Enter a positive value") }
+                    } else {
+                        null
+                    },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f)
@@ -393,12 +412,15 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall
             )
             WrappingRow {
-                Button(onClick = {
-                    vm.saveTargetOverrides(
-                        kcal = overrideKcal.toIntOrNull(),
-                        proteinG = overrideProtein.toIntOrNull()
-                    )
-                }) { Text("Save overrides", maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                Button(
+                    enabled = !overrideKcalInvalid && !overrideProteinInvalid,
+                    onClick = {
+                        vm.saveTargetOverrides(
+                            kcal = overrideKcalValue,
+                            proteinG = overrideProteinValue
+                        )
+                    }
+                ) { Text("Save overrides", maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 OutlinedButton(onClick = {
                     overrideKcal = ""
                     overrideProtein = ""

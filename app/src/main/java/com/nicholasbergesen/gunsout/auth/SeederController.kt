@@ -25,7 +25,7 @@ import javax.inject.Singleton
  * If sign-out brings the user back to null and then a different userId signs
  * in, that new userId triggers a fresh seeding pass.
  *
- * After seeding completes successfully, supplement reminders are armed for
+ * After seeding completes successfully, the creatine reminder is armed for
  * the user. This covers both initial sign-in and subsequent app launches
  * (where the seeder is a no-op because firstRunDone is set, but reminders
  * still need to be re-armed in case Android dropped pending alarms).
@@ -54,7 +54,7 @@ class SeederController @Inject constructor(
                     // (the per-user catalog already exists), but reminders must still be re-armed
                     // because the prior sign-out called reminderScheduler.cancelForUser(...) and
                     // tore down every PendingIntent for this user. Without this call the user
-                    // would silently lose all supplement reminders on every sign-out / sign-in
+                    // would silently lose the creatine reminder on every sign-out / sign-in
                     // cycle even though the contract is "re-arm after sign-in".
                     runCatching { reminderScheduler.armForUser(userId) }
                     _state.value = SeederState.Done(userId)

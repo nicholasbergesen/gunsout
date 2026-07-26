@@ -12,6 +12,8 @@ import com.nicholasbergesen.gunsout.MainActivity
 import com.nicholasbergesen.gunsout.auth.AuthSessionStore
 import com.nicholasbergesen.gunsout.data.dao.CreatineDao
 import com.nicholasbergesen.gunsout.data.entity.CreatineSettings
+import com.nicholasbergesen.gunsout.data.repo.CreatineReminderUpdater
+import com.nicholasbergesen.gunsout.domain.nutrition.CreatineReminderPolicy
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -29,8 +31,8 @@ import javax.inject.Singleton
 class CreatineReminderScheduler @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val creatineDao: CreatineDao
-) {
-    fun reschedule(settings: CreatineSettings) {
+) : CreatineReminderUpdater {
+    override fun reschedule(settings: CreatineSettings) {
         cancelForUser(settings.userId)
         val time = settings.reminderTime ?: return
         val now = ZonedDateTime.now(ZoneId.systemDefault())
@@ -113,10 +115,18 @@ class CreatineReminderReceiver : BroadcastReceiver() {
             try {
                 val intendedUserId =
                     intent.getStringExtra(CreatineReminderScheduler.EXTRA_USER_ID) ?: return@launch
-                if (authSessionStore.currentSignedInUserId.first() != intendedUserId) return@launch
-                if (creatineDao.getCheck(intendedUserId, LocalDate.now()) != null) return@launch
+                val currentUserId = authSessionStore.currentSignedInUserId.first()
+                val checkedToday =
+                    creatineDao.getCheck(intendedUserId, LocalDate.now()) != null
                 val settings = creatineDao.getSettings(intendedUserId) ?: return@launch
-                if (settings.reminderTime == null) return@launch
+                if (
+                    !CreatineReminderPolicy.shouldNotify(
+                        intendedUserId = intendedUserId,
+                        currentUserId = currentUserId,
+                        reminderEnabled = settings.reminderTime != null,
+                        checkedToday = checkedToday
+                    )
+                ) return@launch
 
                 scheduler.ensureChannel()
                 val openApp = Intent(context, MainActivity::class.java)

@@ -7,7 +7,6 @@ import com.nicholasbergesen.gunsout.data.entity.CreatineCheck
 import com.nicholasbergesen.gunsout.data.entity.CreatineSettings
 import com.nicholasbergesen.gunsout.data.entity.ProteinEntry
 import com.nicholasbergesen.gunsout.data.entity.ProteinTargetSnapshot
-import com.nicholasbergesen.gunsout.feature.creatine.CreatineReminderScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
@@ -100,7 +99,7 @@ class ProteinRepository @Inject constructor(
 @Singleton
 class CreatineRepository @Inject constructor(
     private val creatineDao: CreatineDao,
-    private val reminderScheduler: CreatineReminderScheduler
+    private val reminderUpdater: CreatineReminderUpdater
 ) {
     fun observeSettings(userId: String): Flow<CreatineSettings> =
         creatineDao.observeSettings(userId).map { it ?: CreatineSettings(userId) }
@@ -116,7 +115,7 @@ class CreatineRepository @Inject constructor(
         require(doseGrams > 0) { "creatine dose must be positive" }
         val settings = CreatineSettings(userId, doseGrams, reminderTime)
         creatineDao.upsertSettings(settings)
-        reminderScheduler.reschedule(settings)
+        reminderUpdater.reschedule(settings)
     }
 
     suspend fun setTaken(userId: String, date: LocalDate, taken: Boolean) {
@@ -135,4 +134,8 @@ class CreatineRepository @Inject constructor(
             )
         )
     }
+}
+
+fun interface CreatineReminderUpdater {
+    fun reschedule(settings: CreatineSettings)
 }
