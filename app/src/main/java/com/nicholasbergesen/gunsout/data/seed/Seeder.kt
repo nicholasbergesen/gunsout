@@ -1,20 +1,19 @@
 package com.nicholasbergesen.gunsout.data.seed
 
 import androidx.room.withTransaction
+import com.nicholasbergesen.gunsout.data.dao.CreatineDao
 import com.nicholasbergesen.gunsout.data.dao.ExerciseAlternateDao
 import com.nicholasbergesen.gunsout.data.dao.ExerciseDao
 import com.nicholasbergesen.gunsout.data.dao.ProgramDao
 import com.nicholasbergesen.gunsout.data.dao.ProgramDayDao
 import com.nicholasbergesen.gunsout.data.dao.ProgramExerciseDao
 import com.nicholasbergesen.gunsout.data.dao.SetEntryDao
-import com.nicholasbergesen.gunsout.data.dao.SupplementDao
 import com.nicholasbergesen.gunsout.data.entity.ExerciseAlternate
 import com.nicholasbergesen.gunsout.data.entity.Program
 import com.nicholasbergesen.gunsout.data.entity.ProgramDay
 import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
 import com.nicholasbergesen.gunsout.data.entity.Protocol
-import com.nicholasbergesen.gunsout.data.entity.Supplement
-import com.nicholasbergesen.gunsout.data.entity.SupplementUnit
+import com.nicholasbergesen.gunsout.data.entity.CreatineSettings
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import kotlinx.coroutines.flow.first
@@ -41,8 +40,8 @@ internal fun UserProfile.seederMaintenancePlan() =
     )
 
 /**
- * Seeds the database with default programs, exercises, alternates and supplements for a single
- * userId. All inserts stamp [userId] and all `getBySeedKey` lookups are scoped to [userId] so that
+ * Seeds the database with default programs, exercises, alternates and creatine settings for a
+ * single userId. All inserts stamp [userId] and all `getBySeedKey` lookups are scoped to [userId] so that
  * each user receives their own copy of the catalog (rubber-duck issue #3).
  *
  * The seeding sequence is wrapped in a single Room transaction so that a partial failure rolls
@@ -63,9 +62,9 @@ class Seeder @Inject constructor(
     private val setEntryDao: SetEntryDao,
     private val exerciseDao: ExerciseDao,
     private val alternateDao: ExerciseAlternateDao,
-    private val supplementDao: SupplementDao,
+    private val creatineDao: CreatineDao,
     private val userPrefs: UserPreferences,
-    private val reminderScheduler: com.nicholasbergesen.gunsout.feature.supplements.SupplementReminderScheduler
+    private val reminderScheduler: com.nicholasbergesen.gunsout.feature.creatine.CreatineReminderScheduler
 ) {
 
     suspend fun seedIfNeeded(userId: String) {
@@ -84,10 +83,9 @@ class Seeder @Inject constructor(
                 activateDefaultOnFirstRun = maintenancePlan.firstRun,
                 refreshExistingSeededProgram = maintenancePlan.needsDefaultProgramRefresh
             )
-            seedSupplements(userId)
+            seedCreatineSettings(userId)
         }
-        // Re-arm any supplement reminders saved in the DB (e.g. after install on a new device or
-        // after a backup-import). Boot is handled separately by SupplementBootReceiver.
+        // Re-arm the creatine reminder saved in the DB (e.g. after a backup import).
         rearmReminders(userId)
         val shouldMarkDefaultProgramRefresh =
             maintenancePlan.needsDefaultProgramRefresh && defaultProgramRefreshCompleted
@@ -115,7 +113,7 @@ class Seeder @Inject constructor(
     }
 
     private suspend fun rearmReminders(userId: String) {
-        supplementDao.allActiveOnce(userId).forEach { reminderScheduler.reschedule(it) }
+        reminderScheduler.armForUser(userId)
         reminderScheduler.ensureChannel()
     }
 
@@ -351,22 +349,8 @@ class Seeder @Inject constructor(
         return result
     }
 
-    private suspend fun seedSupplements(userId: String) {
-        val key = "creatine_mono"
-        if (supplementDao.getBySeedKey(userId, key) == null) {
-            supplementDao.insert(Supplement(
-                userId = userId,
-                name = "Creatine Monohydrate",
-                defaultDose = 5.0,
-                unit = SupplementUnit.G,
-                notes = "Daily dosing. Loading phase optional. Take with water or your smoothie.",
-                takeWith = "with water or smoothie",
-                reminderTime = null,
-                isActive = true,
-                isUserCreated = false,
-                seedKey = key
-            ))
-        }
+    private suspend fun seedCreatineSettings(userId: String) {
+        creatineDao.insertSettings(CreatineSettings(userId))
     }
 
     object SeededProgramRefresh {

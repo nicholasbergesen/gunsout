@@ -1,7 +1,7 @@
 package com.nicholasbergesen.gunsout.auth
 
 import com.nicholasbergesen.gunsout.data.seed.Seeder
-import com.nicholasbergesen.gunsout.feature.supplements.SupplementReminderScheduler
+import com.nicholasbergesen.gunsout.feature.creatine.CreatineReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,7 +33,7 @@ import javax.inject.Singleton
 @Singleton
 class SeederController @Inject constructor(
     private val seeder: Seeder,
-    private val reminderScheduler: SupplementReminderScheduler
+    private val reminderScheduler: CreatineReminderScheduler
 ) {
     private val _state = MutableStateFlow<SeederState>(SeederState.Idle)
     val state: StateFlow<SeederState> = _state.asStateFlow()
@@ -85,4 +85,3 @@ sealed interface SeederState {
     data class Done(val userId: String) : SeederState
     data class Failed(val userId: String, val message: String) : SeederState
 }
-

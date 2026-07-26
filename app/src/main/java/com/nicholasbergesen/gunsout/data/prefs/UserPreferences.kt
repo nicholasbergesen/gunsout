@@ -42,18 +42,16 @@ data class UserProfile(
     val seededMovementPatternBackfillVersion: Int = 0
 )
 
-/** Optional manual overrides for the daily macro target. Null means "use the suggestion". */
-data class MacroOverrides(
+/** Optional guidance overrides. Null means "use the independently computed suggestion". */
+data class TargetOverrides(
     val kcal: Int? = null,
-    val proteinG: Int? = null,
-    val carbsG: Int? = null,
-    val fatG: Int? = null
+    val proteinG: Int? = null
 ) {
-    fun isEmpty(): Boolean = kcal == null && proteinG == null && carbsG == null && fatG == null
+    fun isEmpty(): Boolean = kcal == null && proteinG == null
 }
 
 /**
- * Per-user profile and macro-override store backed by one DataStore file per signed-in Google
+ * Per-user profile and guidance-target store backed by one DataStore file per signed-in Google
  * account. File name = `user_prefs_<sha256(userId)>.preferences_pb` so distinct Google `sub`
  * claims can never collide on the same file, even if the source of `userId` ever changes from
  * the current numeric Google `sub`. The DataStore directory is excluded from Android Auto Backup
@@ -89,8 +87,6 @@ class UserPreferences @Inject constructor(
         val seededMovementPatternBackfillVersion = intPreferencesKey("seeded_movement_pattern_backfill_version")
         val overrideKcal = intPreferencesKey("override_kcal")
         val overrideProteinG = intPreferencesKey("override_protein_g")
-        val overrideCarbsG = intPreferencesKey("override_carbs_g")
-        val overrideFatG = intPreferencesKey("override_fat_g")
     }
 
     // Process-lifetime cache of one DataStore per userId. DataStore enforces single-instance per
@@ -112,8 +108,8 @@ class UserPreferences @Inject constructor(
     fun profile(userId: String): Flow<UserProfile> =
         storeFor(userId).data.map { it.toProfile() }
 
-    fun overrides(userId: String): Flow<MacroOverrides> =
-        storeFor(userId).data.map { it.toOverrides() }
+    fun targetOverrides(userId: String): Flow<TargetOverrides> =
+        storeFor(userId).data.map { it.toTargetOverrides() }
 
     suspend fun update(userId: String, transform: (UserProfile) -> UserProfile) {
         storeFor(userId).edit { p ->
@@ -137,19 +133,23 @@ class UserPreferences @Inject constructor(
         }
     }
 
-    suspend fun updateOverrides(userId: String, transform: (MacroOverrides) -> MacroOverrides) {
+    suspend fun updateTargetOverrides(
+        userId: String,
+        transform: (TargetOverrides) -> TargetOverrides
+    ) {
         storeFor(userId).edit { p ->
-            val next = transform(p.toOverrides())
+            val next = transform(p.toTargetOverrides())
+            require(next.kcal == null || next.kcal > 0) { "kcal override must be positive" }
+            require(next.proteinG == null || next.proteinG > 0) {
+                "protein override must be positive"
+            }
             next.kcal?.let { p[Keys.overrideKcal] = it } ?: p.remove(Keys.overrideKcal)
             next.proteinG?.let { p[Keys.overrideProteinG] = it } ?: p.remove(Keys.overrideProteinG)
-            next.carbsG?.let { p[Keys.overrideCarbsG] = it } ?: p.remove(Keys.overrideCarbsG)
-            next.fatG?.let { p[Keys.overrideFatG] = it } ?: p.remove(Keys.overrideFatG)
         }
     }
 
-    /** Clears every override; the daily target falls back to the suggestion. */
-    suspend fun resetOverrides(userId: String) {
-        updateOverrides(userId) { MacroOverrides() }
+    suspend fun resetTargetOverrides(userId: String) {
+        updateTargetOverrides(userId) { TargetOverrides() }
     }
 
     private fun Preferences.toProfile(): UserProfile = UserProfile(
@@ -173,11 +173,9 @@ class UserPreferences @Inject constructor(
         seededMovementPatternBackfillVersion = this[Keys.seededMovementPatternBackfillVersion] ?: 0
     )
 
-    private fun Preferences.toOverrides(): MacroOverrides = MacroOverrides(
+    private fun Preferences.toTargetOverrides(): TargetOverrides = TargetOverrides(
         kcal = this[Keys.overrideKcal],
-        proteinG = this[Keys.overrideProteinG],
-        carbsG = this[Keys.overrideCarbsG],
-        fatG = this[Keys.overrideFatG]
+        proteinG = this[Keys.overrideProteinG]
     )
 
     private fun sha256Hex(input: String): String {

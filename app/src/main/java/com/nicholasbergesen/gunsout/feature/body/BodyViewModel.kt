@@ -8,7 +8,7 @@ import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import com.nicholasbergesen.gunsout.data.repo.BodyRepository
 import com.nicholasbergesen.gunsout.domain.kcal.KcalTrendAnalyzer
-import com.nicholasbergesen.gunsout.domain.nutrition.MacroTargetCalculator
+import com.nicholasbergesen.gunsout.domain.nutrition.CalorieTargetCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
@@ -161,7 +161,8 @@ class BodyViewModel @Inject constructor(
     fun suggestKcalAdjustment() = viewModelScope.launch {
         val userId = currentUserIdProvider.requireUserId()
         val current = state.value
-        val effective = MacroTargetCalculator.effectiveTarget(current.profile, userPrefs.overrides(userId).first())
+        val overrides = userPrefs.targetOverrides(userId).first()
+        val effective = CalorieTargetCalculator.effective(current.profile, overrides.kcal)
         if (effective == null) {
             _kcalSuggestion.value = KcalTrendAnalyzer.Suggestion(
                 text = "Add your age, sex, height, current weight, and goal weight in Settings, or set a manual kcal override there, before asking for a suggestion.",
@@ -182,7 +183,7 @@ class BodyViewModel @Inject constructor(
         val suggestion = _kcalSuggestion.value ?: return@launch
         val newTarget = suggestion.newKcalTarget ?: return@launch
         val userId = currentUserIdProvider.requireUserId()
-        userPrefs.updateOverrides(userId) { it.copy(kcal = newTarget) }
+        userPrefs.updateTargetOverrides(userId) { it.copy(kcal = newTarget) }
         _kcalSuggestion.value = null
     }
 

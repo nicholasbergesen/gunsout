@@ -14,7 +14,7 @@ import com.nicholasbergesen.gunsout.auth.SeederController
 import com.nicholasbergesen.gunsout.auth.SeederState
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
-import com.nicholasbergesen.gunsout.feature.supplements.SupplementReminderScheduler
+import com.nicholasbergesen.gunsout.feature.creatine.CreatineReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,7 +28,7 @@ class AuthGateViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     val seederController: SeederController,
     private val userPreferences: UserPreferences,
-    private val reminderScheduler: SupplementReminderScheduler
+    private val reminderScheduler: CreatineReminderScheduler
 ) : ViewModel() {
     val signedInUser: StateFlow<AuthUser?> = authRepository.signedInUser
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)

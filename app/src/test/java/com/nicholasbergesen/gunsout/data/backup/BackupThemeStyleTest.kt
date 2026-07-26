@@ -37,7 +37,7 @@ class BackupThemeStyleTest {
     @Test fun backupJson_encodesSchemaVersionAndThemeStyle() {
         val encoded = json.encodeToString(emptyBackup(ThemeStyle.SOFT_PASTEL))
 
-        assertTrue(encoded.contains("\"schemaVersion\":7"))
+        assertTrue(encoded.contains("\"schemaVersion\":8"))
         assertTrue(encoded.contains("\"themeStyle\":\"SOFT_PASTEL\""))
         assertFalse(encoded.contains("\"themeMode\""))
     }
@@ -159,7 +159,7 @@ class BackupThemeStyleTest {
     }
 
     private fun emptyBackup(themeStyle: ThemeStyle) = GunsoutBackup(
-        schemaVersion = 7,
+        schemaVersion = 8,
         exportedAtIso = "2026-05-30T00:00:00Z",
         programs = emptyList(),
         programDays = emptyList(),

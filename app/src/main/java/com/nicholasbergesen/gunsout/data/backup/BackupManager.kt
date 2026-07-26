@@ -2,6 +2,7 @@ package com.nicholasbergesen.gunsout.data.backup
 
 import androidx.room.withTransaction
 import com.nicholasbergesen.gunsout.data.db.GunsoutDatabase
+import com.nicholasbergesen.gunsout.data.entity.CreatineSettings
 import com.nicholasbergesen.gunsout.data.prefs.ActivityLevel
 import com.nicholasbergesen.gunsout.data.prefs.GoalType
 import com.nicholasbergesen.gunsout.data.prefs.Sex
@@ -48,12 +49,11 @@ class BackupManager @Inject constructor(
         val sessions = db.workoutSessionDao().observeAll(userId).first().map { it.toBackup() }
         val setEntries = sessions.flatMap { db.setEntryDao().getForSession(it.id).map { it.toBackup() } }
 
-        val templates = db.mealTemplateDao().getAll(userId).map { it.toBackup() }
-
-        val foodEntries = db.foodEntryDao().getAll(userId).map { it.toBackup() }
-
-        val supplements = db.supplementDao().observeAll(userId).first().map { it.toBackup() }
-        val supplementLogs = db.supplementLogDao().getAll(userId).map { it.toBackup() }
+        val proteinEntries = db.proteinEntryDao().getAll(userId).map { it.toBackup() }
+        val targetSnapshots = db.proteinTargetSnapshotDao().getAll(userId).map { it.toBackup() }
+        val creatineSettings =
+            (db.creatineDao().getSettings(userId) ?: CreatineSettings(userId)).toBackup()
+        val creatineChecks = db.creatineDao().getAllChecks(userId).map { it.toBackup() }
 
         val bodyMetrics = db.bodyMetricsLogDao().observeAll(userId).first().map { it.toBackup() }
 
@@ -79,16 +79,14 @@ class BackupManager @Inject constructor(
             defaultProgramRefreshVersion = profile.defaultProgramRefreshVersion,
             seededMovementPatternBackfillVersion = profile.seededMovementPatternBackfillVersion
         )
-        val overrides = userPrefs.overrides(userId).first()
-        val overridesBackup = MacroOverridesBackup(
+        val overrides = userPrefs.targetOverrides(userId).first()
+        val overridesBackup = TargetOverridesBackup(
             kcal = overrides.kcal,
-            proteinG = overrides.proteinG,
-            carbsG = overrides.carbsG,
-            fatG = overrides.fatG
+            proteinG = overrides.proteinG
         )
 
         val backup = GunsoutBackup(
-            schemaVersion = 7,
+            schemaVersion = 8,
             exportedAtIso = LocalDateTime.now().toString(),
             programs = programs,
             programDays = days,
@@ -97,13 +95,17 @@ class BackupManager @Inject constructor(
             programExercises = programExercises,
             sessions = sessions,
             setEntries = setEntries,
-            mealTemplates = templates,
-            foodEntries = foodEntries,
-            supplements = supplements,
-            supplementLogs = supplementLogs,
+            mealTemplates = emptyList(),
+            foodEntries = emptyList(),
+            supplements = emptyList(),
+            supplementLogs = emptyList(),
             bodyMetricsLogs = bodyMetrics,
             userProfile = profileBackup,
-            macroOverrides = overridesBackup
+            proteinEntries = proteinEntries,
+            proteinTargetSnapshots = targetSnapshots,
+            creatineSettings = creatineSettings,
+            creatineChecks = creatineChecks,
+            targetOverrides = overridesBackup
         )
         json.encodeToString(GunsoutBackup.serializer(), backup)
     }
@@ -123,13 +125,14 @@ class BackupManager @Inject constructor(
      *
      * Accepts schemaVersion 1 (no userProfile), 2 (single-user profile, no macro overrides),
      * 3 (per-user profile fields plus macro overrides), 4 (themeStyle), 5 (water liters),
-     * 6 (strength profile setup and movement pattern), and 7 (retired program exercises).
+     * 6 (strength profile setup and movement pattern), 7 (retired program exercises), and
+     * 8 (protein-first nutrition and creatine-only tracking).
      */
     suspend fun importFromJson(userId: String, jsonText: String): ImportResult = withContext(Dispatchers.IO) {
         val parsed = runCatching { json.decodeFromString(GunsoutBackup.serializer(), jsonText) }
             .getOrElse { return@withContext ImportResult.Error(it.message ?: "Parse failed") }
 
-        if (parsed.schemaVersion !in 1..7) {
+        if (parsed.schemaVersion !in 1..8) {
             return@withContext ImportResult.Error("Unsupported backup schema v${parsed.schemaVersion}")
         }
 
@@ -142,11 +145,11 @@ class BackupManager @Inject constructor(
             for (sql in listOf(
                 "DELETE FROM set_entry WHERE userId = ?",
                 "DELETE FROM workout_session WHERE userId = ?",
-                "DELETE FROM supplement_log WHERE userId = ?",
-                "DELETE FROM supplement WHERE userId = ?",
+                "DELETE FROM creatine_check WHERE userId = ?",
+                "DELETE FROM creatine_settings WHERE userId = ?",
                 "DELETE FROM body_metrics_log WHERE userId = ?",
-                "DELETE FROM food_entry WHERE userId = ?",
-                "DELETE FROM meal_template WHERE userId = ?",
+                "DELETE FROM protein_target_snapshot WHERE userId = ?",
+                "DELETE FROM protein_entry WHERE userId = ?",
                 "DELETE FROM program_exercise WHERE userId = ?",
                 "DELETE FROM exercise_alternate WHERE userId = ?",
                 "DELETE FROM exercise WHERE userId = ?",
@@ -243,34 +246,15 @@ class BackupManager @Inject constructor(
                 db.setEntryDao().insert(entity)
             }
 
-            val mealTemplateIdMap = HashMap<Long, Long>(parsed.mealTemplates.size)
-            for (b in parsed.mealTemplates) {
-                val newId = db.mealTemplateDao().insert(b.toEntity(userId).copy(id = 0))
-                mealTemplateIdMap[b.id] = newId
+            parsed.proteinEntriesForImport(userId).forEach { entry ->
+                db.proteinEntryDao().insert(entry.copy(id = 0))
             }
-
-            for (b in parsed.foodEntries) {
-                // sourceTemplateId is nullable, null when the food entry was logged ad-hoc
-                // without picking a template. Preserve null, otherwise remap.
-                val tmplId = b.sourceTemplateId?.let { old ->
-                    mealTemplateIdMap[old]
-                        ?: error("Backup references unknown meal_template id $old from food_entry ${b.id}")
-                }
-                val entity = b.toEntity(userId).copy(id = 0, sourceTemplateId = tmplId)
-                db.foodEntryDao().insert(entity)
+            parsed.proteinTargetSnapshotsForImport(userId).forEach {
+                db.proteinTargetSnapshotDao().upsert(it)
             }
-
-            val supplementIdMap = HashMap<Long, Long>(parsed.supplements.size)
-            for (b in parsed.supplements) {
-                val newId = db.supplementDao().insert(b.toEntity(userId).copy(id = 0))
-                supplementIdMap[b.id] = newId
-            }
-
-            for (b in parsed.supplementLogs) {
-                val suppId = supplementIdMap[b.supplementId]
-                    ?: error("Backup references unknown supplement id ${b.supplementId} from supplement_log ${b.id}")
-                val entity = b.toEntity(userId).copy(id = 0, supplementId = suppId)
-                db.supplementLogDao().insert(entity)
+            db.creatineDao().upsertSettings(parsed.creatineSettingsForImport(userId))
+            parsed.creatineChecksForImport(userId).forEach {
+                db.creatineDao().insertCheck(it)
             }
 
             for (b in parsed.bodyMetricsLogs) {
@@ -289,16 +273,16 @@ class BackupManager @Inject constructor(
             it.withProfilelessImportSeedState(parsed)
         }
 
-        // Reset overrides first so an old v1/v2 import (with no macroOverrides field) clears any
+        // Reset overrides first so an old v1/v2 import (with no override field) clears any
         // stale overrides from the current user. Then apply imported overrides if present.
-        userPrefs.resetOverrides(userId)
-        parsed.macroOverrides?.let { o ->
-            userPrefs.updateOverrides(userId) {
-                com.nicholasbergesen.gunsout.data.prefs.MacroOverrides(
-                    kcal = o.kcal,
-                    proteinG = o.proteinG,
-                    carbsG = o.carbsG,
-                    fatG = o.fatG
+        userPrefs.resetTargetOverrides(userId)
+        (parsed.targetOverrides ?: parsed.macroOverrides?.let {
+            TargetOverridesBackup(kcal = it.kcal, proteinG = it.proteinG)
+        })?.let { overrides ->
+            userPrefs.updateTargetOverrides(userId) {
+                com.nicholasbergesen.gunsout.data.prefs.TargetOverrides(
+                    kcal = overrides.kcal?.takeIf { value -> value > 0 },
+                    proteinG = overrides.proteinG?.takeIf { value -> value > 0 }
                 )
             }
         }
@@ -319,8 +303,59 @@ sealed class ImportResult {
 internal fun GunsoutBackup.importRowCount(): Int =
     programs.size + programDays.size + exercises.size +
         programExercises.size + sessions.size + setEntries.size +
-        mealTemplates.size + foodEntries.size + supplements.size + supplementLogs.size +
-        bodyMetricsLogs.size
+        bodyMetricsLogs.size + retainedNutritionRowCount()
+
+private fun GunsoutBackup.retainedNutritionRowCount(): Int {
+    if (schemaVersion >= 8) {
+        return proteinEntries.size + proteinTargetSnapshots.size +
+            (if (creatineSettings == null) 0 else 1) + creatineChecks.size
+    }
+    val creatineIds = supplements
+        .filter { it.seedKey == LEGACY_CREATINE_SEED_KEY && it.unit == "G" }
+        .mapTo(mutableSetOf(), SupplementBackup::id)
+    return foodEntries.count { it.proteinG.isFinite() && it.proteinG > 0.0 } +
+        (if (creatineIds.isEmpty()) 0 else 1) +
+        supplementLogs.count { it.supplementId in creatineIds && it.unit == "G" }
+}
+
+internal fun GunsoutBackup.proteinEntriesForImport(userId: String) =
+    if (schemaVersion >= 8) {
+        proteinEntries.map { it.toEntity(userId) }
+    } else {
+        foodEntries.mapNotNull { it.toProteinEntry(userId) }
+    }
+
+internal fun GunsoutBackup.proteinTargetSnapshotsForImport(userId: String) =
+    if (schemaVersion >= 8) {
+        proteinTargetSnapshots.map { it.toEntity(userId) }
+    } else {
+        emptyList()
+    }
+
+internal fun GunsoutBackup.creatineSettingsForImport(userId: String): CreatineSettings {
+    if (schemaVersion >= 8) {
+        return creatineSettings?.toEntity(userId) ?: CreatineSettings(userId)
+    }
+    return supplements
+        .firstNotNullOfOrNull { it.toCreatineSettings(userId) }
+        ?: CreatineSettings(userId)
+}
+
+internal fun GunsoutBackup.creatineChecksForImport(userId: String) =
+    if (schemaVersion >= 8) {
+        creatineChecks.map { it.toEntity(userId) }
+    } else {
+        val creatineIds = supplements
+            .filter { it.seedKey == LEGACY_CREATINE_SEED_KEY && it.unit == "G" }
+            .mapTo(mutableSetOf(), SupplementBackup::id)
+        supplementLogs
+            .asSequence()
+            .filter { it.supplementId in creatineIds }
+            .mapNotNull { it.toCreatineCheck(userId) }
+            .sortedBy { it.takenAt }
+            .distinctBy { it.date }
+            .toList()
+    }
 
 internal suspend fun completeSuccessfulImportAfterSeedRefresh(
     userId: String,

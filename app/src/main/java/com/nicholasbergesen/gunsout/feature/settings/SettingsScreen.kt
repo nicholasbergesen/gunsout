@@ -50,14 +50,18 @@ import com.nicholasbergesen.gunsout.core.text.normalizeDecimalInput
 import com.nicholasbergesen.gunsout.core.text.toNormalizedDoubleOrNull
 import com.nicholasbergesen.gunsout.data.prefs.ActivityLevel
 import com.nicholasbergesen.gunsout.data.prefs.GoalType
-import com.nicholasbergesen.gunsout.data.prefs.MacroOverrides
+import com.nicholasbergesen.gunsout.data.prefs.TargetOverrides
 import com.nicholasbergesen.gunsout.data.prefs.Sex
 import com.nicholasbergesen.gunsout.data.prefs.TrainingExperience
 import com.nicholasbergesen.gunsout.data.prefs.UserPreferences
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import com.nicholasbergesen.gunsout.data.repo.WorkoutRepository
-import com.nicholasbergesen.gunsout.domain.nutrition.MacroTarget
-import com.nicholasbergesen.gunsout.domain.nutrition.MacroTargetCalculator
+import com.nicholasbergesen.gunsout.data.repo.ProteinRepository
+import com.nicholasbergesen.gunsout.domain.nutrition.CalorieTarget
+import com.nicholasbergesen.gunsout.domain.nutrition.CalorieTargetCalculator
+import com.nicholasbergesen.gunsout.domain.nutrition.ProteinTarget
+import com.nicholasbergesen.gunsout.domain.nutrition.ProteinTargetCalculator
+import com.nicholasbergesen.gunsout.domain.nutrition.TargetSource
 import com.nicholasbergesen.gunsout.ui.components.ChipButton
 import com.nicholasbergesen.gunsout.ui.components.MockupScreenColumn
 import com.nicholasbergesen.gunsout.ui.components.ScreenTitle
@@ -81,7 +85,16 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 import javax.inject.Inject
+
+data class GuidanceTargetsUiState(
+    val overrides: TargetOverrides = TargetOverrides(),
+    val suggestedKcal: Int? = null,
+    val suggestedProteinGrams: Int? = null,
+    val calorieTarget: CalorieTarget? = null,
+    val proteinTarget: ProteinTarget? = null
+)
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -89,9 +102,10 @@ class SettingsViewModel @Inject constructor(
     private val userPrefs: UserPreferences,
     private val backupManager: com.nicholasbergesen.gunsout.data.backup.BackupManager,
     private val workouts: WorkoutRepository,
+    private val proteinRepository: ProteinRepository,
     private val currentUserIdProvider: CurrentUserIdProvider,
     private val authRepository: AuthRepository,
-    private val reminderScheduler: com.nicholasbergesen.gunsout.feature.supplements.SupplementReminderScheduler
+    private val reminderScheduler: com.nicholasbergesen.gunsout.feature.creatine.CreatineReminderScheduler
 ) : ViewModel() {
     // Per-user prefs (Phase 3): every observed profile/overrides flow is bound to the current
     // signed-in userId via flatMapLatest, so a sign-in to a different Google account on the same
@@ -103,23 +117,29 @@ class SettingsViewModel @Inject constructor(
         .flatMapLatest { userPrefs.profile(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UserProfile())
 
-    val overrides: StateFlow<MacroOverrides> = userIdFlow
-        .flatMapLatest { userPrefs.overrides(it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MacroOverrides())
-
-    val target: StateFlow<MacroTarget?> = userIdFlow
+    val guidanceTargets: StateFlow<GuidanceTargetsUiState> = userIdFlow
         .flatMapLatest { userId ->
             kotlinx.coroutines.flow.combine(
                 userPrefs.profile(userId),
-                userPrefs.overrides(userId)
-            ) { p, o -> MacroTargetCalculator.effectiveTarget(p, o) }
+                userPrefs.targetOverrides(userId)
+            ) { profile, overrides ->
+                GuidanceTargetsUiState(
+                    overrides = overrides,
+                    suggestedKcal = CalorieTargetCalculator.suggest(profile),
+                    suggestedProteinGrams = ProteinTargetCalculator.suggest(profile),
+                    calorieTarget = CalorieTargetCalculator.effective(profile, overrides.kcal),
+                    proteinTarget = ProteinTargetCalculator.effective(
+                        profile,
+                        overrides.proteinG
+                    )
+                )
+            }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    val suggestion: StateFlow<com.nicholasbergesen.gunsout.domain.nutrition.MacroSuggestion?> = userIdFlow
-        .flatMapLatest { userPrefs.profile(it) }
-        .map { MacroTargetCalculator.suggest(it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            GuidanceTargetsUiState()
+        )
 
     val signedInUser: StateFlow<AuthUser?> = authRepository.signedInUser
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -185,21 +205,34 @@ class SettingsViewModel @Inject constructor(
                 baselineWeekActive = baselineWeek
             )
         }
+        syncTodayProteinTarget(userId)
     }
 
-    fun saveOverrides(kcal: Int?, proteinG: Int?, carbsG: Int?, fatG: Int?) = viewModelScope.launch {
+    fun saveTargetOverrides(kcal: Int?, proteinG: Int?) = viewModelScope.launch {
         val userId = currentUserIdProvider.requireUserId()
-        userPrefs.updateOverrides(userId) { MacroOverrides(kcal, proteinG, carbsG, fatG) }
+        userPrefs.updateTargetOverrides(userId) { TargetOverrides(kcal, proteinG) }
+        syncTodayProteinTarget(userId)
     }
 
-    fun resetOverrides() = viewModelScope.launch {
+    fun resetTargetOverrides() = viewModelScope.launch {
         val userId = currentUserIdProvider.requireUserId()
-        userPrefs.resetOverrides(userId)
+        userPrefs.resetTargetOverrides(userId)
+        syncTodayProteinTarget(userId)
     }
 
     fun saveThemeStyle(style: ThemeStyle) = viewModelScope.launch {
         val userId = currentUserIdProvider.requireUserId()
         userPrefs.update(userId) { it.copy(themeStyle = style) }
+    }
+
+    private suspend fun syncTodayProteinTarget(userId: String) {
+        val profile = userPrefs.profile(userId).first()
+        val overrides = userPrefs.targetOverrides(userId).first()
+        proteinRepository.syncTodayTarget(
+            userId = userId,
+            date = LocalDate.now(),
+            targetGrams = ProteinTargetCalculator.effective(profile, overrides.proteinG)?.grams
+        )
     }
 }
 
@@ -209,9 +242,7 @@ fun SettingsScreen(
     vm: SettingsViewModel = hiltViewModel()
 ) {
     val profile by vm.profile.collectAsState()
-    val overrides by vm.overrides.collectAsState()
-    val target by vm.target.collectAsState()
-    val suggestion by vm.suggestion.collectAsState()
+    val guidanceTargets by vm.guidanceTargets.collectAsState()
     val authUser by vm.signedInUser.collectAsState()
     val scroll = rememberScrollState()
 
@@ -230,10 +261,12 @@ fun SettingsScreen(
     var kneeInjury by remember(profile.kneeInjuryFlag) { mutableStateOf(profile.kneeInjuryFlag) }
     var baselineWeek by remember(profile.baselineWeekActive) { mutableStateOf(profile.baselineWeekActive) }
 
-    var overrideKcal by remember(overrides) { mutableStateOf(overrides.kcal?.toString() ?: "") }
-    var overrideProtein by remember(overrides) { mutableStateOf(overrides.proteinG?.toString() ?: "") }
-    var overrideCarbs by remember(overrides) { mutableStateOf(overrides.carbsG?.toString() ?: "") }
-    var overrideFat by remember(overrides) { mutableStateOf(overrides.fatG?.toString() ?: "") }
+    var overrideKcal by remember(guidanceTargets.overrides) {
+        mutableStateOf(guidanceTargets.overrides.kcal?.toString() ?: "")
+    }
+    var overrideProtein by remember(guidanceTargets.overrides) {
+        mutableStateOf(guidanceTargets.overrides.proteinG?.toString() ?: "")
+    }
 
     var confirmSignOut by remember { mutableStateOf(false) }
 
@@ -325,22 +358,18 @@ fun SettingsScreen(
         }
 
         ThemedCard(accent = true) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                SectionLabel("Daily targets")
-                StatusChip(if (target?.source == MacroTarget.Source.OVERRIDDEN) "Override" else "Suggested", selected = true)
-            }
-            if (suggestion == null) {
-                Text(
-                    "Fill in age, sex, height, current weight, and goal weight above to compute a suggested target. You can also set manual overrides below.",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            } else {
-                val s = suggestion!!
-                Text(
-                    "Suggested: ${s.kcal} kcal | ${s.proteinG}g P | ${s.carbsG}g C | ${s.fatG}g F",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+            SectionLabel("Guidance targets")
+            Text(
+                guidanceTargets.suggestedKcal?.let { "Suggested calorie guidance: $it kcal" }
+                    ?: "Complete age, sex, height, current weight, and goal weight for calorie guidance.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                guidanceTargets.suggestedProteinGrams?.let {
+                    "Suggested daily protein: $it g (2.0 g/kg goal weight)"
+                } ?: "Set a goal weight from 30 to 300 kg for a protein target.",
+                style = MaterialTheme.typography.bodySmall
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = overrideKcal,
@@ -358,52 +387,33 @@ fun SettingsScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f)
                 )
-                OutlinedTextField(
-                    value = overrideCarbs,
-                    onValueChange = { overrideCarbs = it.filter(Char::isDigit) },
-                    label = { Text("C g") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                    value = overrideFat,
-                    onValueChange = { overrideFat = it.filter(Char::isDigit) },
-                    label = { Text("F g") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f)
-                )
             }
             Text(
-                "Leave a field blank to fall back to the suggested value.",
+                "Leave either field blank to use its independent suggestion.",
                 style = MaterialTheme.typography.bodySmall
             )
             WrappingRow {
                 Button(onClick = {
-                    vm.saveOverrides(
+                    vm.saveTargetOverrides(
                         kcal = overrideKcal.toIntOrNull(),
-                        proteinG = overrideProtein.toIntOrNull(),
-                        carbsG = overrideCarbs.toIntOrNull(),
-                        fatG = overrideFat.toIntOrNull()
+                        proteinG = overrideProtein.toIntOrNull()
                     )
                 }) { Text("Save overrides", maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 OutlinedButton(onClick = {
                     overrideKcal = ""
                     overrideProtein = ""
-                    overrideCarbs = ""
-                    overrideFat = ""
-                    vm.resetOverrides()
+                    vm.resetTargetOverrides()
                 }) { Text("Reset to suggested", maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
-            target?.let { t ->
-                val caption = when (t.source) {
-                    MacroTarget.Source.SUGGESTED -> "Active target (suggested)"
-                    MacroTarget.Source.OVERRIDDEN -> "Active target (overridden)"
-                }
-                Text(caption, style = MaterialTheme.typography.bodySmall)
+            guidanceTargets.calorieTarget?.let {
                 Text(
-                    "${t.kcal} kcal | ${t.proteinG}g P | ${t.carbsG}g C | ${t.fatG}g F",
+                    "Active calorie guidance: ${it.kcal} kcal (${it.source.displayName()})",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            guidanceTargets.proteinTarget?.let {
+                Text(
+                    "Active protein target: ${it.grams} g (${it.source.displayName()})",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -493,6 +503,11 @@ fun SettingsScreen(
             dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } }
         )
     }
+}
+
+private fun TargetSource.displayName(): String = when (this) {
+    TargetSource.SUGGESTED -> "suggested"
+    TargetSource.OVERRIDDEN -> "overridden"
 }
 
 @Composable
@@ -730,7 +745,7 @@ private fun BackupRow(vm: SettingsViewModel) {
             title = { Text("Replace all data?") },
             text = {
                 Text(
-                    "Importing will permanently delete the current programs, meal plans, sessions, sets, food entries, supplements, body metrics and profile in this install, and replace them with the contents of the selected file. This cannot be undone."
+                    "Importing will permanently delete the current programs, sessions, sets, protein entries, creatine checks, body metrics, and profile in this install, and replace them with the contents of the selected file. This cannot be undone."
                 )
             },
             confirmButton = {

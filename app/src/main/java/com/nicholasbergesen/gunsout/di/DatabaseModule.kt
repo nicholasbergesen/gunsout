@@ -43,9 +43,9 @@ object DatabaseModule {
     @Provides fun provideProgramExerciseDao(db: GunsoutDatabase) = db.programExerciseDao()
     @Provides fun provideWorkoutSessionDao(db: GunsoutDatabase) = db.workoutSessionDao()
     @Provides fun provideSetEntryDao(db: GunsoutDatabase) = db.setEntryDao()
-    @Provides fun provideMealTemplateDao(db: GunsoutDatabase) = db.mealTemplateDao()
-    @Provides fun provideFoodEntryDao(db: GunsoutDatabase) = db.foodEntryDao()
-    @Provides fun provideSupplementDao(db: GunsoutDatabase) = db.supplementDao()
-    @Provides fun provideSupplementLogDao(db: GunsoutDatabase) = db.supplementLogDao()
+    @Provides fun provideProteinEntryDao(db: GunsoutDatabase) = db.proteinEntryDao()
+    @Provides fun provideProteinTargetSnapshotDao(db: GunsoutDatabase) =
+        db.proteinTargetSnapshotDao()
+    @Provides fun provideCreatineDao(db: GunsoutDatabase) = db.creatineDao()
     @Provides fun provideBodyMetricsLogDao(db: GunsoutDatabase) = db.bodyMetricsLogDao()
 }

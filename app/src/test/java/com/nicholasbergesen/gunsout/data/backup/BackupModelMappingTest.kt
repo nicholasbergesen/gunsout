@@ -2,13 +2,12 @@ package com.nicholasbergesen.gunsout.data.backup
 
 import com.nicholasbergesen.gunsout.data.entity.AlternateReason
 import com.nicholasbergesen.gunsout.data.entity.BodyMetricsLog
+import com.nicholasbergesen.gunsout.data.entity.CreatineCheck
+import com.nicholasbergesen.gunsout.data.entity.CreatineSettings
 import com.nicholasbergesen.gunsout.data.entity.DayHint
 import com.nicholasbergesen.gunsout.data.entity.Equipment
 import com.nicholasbergesen.gunsout.data.entity.Exercise
 import com.nicholasbergesen.gunsout.data.entity.ExerciseAlternate
-import com.nicholasbergesen.gunsout.data.entity.FoodEntry
-import com.nicholasbergesen.gunsout.data.entity.MealTemplate
-import com.nicholasbergesen.gunsout.data.entity.MealType
 import com.nicholasbergesen.gunsout.data.entity.MovementPattern
 import com.nicholasbergesen.gunsout.data.entity.MuscleGroup
 import com.nicholasbergesen.gunsout.data.entity.Program
@@ -16,11 +15,10 @@ import com.nicholasbergesen.gunsout.data.entity.ProgramDay
 import com.nicholasbergesen.gunsout.data.entity.ProgramExercise
 import com.nicholasbergesen.gunsout.data.entity.ProgramType
 import com.nicholasbergesen.gunsout.data.entity.Protocol
+import com.nicholasbergesen.gunsout.data.entity.ProteinEntry
+import com.nicholasbergesen.gunsout.data.entity.ProteinTargetSnapshot
 import com.nicholasbergesen.gunsout.data.entity.SessionStatus
 import com.nicholasbergesen.gunsout.data.entity.SetEntry
-import com.nicholasbergesen.gunsout.data.entity.Supplement
-import com.nicholasbergesen.gunsout.data.entity.SupplementLog
-import com.nicholasbergesen.gunsout.data.entity.SupplementUnit
 import com.nicholasbergesen.gunsout.data.entity.WorkoutSession
 import com.nicholasbergesen.gunsout.data.prefs.UserProfile
 import com.nicholasbergesen.gunsout.data.seed.SEEDED_MOVEMENT_PATTERN_BACKFILL_VERSION
@@ -28,6 +26,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -44,7 +43,7 @@ class BackupModelMappingTest {
         val createdAt = 1_776_000_000_000L
         val sessionStartedAt = LocalDateTime.of(2026, 6, 14, 6, 30)
         val sessionCompletedAt = LocalDateTime.of(2026, 6, 14, 7, 45)
-        val supplementTakenAt = LocalDateTime.of(2026, 6, 14, 8, 0)
+        val creatineTakenAt = LocalDateTime.of(2026, 6, 14, 8, 0)
         val foodDate = LocalDate.of(2026, 6, 14)
 
         val program = Program(
@@ -127,52 +126,29 @@ class BackupModelMappingTest {
             isWarmup = true,
             completedAt = sessionCompletedAt
         )
-        val template = MealTemplate(
+        val proteinEntry = ProteinEntry(
             id = 16,
             userId = sourceUser,
-            name = "Smoothie",
-            mealType = MealType.SMOOTHIE,
-            kcal = 500,
-            proteinG = 40.0,
-            carbsG = 50.0,
-            fatG = 10.0,
-            notes = "Post workout",
-            seedKey = "smoothie"
+            date = foodDate,
+            grams = 45,
+            label = "Rice bowl",
+            loggedAt = createdAt
         )
-        val food = FoodEntry(
-            id = 17,
+        val targetSnapshot = ProteinTargetSnapshot(
             userId = sourceUser,
             date = foodDate,
-            mealType = MealType.DINNER,
-            name = "Rice bowl",
-            kcal = 650,
-            proteinG = 45.0,
-            carbsG = 80.0,
-            fatG = 15.0,
-            sourceTemplateId = template.id,
-            createdAt = createdAt
+            targetGrams = 160
         )
-        val supplement = Supplement(
-            id = 18,
+        val creatineSettings = CreatineSettings(
             userId = sourceUser,
-            name = "Creatine",
-            defaultDose = 5.0,
-            unit = SupplementUnit.G,
-            notes = "Daily",
-            takeWith = "water",
-            reminderTime = LocalTime.of(9, 30),
-            isActive = true,
-            isUserCreated = false,
-            seedKey = "creatine_mono"
+            doseGrams = 5,
+            reminderTime = LocalTime.of(9, 30)
         )
-        val supplementLog = SupplementLog(
-            id = 19,
+        val creatineCheck = CreatineCheck(
             userId = sourceUser,
-            supplementId = supplement.id,
             date = foodDate,
-            doseTaken = 5.0,
-            unit = SupplementUnit.G,
-            takenAt = supplementTakenAt
+            doseGrams = 5,
+            takenAt = creatineTakenAt
         )
         val bodyLog = BodyMetricsLog(
             id = 20,
@@ -195,11 +171,74 @@ class BackupModelMappingTest {
         assertEquals(programExercise.copy(userId = targetUser), programExercise.toBackup().toEntity(targetUser))
         assertEquals(session.copy(userId = targetUser), session.toBackup().toEntity(targetUser))
         assertEquals(set.copy(userId = targetUser), set.toBackup().toEntity(targetUser))
-        assertEquals(template.copy(userId = targetUser), template.toBackup().toEntity(targetUser))
-        assertEquals(food.copy(userId = targetUser), food.toBackup().toEntity(targetUser))
-        assertEquals(supplement.copy(userId = targetUser), supplement.toBackup().toEntity(targetUser))
-        assertEquals(supplementLog.copy(userId = targetUser), supplementLog.toBackup().toEntity(targetUser))
+        assertEquals(
+            proteinEntry.copy(userId = targetUser),
+            proteinEntry.toBackup().toEntity(targetUser)
+        )
+        assertEquals(
+            targetSnapshot.copy(userId = targetUser),
+            targetSnapshot.toBackup().toEntity(targetUser)
+        )
+        assertEquals(
+            creatineSettings.copy(userId = targetUser),
+            creatineSettings.toBackup().toEntity(targetUser)
+        )
+        assertEquals(
+            creatineCheck.copy(userId = targetUser),
+            creatineCheck.toBackup().toEntity(targetUser)
+        )
         assertEquals(bodyLog.copy(userId = targetUser), bodyLog.toBackup().toEntity(targetUser))
+    }
+
+    @Test
+    fun `legacy food conversion keeps positive protein only and rounds to whole grams`() {
+        val legacy = FoodEntryBackup(
+            id = 7,
+            date = "2026-06-14",
+            mealType = "DINNER",
+            name = "  Rice bowl  ",
+            kcal = 650,
+            proteinG = 44.6,
+            carbsG = 80.0,
+            fatG = 15.0,
+            createdAt = 123L
+        )
+
+        val converted = legacy.toProteinEntry("target-user")!!
+
+        assertEquals(45, converted.grams)
+        assertEquals("Rice bowl", converted.label)
+        assertEquals(123L, converted.loggedAt)
+        assertNull(legacy.copy(proteinG = 0.0).toProteinEntry("target-user"))
+    }
+
+    @Test
+    fun `legacy supplement conversion accepts seeded creatine and rejects adjacent supplements`() {
+        val creatine = SupplementBackup(
+            id = 1,
+            name = "Creatine",
+            defaultDose = 4.6,
+            unit = "G",
+            reminderTime = "09:30",
+            isActive = true,
+            isUserCreated = false,
+            seedKey = LEGACY_CREATINE_SEED_KEY
+        )
+        val other = creatine.copy(id = 2, name = "Vitamin D", seedKey = "vitamin_d")
+        val log = SupplementLogBackup(
+            id = 3,
+            supplementId = creatine.id,
+            date = "2026-06-14",
+            doseTaken = 4.6,
+            unit = "G",
+            takenAt = "2026-06-14T09:31"
+        )
+
+        assertEquals(5, creatine.toCreatineSettings("target-user")!!.doseGrams)
+        assertEquals(LocalTime.of(9, 30), creatine.toCreatineSettings("target-user")!!.reminderTime)
+        assertNull(other.toCreatineSettings("target-user"))
+        assertEquals(5, log.toCreatineCheck("target-user")!!.doseGrams)
+        assertNull(log.copy(unit = "MG").toCreatineCheck("target-user"))
     }
 
     @Test fun `explicit default movement patterns from backfilled backups are preserved on import mapping`() {
