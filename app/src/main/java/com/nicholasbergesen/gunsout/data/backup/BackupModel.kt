@@ -221,7 +221,7 @@ fun SupplementBackup.toCreatineSettings(userId: String): CreatineSettings? {
     return CreatineSettings(
         userId = userId,
         doseGrams = dose,
-        reminderTime = reminderTime?.let(LocalTime::parse)
+        reminderTime = reminderTime?.takeIf { isActive }?.let(LocalTime::parse)
     )
 }
 

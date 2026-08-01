@@ -22,6 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import javax.inject.Inject
@@ -36,8 +37,7 @@ class CreatineReminderScheduler @Inject constructor(
         cancelForUser(settings.userId)
         val time = settings.reminderTime ?: return
         val now = ZonedDateTime.now(ZoneId.systemDefault())
-        var trigger = now.with(time)
-        if (!trigger.isAfter(now)) trigger = trigger.plusDays(1)
+        val trigger = nextCreatineReminder(now, time)
 
         val pendingIntent = PendingIntent.getBroadcast(
             context,
@@ -46,10 +46,9 @@ class CreatineReminderScheduler @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        alarmManager.setInexactRepeating(
+        alarmManager.set(
             AlarmManager.RTC_WAKEUP,
             trigger.toInstant().toEpochMilli(),
-            AlarmManager.INTERVAL_DAY,
             pendingIntent
         )
     }
@@ -116,17 +115,22 @@ class CreatineReminderReceiver : BroadcastReceiver() {
                 val intendedUserId =
                     intent.getStringExtra(CreatineReminderScheduler.EXTRA_USER_ID) ?: return@launch
                 val currentUserId = authSessionStore.currentSignedInUserId.first()
+                val settings = creatineDao.getSettings(intendedUserId) ?: return@launch
                 val checkedToday =
                     creatineDao.getCheck(intendedUserId, LocalDate.now()) != null
-                val settings = creatineDao.getSettings(intendedUserId) ?: return@launch
-                if (
-                    !CreatineReminderPolicy.shouldNotify(
-                        intendedUserId = intendedUserId,
-                        currentUserId = currentUserId,
-                        reminderEnabled = settings.reminderTime != null,
-                        checkedToday = checkedToday
-                    )
-                ) return@launch
+                val reminderEnabled = settings.reminderTime != null
+                val shouldNotify = CreatineReminderPolicy.shouldNotify(
+                    intendedUserId = intendedUserId,
+                    currentUserId = currentUserId,
+                    reminderEnabled = reminderEnabled,
+                    checkedToday = checkedToday
+                )
+
+                if (currentUserId == intendedUserId && reminderEnabled) {
+                    // This alarm is one-shot so each occurrence stays at local wall-clock time.
+                    scheduler.reschedule(settings)
+                }
+                if (!shouldNotify) return@launch
 
                 scheduler.ensureChannel()
                 val openApp = Intent(context, MainActivity::class.java)
@@ -162,12 +166,12 @@ class CreatineReminderReceiver : BroadcastReceiver() {
 }
 
 @AndroidEntryPoint
-class CreatineBootReceiver : BroadcastReceiver() {
+class CreatineReminderSystemReceiver : BroadcastReceiver() {
     @Inject lateinit var scheduler: CreatineReminderScheduler
     @Inject lateinit var authSessionStore: AuthSessionStore
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        if (intent.action !in SYSTEM_RESCHEDULE_ACTIONS) return
         val pendingResult = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
@@ -177,5 +181,26 @@ class CreatineBootReceiver : BroadcastReceiver() {
                 pendingResult.finish()
             }
         }
+    }
+
+    companion object {
+        private val SYSTEM_RESCHEDULE_ACTIONS = setOf(
+            Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_TIME_CHANGED,
+            Intent.ACTION_TIMEZONE_CHANGED
+        )
+    }
+}
+
+internal fun nextCreatineReminder(
+    now: ZonedDateTime,
+    reminderTime: LocalTime
+): ZonedDateTime {
+    val zone = now.zone
+    val today = now.toLocalDate().atTime(reminderTime).atZone(zone)
+    return if (today.isAfter(now)) {
+        today
+    } else {
+        now.toLocalDate().plusDays(1).atTime(reminderTime).atZone(zone)
     }
 }

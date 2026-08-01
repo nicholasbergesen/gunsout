@@ -46,6 +46,7 @@ class Migration7To8Test {
                     (id, userId, name, defaultDose, unit, notes, takeWith, reminderTime, isActive, isUserCreated, seedKey)
                 VALUES
                     (10, 'user', 'Creatine', 4.6, 'G', NULL, NULL, '09:30', 1, 0, 'creatine_mono'),
+                    (12, 'inactive-user', 'Creatine', 5, 'G', NULL, NULL, '07:15', 0, 0, 'creatine_mono'),
                     (11, 'user', 'Vitamin D', 1, 'CAPSULE', NULL, NULL, NULL, 1, 1, 'vitamin_d')
                 """.trimIndent()
             )
@@ -74,6 +75,12 @@ class Migration7To8Test {
         ) { statement ->
             assertEquals(5, statement.getInt(0))
             assertEquals("09:30", statement.getText(1))
+        }
+        migrated.assertSingleRow(
+            "SELECT doseGrams, reminderTime FROM creatine_settings WHERE userId = 'inactive-user'"
+        ) { statement ->
+            assertEquals(5, statement.getInt(0))
+            assertTrue(statement.isNull(1))
         }
         migrated.assertSingleRow(
             "SELECT doseGrams, takenAt FROM creatine_check WHERE userId = 'user'"

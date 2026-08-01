@@ -236,6 +236,11 @@ class BackupModelMappingTest {
 
         assertEquals(5, creatine.toCreatineSettings("target-user")!!.doseGrams)
         assertEquals(LocalTime.of(9, 30), creatine.toCreatineSettings("target-user")!!.reminderTime)
+        assertNull(
+            creatine.copy(isActive = false, reminderTime = "invalid")
+                .toCreatineSettings("target-user")!!
+                .reminderTime
+        )
         assertNull(other.toCreatineSettings("target-user"))
         assertEquals(5, log.toCreatineCheck("target-user")!!.doseGrams)
         assertNull(log.copy(unit = "MG").toCreatineCheck("target-user"))

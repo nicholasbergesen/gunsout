@@ -323,7 +323,7 @@ private fun GunsoutBackup.retainedNutritionRowCount(): Int {
 }
 
 internal fun GunsoutBackup.nutritionValidationError(): String? {
-    if (schemaVersion < 8) return null
+    if (schemaVersion < 8) return legacyNutritionValidationError()
     if (proteinEntries.any { it.grams <= 0 }) return "protein grams must be positive"
     if (proteinEntries.any { runCatching { java.time.LocalDate.parse(it.date) }.isFailure }) {
         return "protein entry date is invalid"
@@ -370,6 +370,54 @@ internal fun GunsoutBackup.nutritionValidationError(): String? {
     }
     if (overrides?.proteinG != null && overrides.proteinG <= 0) {
         return "protein override must be positive"
+    }
+    return null
+}
+
+private fun GunsoutBackup.legacyNutritionValidationError(): String? {
+    if (
+        foodEntries
+            .filter { it.proteinG.isFinite() && it.proteinG > 0.0 }
+            .any { runCatching { java.time.LocalDate.parse(it.date) }.isFailure }
+    ) {
+        return "legacy protein entry date is invalid"
+    }
+
+    val retainedCreatine = supplements.firstOrNull {
+        it.seedKey == LEGACY_CREATINE_SEED_KEY &&
+            it.unit == "G" &&
+            it.defaultDose.isFinite() &&
+            it.defaultDose > 0.0
+    }
+    if (
+        retainedCreatine?.let {
+            it.isActive &&
+                it.reminderTime != null &&
+                runCatching { java.time.LocalTime.parse(it.reminderTime) }.isFailure
+        } == true
+    ) {
+        return "legacy creatine reminder time is invalid"
+    }
+
+    val creatineIds = supplements
+        .filter { it.seedKey == LEGACY_CREATINE_SEED_KEY && it.unit == "G" }
+        .mapTo(mutableSetOf(), SupplementBackup::id)
+    if (
+        supplementLogs
+            .filter {
+                it.supplementId in creatineIds &&
+                    it.unit == "G" &&
+                    it.doseTaken.isFinite() &&
+                    it.doseTaken > 0.0
+            }
+            .any {
+                runCatching {
+                    java.time.LocalDate.parse(it.date)
+                    java.time.LocalDateTime.parse(it.takenAt)
+                }.isFailure
+            }
+    ) {
+        return "legacy creatine check date or time is invalid"
     }
     return null
 }

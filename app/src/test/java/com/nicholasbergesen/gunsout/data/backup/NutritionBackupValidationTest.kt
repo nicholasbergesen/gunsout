@@ -94,6 +94,101 @@ class NutritionBackupValidationTest {
         assertNull(legacy.nutritionValidationError())
     }
 
+    @Test
+    fun `legacy validation rejects malformed retained nutrition fields`() {
+        val creatine = legacyCreatine()
+        val malformedProtein = legacyBackup().copy(
+            foodEntries = listOf(legacyFood(date = "not-a-date", proteinG = 20.0))
+        )
+        val malformedReminder = legacyBackup().copy(
+            supplements = listOf(creatine.copy(reminderTime = "25:00"))
+        )
+        val malformedCheck = legacyBackup().copy(
+            supplements = listOf(creatine),
+            supplementLogs = listOf(
+                SupplementLogBackup(
+                    id = 2,
+                    supplementId = creatine.id,
+                    date = "not-a-date",
+                    doseTaken = 5.0,
+                    unit = "G",
+                    takenAt = "not-a-time"
+                )
+            )
+        )
+
+        assertEquals(
+            "legacy protein entry date is invalid",
+            malformedProtein.nutritionValidationError()
+        )
+        assertEquals(
+            "legacy creatine reminder time is invalid",
+            malformedReminder.nutritionValidationError()
+        )
+        assertEquals(
+            "legacy creatine check date or time is invalid",
+            malformedCheck.nutritionValidationError()
+        )
+    }
+
+    @Test
+    fun `legacy validation ignores malformed fields on discarded nutrition rows`() {
+        val inactiveCreatine = legacyCreatine().copy(
+            isActive = false,
+            reminderTime = "invalid"
+        )
+        val unrelatedSupplement = legacyCreatine().copy(
+            id = 2,
+            seedKey = "vitamin_d",
+            reminderTime = "invalid"
+        )
+        val backup = legacyBackup().copy(
+            foodEntries = listOf(legacyFood(date = "not-a-date", proteinG = 0.0)),
+            supplements = listOf(
+                inactiveCreatine,
+                unrelatedSupplement,
+                legacyCreatine().copy(id = 4, reminderTime = "invalid")
+            ),
+            supplementLogs = listOf(
+                SupplementLogBackup(
+                    id = 3,
+                    supplementId = unrelatedSupplement.id,
+                    date = "not-a-date",
+                    doseTaken = 1.0,
+                    unit = "G",
+                    takenAt = "not-a-time"
+                )
+            )
+        )
+
+        assertNull(backup.nutritionValidationError())
+    }
+
+    private fun legacyBackup() = emptyBackup(schemaVersion = 7)
+
+    private fun legacyFood(date: String, proteinG: Double) = FoodEntryBackup(
+        id = 1,
+        date = date,
+        mealType = "DINNER",
+        name = "Dinner",
+        kcal = 500,
+        proteinG = proteinG,
+        carbsG = 50.0,
+        fatG = 10.0,
+        createdAt = 1L
+    )
+
+    private fun legacyCreatine() = SupplementBackup(
+        id = 1,
+        name = "Creatine",
+        defaultDose = 5.0,
+        unit = "G",
+        reminderTime = "09:30",
+        isActive = true,
+        isUserCreated = false,
+        seedKey = LEGACY_CREATINE_SEED_KEY
+    )
+
     private fun emptyBackup(schemaVersion: Int = 8) = GunsoutBackup(
         schemaVersion = schemaVersion,
         exportedAtIso = "2026-07-26T00:00:00",

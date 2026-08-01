@@ -115,7 +115,7 @@ object Migrations {
                 WHEN defaultDose > 0 THEN MAX(1, CAST(ROUND(defaultDose) AS INTEGER))
                 ELSE 5
             END,
-            reminderTime
+            CASE WHEN isActive = 1 THEN reminderTime ELSE NULL END
         FROM supplement
         WHERE seedKey = 'creatine_mono' AND unit = 'G'
         """.trimIndent(),
