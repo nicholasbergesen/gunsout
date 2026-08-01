@@ -1,7 +1,7 @@
 package com.nicholasbergesen.gunsout.auth
 
 import com.nicholasbergesen.gunsout.data.seed.Seeder
-import com.nicholasbergesen.gunsout.feature.supplements.SupplementReminderScheduler
+import com.nicholasbergesen.gunsout.feature.creatine.CreatineReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,7 +25,7 @@ import javax.inject.Singleton
  * If sign-out brings the user back to null and then a different userId signs
  * in, that new userId triggers a fresh seeding pass.
  *
- * After seeding completes successfully, supplement reminders are armed for
+ * After seeding completes successfully, the creatine reminder is armed for
  * the user. This covers both initial sign-in and subsequent app launches
  * (where the seeder is a no-op because firstRunDone is set, but reminders
  * still need to be re-armed in case Android dropped pending alarms).
@@ -33,7 +33,7 @@ import javax.inject.Singleton
 @Singleton
 class SeederController @Inject constructor(
     private val seeder: Seeder,
-    private val reminderScheduler: SupplementReminderScheduler
+    private val reminderScheduler: CreatineReminderScheduler
 ) {
     private val _state = MutableStateFlow<SeederState>(SeederState.Idle)
     val state: StateFlow<SeederState> = _state.asStateFlow()
@@ -54,7 +54,7 @@ class SeederController @Inject constructor(
                     // (the per-user catalog already exists), but reminders must still be re-armed
                     // because the prior sign-out called reminderScheduler.cancelForUser(...) and
                     // tore down every PendingIntent for this user. Without this call the user
-                    // would silently lose all supplement reminders on every sign-out / sign-in
+                    // would silently lose the creatine reminder on every sign-out / sign-in
                     // cycle even though the contract is "re-arm after sign-in".
                     runCatching { reminderScheduler.armForUser(userId) }
                     _state.value = SeederState.Done(userId)
@@ -85,4 +85,3 @@ sealed interface SeederState {
     data class Done(val userId: String) : SeederState
     data class Failed(val userId: String, val message: String) : SeederState
 }
-

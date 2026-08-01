@@ -4,13 +4,11 @@ import androidx.room.TypeConverter
 import com.nicholasbergesen.gunsout.data.entity.AlternateReason
 import com.nicholasbergesen.gunsout.data.entity.DayHint
 import com.nicholasbergesen.gunsout.data.entity.Equipment
-import com.nicholasbergesen.gunsout.data.entity.MealType
 import com.nicholasbergesen.gunsout.data.entity.MuscleGroup
 import com.nicholasbergesen.gunsout.data.entity.MovementPattern
 import com.nicholasbergesen.gunsout.data.entity.ProgramType
 import com.nicholasbergesen.gunsout.data.entity.Protocol
 import com.nicholasbergesen.gunsout.data.entity.SessionStatus
-import com.nicholasbergesen.gunsout.data.entity.SupplementUnit
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -42,12 +40,6 @@ class Converters {
 
     @TypeConverter fun sessionStatusToString(v: SessionStatus?): String? = v?.name
     @TypeConverter fun stringToSessionStatus(v: String?): SessionStatus? = v?.let(SessionStatus::valueOf)
-
-    @TypeConverter fun mealTypeToString(v: MealType?): String? = v?.name
-    @TypeConverter fun stringToMealType(v: String?): MealType? = v?.let(MealType::valueOf)
-
-    @TypeConverter fun supplementUnitToString(v: SupplementUnit?): String? = v?.name
-    @TypeConverter fun stringToSupplementUnit(v: String?): SupplementUnit? = v?.let(SupplementUnit::valueOf)
 
     @TypeConverter fun programTypeToString(v: ProgramType?): String? = v?.name
     @TypeConverter fun stringToProgramType(v: String?): ProgramType? = v?.let(ProgramType::valueOf)

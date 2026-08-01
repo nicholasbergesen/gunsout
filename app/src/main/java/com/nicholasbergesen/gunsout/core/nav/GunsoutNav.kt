@@ -29,7 +29,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nicholasbergesen.gunsout.feature.body.BodyScreen
 import com.nicholasbergesen.gunsout.feature.body.InBodyScanScreen
-import com.nicholasbergesen.gunsout.feature.diet.DietScreen
+import com.nicholasbergesen.gunsout.feature.nutrition.NutritionScreen
 import com.nicholasbergesen.gunsout.feature.history.HistoryDetailScreen
 import com.nicholasbergesen.gunsout.feature.history.HistoryListScreen
 import com.nicholasbergesen.gunsout.feature.library.ExerciseEditScreen
@@ -45,7 +45,7 @@ private data class NavTab(val route: String, val label: String, val icon: ImageV
 private val tabs = listOf(
     NavTab(Routes.TODAY, "Today", Icons.Filled.Today),
     NavTab(Routes.PROGRAMS, "Programs", Icons.Filled.FitnessCenter),
-    NavTab(Routes.DIET, "Diet", Icons.Filled.Restaurant),
+    NavTab(Routes.NUTRITION, "Nutrition", Icons.Filled.Restaurant),
     NavTab(Routes.BODY, "Body", Icons.Filled.MonitorWeight),
     NavTab(Routes.SETTINGS, "Settings", Icons.Filled.Settings)
 )
@@ -133,8 +133,10 @@ fun GunsoutApp() {
                 HistoryDetailScreen(sessionId = id, onBack = { navController.popBackStack() })
             }
 
-            composable(Routes.DIET) {
-                DietScreen()
+            composable(Routes.NUTRITION) {
+                NutritionScreen(
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) }
+                )
             }
 
             composable(Routes.LIBRARY) {

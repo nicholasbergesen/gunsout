@@ -45,7 +45,7 @@ fun LoginScreen(vm: LoginViewModel = hiltViewModel()) {
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Sign in with Google to keep your training, diet, and body data private to your account on this device.",
+                    "Sign in with Google to keep your training, nutrition, and body data private to your account on this device.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center

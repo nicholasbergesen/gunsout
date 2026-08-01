@@ -116,7 +116,14 @@ android {
     }
 
     sourceSets {
-        getByName("androidTest").assets.directories.add("schemas")
+        // Robolectric's Instrumentation reads the app's merged debug assets.
+        getByName("debug").assets.directories.add("schemas")
+    }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
     }
 
     packaging {
@@ -169,7 +176,7 @@ val localJvmCoverageExclusions = listOf(
     "**/feature/**/*ViewModel*.*",
     "**/feature/**/AuthGate*.*",
     "**/feature/**/RestTimerService*.*",
-    "**/feature/supplements/SupplementReminder*.*",
+    "**/feature/creatine/CreatineReminder*.*",
     "**/data/backup/BackupManager*.*",
     "**/data/prefs/UserPreferences*.*",
     "**/data/seed/Seeder*.*",
@@ -306,7 +313,9 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.androidx.room.testing)
+    testImplementation(libs.androidx.sqlite.bundled)
     testImplementation(libs.mockwebserver)
+    testImplementation(libs.robolectric)
 
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)

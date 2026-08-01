@@ -42,18 +42,20 @@
         </service>
 
         <receiver
-            android:name=".feature.supplements.SupplementReminderReceiver"
+            android:name=".feature.creatine.CreatineReminderReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.nicholasbergesen.gunsout.SUPPLEMENT_REMINDER" />
+                <action android:name="com.nicholasbergesen.gunsout.CREATINE_REMINDER" />
             </intent-filter>
         </receiver>
 
         <receiver
-            android:name=".feature.supplements.SupplementBootReceiver"
+            android:name=".feature.creatine.CreatineReminderSystemReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
     </application>

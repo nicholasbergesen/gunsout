@@ -33,23 +33,24 @@ class MigrationsConsistencyTest {
     }
 
     @Test
-    fun `latest schema has v6 to v7 migration registered`() {
-        assertTrue(Migrations.allMigrations.any { it.startVersion == 6 && it.endVersion == 7 })
+    fun `latest schema has v7 to v8 migration registered`() {
+        assertTrue(Migrations.allMigrations.any { it.startVersion == 7 && it.endVersion == 8 })
     }
 
     @Test
-    fun `v7 retired program exercise schema default matches v6 to v7 migration`() {
+    fun `v8 schema contains protein and creatine tables without legacy nutrition tables`() {
         val schema = listOf(
-            File("schemas/com.nicholasbergesen.gunsout.data.db.GunsoutDatabase/7.json"),
-            File("app/schemas/com.nicholasbergesen.gunsout.data.db.GunsoutDatabase/7.json")
+            File("schemas/com.nicholasbergesen.gunsout.data.db.GunsoutDatabase/8.json"),
+            File("app/schemas/com.nicholasbergesen.gunsout.data.db.GunsoutDatabase/8.json")
         ).firstOrNull { it.exists() }
 
-        assertTrue("Could not find exported v7 Room schema", schema != null)
+        assertTrue("Could not find exported v8 Room schema", schema != null)
         val text = schema!!.readText()
-        assertTrue(
-            "v7 schema must include the same isRetired default as MIGRATION_6_7",
-            text.contains("\"columnName\": \"isRetired\"") &&
-                text.contains("\"defaultValue\": \"0\"")
-        )
+        assertTrue(text.contains("\"tableName\": \"protein_entry\""))
+        assertTrue(text.contains("\"tableName\": \"protein_target_snapshot\""))
+        assertTrue(text.contains("\"tableName\": \"creatine_settings\""))
+        assertTrue(text.contains("\"tableName\": \"creatine_check\""))
+        assertTrue(!text.contains("\"tableName\": \"food_entry\""))
+        assertTrue(!text.contains("\"tableName\": \"supplement\""))
     }
 }

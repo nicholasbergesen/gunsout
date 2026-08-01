@@ -1,7 +1,9 @@
 package com.nicholasbergesen.gunsout.data.db
 
 import androidx.room.migration.Migration
+import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.execSQL
 
 /**
  * Place future Room migrations here as the schema evolves once data preservation matters.
@@ -63,7 +65,104 @@ object Migrations {
         }
     }
 
-    val allMigrations: Array<Migration> = arrayOf(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+    private val migration7To8Statements = listOf(
+        """
+        CREATE TABLE IF NOT EXISTS protein_entry (
+            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+            userId TEXT NOT NULL,
+            date TEXT NOT NULL,
+            grams INTEGER NOT NULL,
+            label TEXT,
+            loggedAt INTEGER NOT NULL
+        )
+        """.trimIndent(),
+        """
+        CREATE INDEX IF NOT EXISTS index_protein_entry_userId_date
+        ON protein_entry (userId, date)
+        """.trimIndent(),
+        """
+        INSERT INTO protein_entry (id, userId, date, grams, label, loggedAt)
+        SELECT
+            id,
+            userId,
+            date,
+            MAX(1, CAST(ROUND(proteinG) AS INTEGER)),
+            NULLIF(TRIM(name), ''),
+            createdAt
+        FROM food_entry
+        WHERE proteinG > 0
+        """.trimIndent(),
+        """
+        CREATE TABLE IF NOT EXISTS protein_target_snapshot (
+            userId TEXT NOT NULL,
+            date TEXT NOT NULL,
+            targetGrams INTEGER NOT NULL,
+            PRIMARY KEY (userId, date)
+        )
+        """.trimIndent(),
+        """
+        CREATE TABLE IF NOT EXISTS creatine_settings (
+            userId TEXT NOT NULL PRIMARY KEY,
+            doseGrams INTEGER NOT NULL,
+            reminderTime TEXT
+        )
+        """.trimIndent(),
+        """
+        INSERT OR REPLACE INTO creatine_settings (userId, doseGrams, reminderTime)
+        SELECT
+            userId,
+            CASE
+                WHEN defaultDose > 0 THEN MAX(1, CAST(ROUND(defaultDose) AS INTEGER))
+                ELSE 5
+            END,
+            CASE WHEN isActive = 1 THEN reminderTime ELSE NULL END
+        FROM supplement
+        WHERE seedKey = 'creatine_mono' AND unit = 'G'
+        """.trimIndent(),
+        """
+        INSERT OR IGNORE INTO creatine_settings (userId, doseGrams, reminderTime)
+        SELECT DISTINCT userId, 5, NULL
+        FROM program
+        """.trimIndent(),
+        """
+        CREATE TABLE IF NOT EXISTS creatine_check (
+            userId TEXT NOT NULL,
+            date TEXT NOT NULL,
+            doseGrams INTEGER NOT NULL,
+            takenAt TEXT NOT NULL,
+            PRIMARY KEY (userId, date)
+        )
+        """.trimIndent(),
+        """
+        INSERT OR IGNORE INTO creatine_check (userId, date, doseGrams, takenAt)
+        SELECT
+            logs.userId,
+            logs.date,
+            MAX(1, CAST(ROUND(logs.doseTaken) AS INTEGER)),
+            logs.takenAt
+        FROM supplement_log AS logs
+        INNER JOIN supplement AS supplements ON supplements.id = logs.supplementId
+        WHERE supplements.seedKey = 'creatine_mono' AND logs.unit = 'G'
+        ORDER BY logs.takenAt ASC
+        """.trimIndent(),
+        "DROP TABLE supplement_log",
+        "DROP TABLE supplement",
+        "DROP TABLE food_entry",
+        "DROP TABLE meal_template"
+    )
+
+    private val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            migration7To8Statements.forEach(db::execSQL)
+        }
+
+        override fun migrate(connection: SQLiteConnection) {
+            migration7To8Statements.forEach(connection::execSQL)
+        }
+    }
+
+    val allMigrations: Array<Migration> =
+        arrayOf(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
 
     val destructiveFallbackFromVersions: IntArray = intArrayOf(1, 2, 3)
 }
